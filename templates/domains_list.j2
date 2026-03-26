@@ -1,0 +1,12 @@
+**{{ title }}**
+({{ raw.count }} domains detected)
+
+{% set lines = summary.split('\n') %}
+{% set preview = lines[:50] %}
+**Extrait ({{ preview | length }}/{{ raw.count }}) :**
+```
+{{ preview | join('\n') }}
+```
+{% if raw.count > 50 %}
+_… and {{ raw.count - 50 }} more domains — [full list]({{ url }})_
+{% endif %}

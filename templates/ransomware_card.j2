@@ -1,0 +1,20 @@
+**{{ title }}**
+
+- **Group:** {{ raw.group_name if raw else 'Unknown' }}
+{% if raw and raw.country %}- **Country:** {{ raw.country }} {% endif %}
+{% if raw and raw.activity and raw.activity != 'Not Found' %}- **Activity:** {{ raw.activity }}{% endif %}
+{% if raw and raw.discovered %}- **Discovered:** {{ raw.discovered | string | truncate(19, True, '') | replace('T', ' ') }}{% endif %}
+{% if raw and raw.published and raw.published != raw.discovered %}- **Published:** {{ raw.published | string | truncate(19, True, '') | replace('T', ' ') }}{% endif %}
+
+> {{ summary if summary else '_No description provided_' }}
+
+{% if url and url.strip() %}
+{% set full_url = url if url.startswith('http://') or url.startswith('https://') else 'https://' + url %}
+{% if '.onion' in url %}
+🧅 [Tor Link (Onion)]({{ full_url }})
+{% else %}
+🌐 [Source Link]({{ full_url }})
+{% endif %}
+{% else %}
+_No link available_
+{% endif %}

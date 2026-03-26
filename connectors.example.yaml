@@ -1,0 +1,59 @@
+connectors:
+  # --- TEAMS CONNECTORS ---
+  # Channel: CERT Alerts
+  - id: cassandra-cert
+    type: teams
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_CERT}
+      theme_color: "0078D7" # Blue
+      throttle_ms: 400
+      emojis: true
+      emoji_map:
+        "rss:FR-CERT Alertes": "🇫🇷"
+        "rss:FR-CERT Avis": "🇫🇷"
+        "rss:US-CERT CISA": "🇺🇸"
+
+  # Channel: Vendor & Microsoft
+  - id: cassandra-vendor
+    type: teams
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_VENDOR}
+      theme_color: "8E44AD" # Purple
+      throttle_ms: 400
+      emojis: true
+
+  # Channel: News & Tech
+  - id: cassandra-news
+    type: teams
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_NEWS}
+      theme_color: "D83B01" # Orange
+      throttle_ms: 400
+      emojis: true
+      batching: { enabled: true, max_items: 5, max_interval_seconds: 60 }
+
+  # Channel: Ransomware
+  - id: cassandra-ransomware
+    type: teams
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_RANSOMWARE}
+      theme_color: "107C10" # Green
+      throttle_ms: 500
+      emojis: true
+
+  # Channel: Malicious Domains
+  - id: cassandra-domains
+    type: teams
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_DOMAINS}
+      theme_color: "C0392B" # Red
+      throttle_ms: 500
+      emojis: true
+
+  # --- DISCORD CONNECTORS ---
+  - id: discord-alert
+    type: discord
+    params:
+      webhook_url: ${DISCORD_WEBHOOK_URL}
+      username: "CTI Bot"
+      avatar_url: "https://cdn-icons-png.flaticon.com/512/2092/2092663.png"
