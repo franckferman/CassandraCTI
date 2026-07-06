@@ -288,7 +288,16 @@ def doctor(kind: str = typer.Argument(..., help="connector|config"),
         if not match:
             raise typer.BadParameter("Connector not found")
 
-        t = build_transport(match.get("type"), match.get("params", {}))
+        from .util import expand_env
+
+        def _expand(x):
+            if isinstance(x, dict):
+                return {k: _expand(v) for k, v in x.items()}
+            if isinstance(x, list):
+                return [_expand(v) for v in x]
+            return expand_env(x) if isinstance(x, str) else x
+
+        t = build_transport(match.get("type"), _expand(match.get("params", {})))
 
         async def _t():
             try:
