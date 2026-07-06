@@ -1,0 +1,7 @@
+{# Telegram default template — emits Telegram-flavoured HTML (parse_mode=HTML).
+   The card title is added as <b>…</b> by the transport; this is the body.
+   Dynamic values are HTML-escaped with the `e` filter to stay parse-safe. #}
+{{ summary | e }}
+{% if url %}
+<a href="{{ url | e }}">🔗 Read more</a>
+{% endif %}

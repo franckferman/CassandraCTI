@@ -55,7 +55,7 @@ Originally built as a private internal tool, it is now open-source, designed to 
 | Capability | Details |
 |---|---|
 | **Modular sources** | RSS, Ransomware Live, Red Flag Domains — more coming |
-| **Modular transports** | Microsoft Teams, Discord — extensible |
+| **Modular transports** | Microsoft Teams, Discord, Telegram — extensible |
 | **Smart deduplication** | SHA1 event fingerprint + SQLite delivery tracking |
 | **Flexible routing** | Match by source prefix, tag, or regex |
 | **Jinja2 templates** | Full control over message formatting |
@@ -388,6 +388,32 @@ connectors:
 **Limits enforced automatically:**
 - Title: 256 characters (truncated)
 - Description: 4000 characters (truncated with notice)
+
+---
+
+### Telegram
+
+Sends messages to a chat/channel via the Bot API (`sendMessage`). Unlike Teams/Discord there is **no incoming-webhook URL** — you need a **bot token** and a **chat_id**.
+
+```yaml
+connectors:
+  - id: "telegram-soc"
+    type: "telegram"
+    params:
+      bot_token: ${TELEGRAM_BOT_TOKEN}
+      chat_id: ${TELEGRAM_CHAT_ID}     # "@publicchannel" or -100123456789 (private)
+      parse_mode: "HTML"               # default; auto-falls back to plain text on parse errors
+      throttle_ms: 1000
+      emojis: true
+```
+
+**Setup:**
+1. Create a bot with [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token.
+2. Add the bot to your channel/group **as an administrator**.
+3. Get the `chat_id`: use the public `@channelusername`, or send any message to the chat and read `result[].message.chat.id` from `https://api.telegram.org/bot<TOKEN>/getUpdates`.
+4. Test it live: `cassandra doctor connector --id telegram-soc`.
+
+Messages render as HTML (4096-char limit, auto-truncated). Assign `templates/telegram_default.j2` to Telegram routes — Discord/Teams Markdown templates won't render as rich text on Telegram.
 
 ---
 

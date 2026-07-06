@@ -4,10 +4,12 @@
 from __future__ import annotations
 from .teams import TeamsTransport
 from .discord import DiscordTransport
+from .telegram import TelegramTransport
 
 REGISTRY = {
     "teams": TeamsTransport,
     "discord": DiscordTransport,
+    "telegram": TelegramTransport,
 }
 
 

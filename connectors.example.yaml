@@ -57,3 +57,16 @@ connectors:
       webhook_url: ${DISCORD_WEBHOOK_URL}
       username: "CTI Bot"
       avatar_url: "https://cdn-icons-png.flaticon.com/512/2092/2092663.png"
+
+  # --- TELEGRAM CONNECTORS ---
+  # Bot token from @BotFather; add the bot as ADMIN of the target channel.
+  # chat_id: "@publicchannel" or a numeric id (e.g. -100123456789) for private.
+  - id: telegram-soc
+    type: telegram
+    params:
+      bot_token: ${TELEGRAM_BOT_TOKEN}
+      chat_id: ${TELEGRAM_CHAT_ID}
+      throttle_ms: 1000
+      emojis: true
+      # parse_mode: HTML            # default; falls back to plain text on parse errors
+      # disable_web_page_preview: true
