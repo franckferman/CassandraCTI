@@ -47,6 +47,7 @@ async def run_once(settings_path: str, connectors_path: str | None = None, only_
     lvl = os.environ.get("CTI_LOGLEVEL") or settings.logging.get("level", "INFO")
     logging.basicConfig(level=getattr(logging, lvl))
     log = logging.getLogger("cassandra-cti")
+    dry = os.environ.get("CTI_DRY_RUN") == "1"
 
     if settings.metrics.get('enabled') and not os.environ.get('CTI_METRICS_STARTED'):
         try:
@@ -55,16 +56,10 @@ async def run_once(settings_path: str, connectors_path: str | None = None, only_
         except Exception as e:
             log.warning(f"Metrics server error: {e}")
 
-    # Resolve DB path relative to config file if relative
-    db_path_str = settings.store.get("sqlite_path", ".cassandra_cti.db")
-    import pathlib
-    db_path = pathlib.Path(db_path_str)
-    if not db_path.is_absolute():
-        # Resolve relative to config file location
-        conf_dir = pathlib.Path(settings_path).parent
-        db_path = conf_dir / db_path
-
-    store = Store(str(db_path))
+    # Resolve DB path (relative paths anchored to the config file's directory)
+    from .util import resolve_db_path
+    db_path = resolve_db_path(settings.store.get("sqlite_path", ".cassandra_cti.db"), settings_path)
+    store = Store(db_path)
 
     ttl = int(settings.store.get("seen_ttl_days", 0) or 0)
     if ttl > 0:
@@ -196,9 +191,10 @@ async def run_once(settings_path: str, connectors_path: str | None = None, only_
                 try:
                     # Force the source name as the main card title
                     await tr.send(chunk, title=smart_title, template_text=tpl_text)
-                    for ev in chunk:
-                        store.mark_delivery(make_event_id(ev.source, ev.url, ev.title), tid, 'ok')
-                    MET_EVENTS.labels(route=rname).inc(len(chunk))
+                    if not dry:
+                        for ev in chunk:
+                            store.mark_delivery(make_event_id(ev.source, ev.url, ev.title), tid, 'ok')
+                        MET_EVENTS.labels(route=rname).inc(len(chunk))
                     sent_total += len(chunk)
                 except ValueError as e:
                     log.error(f"Configuration Error for {tid}: {e}")

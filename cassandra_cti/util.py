@@ -34,3 +34,17 @@ def make_event_id(source: str, url: str | None, title: str) -> str:
     # Use title as fallback if url is missing
     base = f"{source}|{canon(url)}" if url else f"{source}|{(title or '').strip()}"
     return hashlib.sha1(base.encode('utf-8'), usedforsecurity=False).hexdigest()
+
+
+def resolve_db_path(sqlite_path: str | None, config_path: str | None) -> str:
+    """Resolve the SQLite store path.
+
+    When ``sqlite_path`` is relative it is anchored to the directory of the
+    config file, so every command (run, backfill, seen-clear, db-reset) targets
+    the exact same database regardless of the current working directory.
+    """
+    import pathlib
+    p = pathlib.Path(sqlite_path or ".cassandra_cti.db")
+    if not p.is_absolute() and config_path:
+        p = pathlib.Path(config_path).parent / p
+    return str(p)

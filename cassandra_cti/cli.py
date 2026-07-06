@@ -350,9 +350,11 @@ def backfill(to: str = typer.Option(..., help="transport id"),
              config: Path = typer.Option(None), connectors: Path = typer.Option(None)):
 
     base = default_dir()
-    settings = load_settings(str(config or (base / "config.yaml")), str(connectors or (base / "connectors.yaml")))
+    cfg_path = str(config or (base / "config.yaml"))
+    settings = load_settings(cfg_path, str(connectors or (base / "connectors.yaml")))
 
-    store = Store(settings.store.get("sqlite_path", ".cassandra_cti.db"))
+    from .util import resolve_db_path
+    store = Store(resolve_db_path(settings.store.get("sqlite_path", ".cassandra_cti.db"), cfg_path))
     rows = store.unsent_since(to, since)
 
     if not rows:
@@ -389,12 +391,10 @@ def backfill(to: str = typer.Option(..., help="transport id"),
 def db_reset(config: Path = typer.Option(None), force: bool = typer.Option(False, "--force", "-f", help="Force deletion without confirmation")):
     """Delete the SQLite database file to reset state"""
     base = default_dir()
-    settings = load_settings(str(config or (base / "config.yaml")))
-    db_path = Path(settings.store.get("sqlite_path", ".cassandra_cti.db"))
-
-    # Resolve absolute path if it's relative
-    if not db_path.is_absolute():
-        db_path = base / db_path
+    cfg_path = str(config or (base / "config.yaml"))
+    settings = load_settings(cfg_path)
+    from .util import resolve_db_path
+    db_path = Path(resolve_db_path(settings.store.get("sqlite_path", ".cassandra_cti.db"), cfg_path))
 
     if not db_path.exists():
         typer.echo(f"Database file not found at: {db_path}")
@@ -429,8 +429,10 @@ def seen_clear(source_prefix: Optional[str] = typer.Option(None), before: Option
                since: Optional[str] = typer.Option(None, help="Clear items seen AFTER this date"),
                config: Path = typer.Option(None)):
     base = default_dir()
-    settings = load_settings(str(config or (base / "config.yaml")))
-    store = Store(settings.store.get("sqlite_path", ".cassandra_cti.db"))
+    cfg_path = str(config or (base / "config.yaml"))
+    settings = load_settings(cfg_path)
+    from .util import resolve_db_path
+    store = Store(resolve_db_path(settings.store.get("sqlite_path", ".cassandra_cti.db"), cfg_path))
     store.clear_seen(source_prefix, before, since)
     typer.echo("Seen cleared")
 
