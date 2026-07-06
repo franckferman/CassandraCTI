@@ -2,11 +2,29 @@
 # Copyright (C) 2025 Franck Ferman
 # sources/rss.py
 from __future__ import annotations
+import logging
+import socket
+from datetime import datetime, timezone
+from typing import Any, Dict, List
+
 import aiohttp
 import feedparser
-from typing import List, Dict, Any
-from datetime import datetime, timezone
+from bs4 import BeautifulSoup
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from ..models import Event
+
+log = logging.getLogger("cassandra-cti.rss")
+
+_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+       "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+MAX_ENTRIES = 200
+
+
+def clean_html(html_txt) -> str:
+    if not html_txt:
+        return ""
+    return BeautifulSoup(html_txt, "html.parser").get_text(separator=" ", strip=True)
 
 
 class RSS:
@@ -16,61 +34,62 @@ class RSS:
         self.tags = tags or []
         self.source = f"rss:{name}"
 
-    async def fetch(self) -> List[Event]:
-        # Using ssl=False to bypass proxy certificate issues
-        # Increased timeout to 60s for WSL/slow networks
-        # Force IPv4 to avoid WSL IPv6 issues
-        import socket
+    @retry(stop=stop_after_attempt(3),
+           wait=wait_exponential(multiplier=1, min=1, max=10),
+           reraise=True)
+    async def _download(self) -> bytes:
+        # Force IPv4 + ssl=False to survive WSL/proxy quirks (project convention).
         connector = aiohttp.TCPConnector(family=socket.AF_INET, ssl=False)
-        async with aiohttp.ClientSession(connector=connector, timeout=aiohttp.ClientTimeout(total=60)) as s:
-            # Use standard Browser UA to avoid blocking
-            ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            async with s.get(self.url, headers={"User-Agent": ua}) as r:
-                data = await r.read()
+        async with aiohttp.ClientSession(
+            connector=connector, timeout=aiohttp.ClientTimeout(total=60)
+        ) as s:
+            async with s.get(self.url, headers={"User-Agent": _UA}) as r:
+                if r.status >= 400:
+                    raise RuntimeError(f"HTTP {r.status} fetching {self.url}")
+                return await r.read()
+
+    def _entry_to_event(self, e) -> Event:
+        title = getattr(e, "title", "(no title)")
+        link = getattr(e, "link", None)
+        summary = getattr(e, "summary", "")
+        if not summary:
+            content = getattr(e, "content", [])
+            if content:
+                summary = content[0].value
+        if not summary:
+            summary = getattr(e, "description", "")
+        summary = clean_html(summary)
+
+        dt = None
+        for attr in ("published_parsed", "updated_parsed"):
+            t = getattr(e, attr, None)
+            if t:
+                try:
+                    dt = datetime(*t[:6], tzinfo=timezone.utc)
+                    break
+                except (TypeError, ValueError):
+                    pass
+
+        return Event(source=self.source, title=title, url=link, summary=summary,
+                     published_at=dt, tags=self.tags, raw=dict(e))
+
+    async def fetch(self) -> List[Event]:
+        # A hard failure (HTTP >=400, network) propagates so the pipeline counts
+        # it as a fetch error; other feeds are unaffected (one source per feed).
+        data = await self._download()
 
         feed = feedparser.parse(data)
+        if getattr(feed, "bozo", 0) and not feed.entries:
+            log.warning("feed %s malformed, no entries: %r",
+                        self.source, getattr(feed, "bozo_exception", None))
+            return []
+
         out: List[Event] = []
-
-        from bs4 import BeautifulSoup
-
-        def clean_html(html_txt):
-            if not html_txt:
-                return ""
-            soup = BeautifulSoup(html_txt, "html.parser")
-            return soup.get_text(separator=" ", strip=True)
-
-        for e in feed.entries:
-            title = getattr(e, "title", "(no title)")
-            link = getattr(e, "link", None)
-            summary = getattr(e, "summary", "")
-            if not summary:
-                content = getattr(e, "content", [])
-                if content:
-                    summary = content[0].value
-            if not summary:
-                summary = getattr(e, "description", "")
-
-            summary = clean_html(summary)
-
-            dt = None
-            for attr in ("published_parsed", "updated_parsed"):
-                t = getattr(e, attr, None)
-                if t:
-                    try:
-                        dt = datetime(*t[:6], tzinfo=timezone.utc)
-                        break
-                    except Exception:
-                        pass
-
-            out.append(Event(
-                source=self.source,
-                title=title,
-                url=link,
-                summary=summary,
-                published_at=dt,
-                tags=self.tags,
-                raw=dict(e)
-            ))
+        for e in feed.entries[:MAX_ENTRIES]:
+            try:
+                out.append(self._entry_to_event(e))
+            except Exception as ex:  # one bad entry must not drop the whole feed
+                log.debug("skipping bad entry in %s: %r", self.source, ex)
         return out
 
 
