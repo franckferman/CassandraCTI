@@ -67,6 +67,12 @@ sources:
     enabled: false
     api_key: ${RANSOMWARE_API_KEY}
     # country: US                      # optional ISO-2 filter
+  ransomware_8k:                       # PRO-only: SEC 8-K cyber-incident filings
+    enabled: false
+    api_key: ${RANSOMWARE_API_KEY}
+  ransomware_stats:                    # PRO-only: one daily tracker digest
+    enabled: false
+    api_key: ${RANSOMWARE_API_KEY}
   red_flag_domains:
     enabled: true
 

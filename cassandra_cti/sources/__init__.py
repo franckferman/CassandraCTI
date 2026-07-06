@@ -6,6 +6,8 @@ from typing import Dict, Any
 from .rss import build_rss_sources
 from .ransomware_live import RansomwareLive
 from .ransomware_press import RansomwarePress
+from .ransomware_8k import Ransomware8K
+from .ransomware_stats import RansomwareStats
 from .redflag import RedFlagDomains
 
 
@@ -26,6 +28,10 @@ async def build_sources(cfg: Dict[str, Any]):
     if scfg.get("ransomware_press", {}).get("enabled"):
         p_cfg = scfg["ransomware_press"]
         out.append(RansomwarePress(api_key=p_cfg.get("api_key"), country=p_cfg.get("country")))
+    if scfg.get("ransomware_8k", {}).get("enabled"):
+        out.append(Ransomware8K(api_key=scfg["ransomware_8k"].get("api_key")))
+    if scfg.get("ransomware_stats", {}).get("enabled"):
+        out.append(RansomwareStats(api_key=scfg["ransomware_stats"].get("api_key")))
     if scfg.get("red_flag_domains", {}).get("enabled"):
         rf_cfg = scfg["red_flag_domains"]
         out.append(RedFlagDomains(
