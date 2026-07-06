@@ -413,7 +413,7 @@ connectors:
 3. Get the `chat_id`: use the public `@channelusername`, or send any message to the chat and read `result[].message.chat.id` from `https://api.telegram.org/bot<TOKEN>/getUpdates`.
 4. Test it live: `cassandra doctor connector --id telegram-soc`.
 
-Messages render as HTML (4096-char limit, auto-truncated). Assign `templates/telegram_default.j2` to Telegram routes — Discord/Teams Markdown templates won't render as rich text on Telegram.
+Messages render as HTML (4096-char limit, auto-truncated). Assign `templates/telegram_default.j2` to Telegram routes — Discord/Teams Markdown templates won't render as rich text on Telegram. For `ransomware.live` routes use `templates/telegram_ransomware.j2`, a structured HTML card that reads the raw fields (group / country / sector / victim / date) and skips empty ones.
 
 ---
 
