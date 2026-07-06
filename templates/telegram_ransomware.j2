@@ -7,5 +7,7 @@
 {% endif %}{% if raw.activity and raw.activity not in NA %}🏭 <b>Sector:</b> {{ raw.activity | e }}
 {% endif %}{% if raw.website and raw.website not in NA and '.onion' not in raw.website %}🌐 <b>Victim:</b> {{ raw.website | e }}
 {% endif %}{% if raw.discovered %}🕓 <b>Discovered:</b> {{ raw.discovered | string | truncate(19, true, '') | replace('T', ' ') | e }} UTC
+{% endif %}{% if raw.infostealer %}🕵️ <b>Infostealer data available</b>
+{% endif %}{% if raw.data_size %}💾 <b>Data size:</b> {{ raw.data_size | e }}
 {% endif %}{% if url %}
 🧅 <a href="{{ url | e }}">Leak / source link</a>{% endif %}

@@ -18,6 +18,9 @@ async def build_sources(cfg: Dict[str, Any]):
         out.append(RansomwareLive(
             url=rl_cfg.get("url", "https://data.ransomware.live/posts.json"),
             lookback_days=int(rl_cfg.get("lookback_days", 30)),
+            api_key=rl_cfg.get("api_key"),
+            pro_base=rl_cfg.get("pro_base", "https://api-pro.ransomware.live"),
+            v2_base=rl_cfg.get("v2_base", "https://api.ransomware.live/v2"),
         ))
     if scfg.get("red_flag_domains", {}).get("enabled"):
         rf_cfg = scfg["red_flag_domains"]
