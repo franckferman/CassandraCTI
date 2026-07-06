@@ -1,7 +1,7 @@
 # config_schema.py
 from __future__ import annotations
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
 class Feed(BaseModel):
@@ -15,13 +15,22 @@ class RSSCfg(BaseModel):
     feeds: List[Feed] = Field(default_factory=list)
 
 
+class Route(BaseModel):
+    name: str
+    include_sources: Optional[List[str]] = None
+    include_tags: Optional[List[str]] = None
+    include_regex: Optional[str] = None
+    transports: List[str] = Field(default_factory=list)
+    template: Optional[str] = None
+
+
 class SettingsModel(BaseModel):
     schema_version: int = 1
     scheduler: Dict[str, Any] = Field(default_factory=dict)
     sources: Dict[str, Any] = Field(default_factory=dict)
     filters: Dict[str, Any] = Field(default_factory=dict)
     transports: Dict[str, Any] = Field(default_factory=dict)
-    routes: List[Dict[str, Any]] = Field(default_factory=list)
+    routes: List[Route] = Field(default_factory=list)
     store: Dict[str, Any] = Field(default_factory=dict)
     logging: Dict[str, Any] = Field(default_factory=dict)
     metrics: Dict[str, Any] = Field(default_factory=dict)
