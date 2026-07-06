@@ -31,6 +31,15 @@ def test_render_truncates_to_telegram_limit():
     assert len(tr._render([ev])) <= 4096
 
 
+def test_render_strips_markdown_escape_backslashes():
+    tr = _t(emojis=False)
+    ev = Event(source="rss:X", title="t", summary=r"\[Mise a jour\] correctif \[1\]")
+    text = tr._render([ev])
+    assert "\\[" not in text and "\\]" not in text
+    assert "[Mise a jour]" in text
+    assert "[1]" in text
+
+
 def test_dry_run_prints_and_skips_network(capsys, monkeypatch):
     monkeypatch.setenv("CTI_DRY_RUN", "1")
     tr = _t()

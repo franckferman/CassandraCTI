@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import html
 import os
+import re
 import socket
 import aiohttp
 from tenacity import (
@@ -14,6 +15,15 @@ from ..models import Event
 from ..emoji import emoji_for
 
 TELEGRAM_LIMIT = 4096
+
+# Feeds like CERT-FR ship Markdown with escaped brackets ("\[", "\]"); those
+# backslashes render literally under Telegram's HTML parse_mode. Strip the
+# Markdown escape backslashes so the text reads cleanly.
+_MD_ESCAPE = re.compile(r'\\([\\`*_{}\[\]()#+.!>~=|-])')
+
+
+def _demarkdown(s):
+    return _MD_ESCAPE.sub(r'\1', s or "")
 
 
 class TelegramParseError(Exception):
@@ -68,10 +78,10 @@ class TelegramTransport:
             body = Template(template_text).render(
                 title=ev0.title, events=events,
                 emoji=emoji_for(ev0, self.emoji_map),
-                source=ev0.source, summary=ev0.summary,
+                source=ev0.source, summary=_demarkdown(ev0.summary),
                 url=ev0.url or '', raw=ev0.raw)
         elif len(events) == 1:
-            parts = [html.escape(ev0.summary or "")]
+            parts = [html.escape(_demarkdown(ev0.summary))]
             if ev0.url:
                 safe_url = html.escape(ev0.url, quote=True)
                 parts.append(f'<a href="{safe_url}">{html.escape(ev0.url)}</a>')
