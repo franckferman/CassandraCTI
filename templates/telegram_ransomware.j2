@@ -6,6 +6,6 @@
 {% if raw.country and raw.country not in NA %}🌍 <b>Country:</b> {{ raw.country | e }}
 {% endif %}{% if raw.activity and raw.activity not in NA %}🏭 <b>Sector:</b> {{ raw.activity | e }}
 {% endif %}{% if raw.website and raw.website not in NA and '.onion' not in raw.website %}🌐 <b>Victim:</b> {{ raw.website | e }}
-{% endif %}{% if raw.discovered %}🕓 <b>Discovered:</b> {{ raw.discovered | string | truncate(19, true, '') | replace('T', ' ') | e }}
+{% endif %}{% if raw.discovered %}🕓 <b>Discovered:</b> {{ raw.discovered | string | truncate(19, true, '') | replace('T', ' ') | e }} UTC
 {% endif %}{% if url %}
 🧅 <a href="{{ url | e }}">Leak / source link</a>{% endif %}
