@@ -62,6 +62,11 @@ sources:
   ransomware_live:
     enabled: true
     lookback_days: 30
+    # api_key: ${RANSOMWARE_API_KEY}   # optional PRO tier; else falls back to v2 -> posts.json
+  ransomware_press:                    # PRO-only cyber-press news feed (no fallback)
+    enabled: false
+    api_key: ${RANSOMWARE_API_KEY}
+    # country: US                      # optional ISO-2 filter
   red_flag_domains:
     enabled: true
 

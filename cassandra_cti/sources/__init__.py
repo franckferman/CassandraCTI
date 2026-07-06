@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Dict, Any
 from .rss import build_rss_sources
 from .ransomware_live import RansomwareLive
+from .ransomware_press import RansomwarePress
 from .redflag import RedFlagDomains
 
 
@@ -22,6 +23,9 @@ async def build_sources(cfg: Dict[str, Any]):
             pro_base=rl_cfg.get("pro_base", "https://api-pro.ransomware.live"),
             v2_base=rl_cfg.get("v2_base", "https://api.ransomware.live/v2"),
         ))
+    if scfg.get("ransomware_press", {}).get("enabled"):
+        p_cfg = scfg["ransomware_press"]
+        out.append(RansomwarePress(api_key=p_cfg.get("api_key"), country=p_cfg.get("country")))
     if scfg.get("red_flag_domains", {}).get("enabled"):
         rf_cfg = scfg["red_flag_domains"]
         out.append(RedFlagDomains(

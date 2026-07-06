@@ -271,8 +271,13 @@ def doctor(kind: str = typer.Argument(..., help="connector|config"),
     base = default_dir()
     if kind == "config":
         try:
-            _ = load_settings(str(config or (base / "config.yaml")), str(connectors or (base / "connectors.yaml")))
+            settings = load_settings(str(config or (base / "config.yaml")), str(connectors or (base / "connectors.yaml")))
             typer.echo("Config OK")
+            press = settings.sources.get("ransomware_press") or {}
+            pk = str(press.get("api_key") or "")
+            if press.get("enabled") and (not pk or pk.startswith("${")):
+                typer.echo("WARNING: 'ransomware_press' is enabled but has no PRO api_key "
+                           "-> it will be skipped (PRO-only feed, no fallback).")
         except Exception as e:
             typer.echo(f"Invalid config: {e}")
     elif kind == "connector":
