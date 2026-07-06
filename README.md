@@ -55,7 +55,7 @@ Originally built as a private internal tool, it is now open-source, designed to 
 | Capability | Details |
 |---|---|
 | **Modular sources** | RSS, Ransomware Live, Red Flag Domains — more coming |
-| **Modular transports** | Microsoft Teams, Discord, Telegram — extensible |
+| **Modular transports** | Microsoft Teams, Discord, Telegram, Email (SMTP) — extensible |
 | **Smart deduplication** | SHA1 event fingerprint + SQLite delivery tracking |
 | **Flexible routing** | Match by source prefix, tag, or regex |
 | **Jinja2 templates** | Full control over message formatting |
@@ -414,6 +414,32 @@ connectors:
 4. Test it live: `cassandra doctor connector --id telegram-soc`.
 
 Messages render as HTML (4096-char limit, auto-truncated). Assign `templates/telegram_default.j2` to Telegram routes — Discord/Teams Markdown templates won't render as rich text on Telegram.
+
+---
+
+### Email (SMTP)
+
+Sends HTML emails through any SMTP server (Gmail, SendGrid, corporate relay…). Uses the standard library — no extra dependency.
+
+```yaml
+connectors:
+  - id: "email-soc"
+    type: "smtp"
+    params:
+      host: ${SMTP_HOST}            # e.g. smtp.gmail.com
+      port: 587
+      security: "starttls"          # starttls (587) | ssl (465) | none (25)
+      username: ${SMTP_USERNAME}
+      password: ${SMTP_PASSWORD}    # app password / API key
+      from_addr: ${SMTP_FROM}       # defaults to username
+      to_addrs: ${SMTP_TO}          # "a@x.com,b@y.com" or a YAML list
+      subject_prefix: "[CTI]"
+      batching: { enabled: true, max_items: 20 }   # optional digest emails
+```
+
+The event/source name becomes the **Subject** (`subject_prefix` + title); the body is a `multipart/alternative` (plain + HTML). Assign `templates/smtp_default.j2` to SMTP routes. Batching is recommended so you get one digest email instead of one per event.
+
+**Gmail example:** host `smtp.gmail.com`, port `587`, security `starttls`, username = your address, password = a [Google App Password](https://support.google.com/accounts/answer/185833) (not your login password).
 
 ---
 

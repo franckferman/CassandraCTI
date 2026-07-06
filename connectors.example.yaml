@@ -70,3 +70,19 @@ connectors:
       emojis: true
       # parse_mode: HTML            # default; falls back to plain text on parse errors
       # disable_web_page_preview: true
+
+  # --- SMTP (EMAIL) CONNECTORS ---
+  # security: starttls (587, default) | ssl (465) | none (25, internal relay)
+  - id: email-soc
+    type: smtp
+    params:
+      host: ${SMTP_HOST}                 # e.g. smtp.gmail.com
+      port: 587
+      security: starttls
+      username: ${SMTP_USERNAME}
+      password: ${SMTP_PASSWORD}         # app password / API key
+      from_addr: ${SMTP_FROM}            # defaults to username if omitted
+      to_addrs: ${SMTP_TO}               # "a@x.com,b@y.com" or a YAML list
+      subject_prefix: "[CTI]"
+      throttle_ms: 1000
+      # batching: { enabled: true, max_items: 20 }   # digest emails

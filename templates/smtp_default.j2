@@ -1,0 +1,8 @@
+{# SMTP default template — HTML email body (the <title> becomes the Subject,
+   set by the transport). Dynamic values are HTML-escaped with the `e` filter. #}
+<p>{{ summary | e }}</p>
+{% if url %}
+<p><a href="{{ url | e }}">🔗 Read more</a></p>
+{% endif %}
+<hr>
+<p style="color:#888;font-size:12px">Source: {{ source | e }} — via CassandraCTI</p>
