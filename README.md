@@ -393,7 +393,7 @@ connectors:
 
 ## Routing
 
-Routes match incoming events and send them to one or more transports. The first matching route wins.
+Routes match incoming events and send them to one or more transports. **Every** matching route fires — a single event can fan out to several routes (e.g. a "firehose" route alongside a topic route). Per-transport deduplication guarantees the same event is never delivered twice to the same transport.
 
 ### Match by source prefix
 

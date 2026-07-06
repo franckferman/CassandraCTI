@@ -108,7 +108,7 @@ routes:
   
   # Discord gets everything (as an example of 'firehose')
   - name: discord-all
-    include_sources: ["rss"]
+    include_sources: ["rss:"]
     transports: ["discord-alert"]
     template: "templates/discord_default.j2"
 
