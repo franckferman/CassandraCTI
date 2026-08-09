@@ -9,6 +9,8 @@ from .ransomware_press import RansomwarePress
 from .ransomware_8k import Ransomware8K
 from .ransomware_stats import RansomwareStats
 from .redflag import RedFlagDomains
+from .cisa_kev import CisaKev
+from .abusech import AbuseCh
 
 
 async def build_sources(cfg: Dict[str, Any]):
@@ -36,5 +38,18 @@ async def build_sources(cfg: Dict[str, Any]):
         rf_cfg = scfg["red_flag_domains"]
         out.append(RedFlagDomains(
             base_url=rf_cfg.get("base_url", "https://dl.red.flag.domains/daily/"),
+        ))
+    if scfg.get("cisa_kev", {}).get("enabled"):
+        k_cfg = scfg["cisa_kev"]
+        out.append(CisaKev(
+            lookback_days=int(k_cfg.get("lookback_days", 365)),
+            max_items=int(k_cfg.get("max_items", 80)),
+        ))
+    if scfg.get("abusech", {}).get("enabled"):
+        a_cfg = scfg["abusech"]
+        out.append(AbuseCh(
+            api_key=a_cfg.get("api_key"),
+            feeds=a_cfg.get("feeds"),
+            max_items=int(a_cfg.get("max_items", 60)),
         ))
     return out
