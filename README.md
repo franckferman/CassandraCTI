@@ -441,6 +441,42 @@ Each run generates one event with:
 - **Tags:** `["domains"]`
 - **Raw fields:** `file`, `count`, `date`
 
+### CISA KEV
+
+Fetches the [CISA Known Exploited Vulnerabilities](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) catalog — CVEs actively exploited in the wild. **A single public JSON feed, no API key.** Source ID: `cisa.kev`.
+
+```yaml
+sources:
+  cisa_kev:
+    enabled: true
+    lookback_days: 365   # keep CVEs added within this window
+    max_items: 80
+```
+
+Each CVE becomes an event with `raw` fields `cve`, `vendor`, `product`, `due_date`, `ransomware_use`, `required_action`, `date_added`. Tags: `["vulnerability", "kev"]` (plus `"ransomware"` when the CVE is used in ransomware campaigns). The dashboard's *Vulnerabilities* tab filters by vendor and the ransomware-linked flag.
+
+### abuse.ch IOCs
+
+One source (`abuse.ch`) that aggregates several [abuse.ch](https://abuse.ch) feeds into the *IOCs* tab:
+
+| Feed | IOC type | API key |
+|---|---|---|
+| `feodo` | botnet C2 IPs | none (public) |
+| `urlhaus` | malware distribution URLs | none (public CSV) |
+| `threatfox` | IP / domain / URL / hash + malware family | **free Auth-Key** |
+| `malwarebazaar` | sample hashes (SHA-256) + family | **free Auth-Key** |
+
+```yaml
+sources:
+  abusech:
+    enabled: true
+    feeds: ["feodo", "threatfox", "urlhaus", "malwarebazaar"]
+    api_key: ${ABUSECH_API_KEY}   # optional; unlocks threatfox + malwarebazaar
+    max_items: 60
+```
+
+A **single free Auth-Key** ([auth.abuse.ch](https://auth.abuse.ch)) unlocks ThreatFox and MalwareBazaar; without it, only the public feeds (Feodo, URLhaus) run. Set it via the `ABUSECH_API_KEY` environment variable. Each event carries `raw` fields `ioc`, `ioc_type`, `malware`, `status`, `feed`; tags start with `["ioc", …]`.
+
 ---
 
 ## Transports
@@ -584,7 +620,17 @@ routes:
     transports: ["web-soc"]
 ```
 
-**UI:** a light/dark theme (toggle remembers your choice, otherwise follows the OS) with a live status pill and a stat bar — total / ransomware / red-flag / RSS counts, the connected live-client count, and a rolling 30-minute activity sparkline. Below it: per-source filter chips with counts, instant text search, pause/resume, and colour-coded cards by kind (ransomware / red flag / RSS / other) with relative timestamps and a tab-title badge when new events arrive while the tab is hidden. The server binds to `127.0.0.1` by default — set a `token` before exposing it on the network.
+**UI — a dense, terminal-grade SOC command center** (light/dark, monospace data, self-contained, no CDN):
+
+- **Tabbed** — *Overview*, *Live feed*, and one tab per category: *Ransomware*, *RSS*, *Red flags*, *Vulnerabilities* (CISA KEV), *IOCs* (abuse.ch).
+- **Overview** — a live clock and a stat strip (total, new over 24h/7d/30d with a delta vs the previous period, critical count, active sources, alerts sent, live clients), an interactive activity chart, a top-sources and by-category breakdown, a most-active ransomware-groups table, source health (last event per source), and a latest-critical list.
+- **Feed tabs** — a log-style table (time · source · event) with per-category filters (group/country/sector, vendor + ransomware-linked, malware/IOC-type, feed/tag…), a date-range and sort (newest / oldest / criticality), a result count, and per-row actions: **copy** the IOC/CVE, an **AI brief**, and a **details** view.
+- **Details** — a modal per event with all fields, links (open source · NVD · VirusTotal · leak site) and copy.
+- **Actionable** — copy indicators, **export the current view to CSV or JSON**, deep-link the tab + filters + search in the URL, keyboard shortcuts (`1`–`7` tabs, `/` search, `e` export, `Esc` close), and optional sound alerts on critical events.
+- **Inventory** (opt-in) — filter/highlight only events that concern your stack (see the `inventory` config section).
+- **AI brief** (opt-in) — a SOC-oriented summary per event via the optional `llm` layer (local Ollama or a cloud key).
+
+The server binds to `127.0.0.1` by default — set a `token` before exposing it on the network.
 
 ---
 

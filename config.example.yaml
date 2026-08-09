@@ -76,6 +76,26 @@ sources:
   red_flag_domains:
     enabled: true
 
+  # CISA Known Exploited Vulnerabilities (KEV) — CVEs actively exploited in the
+  # wild. A single public JSON feed, NO API key required.
+  cisa_kev:
+    enabled: false
+    lookback_days: 365     # keep CVEs added within this window
+    max_items: 80
+
+  # abuse.ch malware-infrastructure IOCs. One source, several feeds:
+  #   feodo         -> botnet C2 IPs        (public, no key)
+  #   threatfox     -> mixed IOCs + family  (needs a free Auth-Key)
+  #   urlhaus       -> malware URLs         (public CSV, no key)
+  #   malwarebazaar -> sample hashes        (needs the same Auth-Key)
+  # One free Auth-Key (auth.abuse.ch) unlocks threatfox + malwarebazaar. Without
+  # a key, only the public feeds (feodo, urlhaus) run.
+  abusech:
+    enabled: false
+    feeds: ["feodo", "threatfox", "urlhaus", "malwarebazaar"]
+    api_key: ${ABUSECH_API_KEY}     # optional; unlocks threatfox + malwarebazaar
+    max_items: 60
+
 filters:
   title_regex_deny: ["^Weekly", "^Job", "Market Research"]
   title_regex_allow: []
@@ -136,3 +156,29 @@ metrics:
   enabled: true
   host: 127.0.0.1      # localhost by default; set 0.0.0.0 to expose to other containers/hosts
   port: 9108
+
+# Optional inventory match (web dashboard). OFF by default; when enabled, an
+# opt-in "Inventory" toggle appears in the feed tabs to filter/highlight only
+# the events that concern your tech/OS/vendor stack (title, summary and meta).
+inventory:
+  enabled: false
+  match_mode: highlight
+  terms:
+    - "Fortinet"
+    - "Cisco"
+    - "VMware"
+    - "Microsoft"
+    - "Ivanti"
+    - "Citrix"
+
+# Optional LLM layer (web dashboard "AI brief" per event). OFF by default.
+# provider "auto" prefers a reachable local Ollama (free/private), else the
+# first cloud key that is set. Cloud keys come from the environment:
+# ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY.
+llm:
+  enabled: false
+  provider: auto          # auto | ollama | anthropic | openai | deepseek
+  model: ""               # optional override (else a sensible per-provider default)
+  ollama_base_url: http://localhost:11434
+  ollama_model: ""        # optional; else the first pulled model
+  max_tokens: 300
