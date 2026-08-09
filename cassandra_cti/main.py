@@ -14,7 +14,7 @@ from .store import Store
 from .sources import build_sources
 from .transports import build_transport
 from .router import Router
-from .models import Event
+from .models import Event, public_meta
 from prometheus_client import Counter, start_http_server
 
 MET_EVENTS = Counter('cassandra_cti_events_sent', 'Events sent', ['route'])
@@ -70,9 +70,19 @@ async def run_once(settings_path: str, connectors_path: str | None = None, only_
     for tdef in list(settings.transports) + list(extra_transports or []):
         try:
             tr = build_transport(tdef.type, tdef.params)
-            # Give the web dashboard access to the history database.
-            if tdef.type == "web" and getattr(tr, "db_path", None) is None:
-                tr.db_path = db_path
+            # Give the web dashboard access to the history database and the
+            # optional inventory / LLM configuration.
+            if tdef.type == "web":
+                if getattr(tr, "db_path", None) is None:
+                    tr.db_path = db_path
+                if not getattr(tr, "inventory", None):
+                    tr.inventory = settings.inventory
+                if not getattr(tr, "llm", None):
+                    tr.llm = settings.llm
+                # Bind now so the dashboard is reachable immediately (and serves
+                # history) rather than only after the first non-deduped event.
+                if hasattr(tr, "ensure_started"):
+                    tr.ensure_started()
             transports_by_id[tdef.id] = tr
         except Exception as e:
             log.error(f"Failed to build transport {tdef.id}: {e}")
@@ -159,7 +169,8 @@ async def run_once(settings_path: str, connectors_path: str | None = None, only_
     for ev in all_events:
         eid = make_event_id(ev.source, ev.url, ev.title)
         pub_iso = _tz_aware(ev.published_at).astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z") if ev.published_at else None
-        store.upsert_event(eid, ev.source, ev.url, ev.title, ev.summary, pub_iso)
+        store.upsert_event(eid, ev.source, ev.url, ev.title, ev.summary, pub_iso,
+                           tags=ev.tags, meta=public_meta(ev.raw))
 
         matched_routes = router.match(ev)
         for r in matched_routes:

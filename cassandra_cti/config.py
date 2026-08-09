@@ -4,7 +4,7 @@
 from __future__ import annotations
 import os
 import yaml
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 from .util import expand_env
 from .config_schema import SettingsModel
@@ -37,6 +37,8 @@ class Settings:
     logging: Dict[str, Any]
     metrics: Dict[str, Any]
     filters: Dict[str, Any]
+    inventory: Dict[str, Any] = field(default_factory=dict)
+    llm: Dict[str, Any] = field(default_factory=dict)
 
 
 def _flatten_transports_inline(raw: Dict[str, Any]) -> List[TransportDef]:
@@ -124,4 +126,6 @@ def load_settings(path: str, connectors_path: str | None = None) -> Settings:
         logging=raw.get("logging", {}),
         metrics=raw.get("metrics", {}),
         filters=raw.get("filters", {}),
+        inventory=raw.get("inventory", {}),
+        llm=raw.get("llm", {}),
     )

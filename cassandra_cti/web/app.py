@@ -20,6 +20,7 @@ from typing import Any, Dict, Optional
 from aiohttp import web
 
 from ..store import Store
+from ..llm import LLM, LLMError
 from .page import DASHBOARD_PAGE
 
 log = logging.getLogger("cassandra-cti.web")
@@ -57,6 +58,8 @@ class DashboardHub:
 HUB_KEY = web.AppKey("hub", DashboardHub)
 TOKEN_KEY = web.AppKey("token", Optional[str])
 STORE_KEY = web.AppKey("store", Optional[Store])
+INVENTORY_KEY = web.AppKey("inventory", dict)
+LLM_KEY = web.AppKey("llm", dict)
 
 
 def _check_auth(request: web.Request, token: Optional[str]) -> bool:
@@ -67,11 +70,14 @@ def _check_auth(request: web.Request, token: Optional[str]) -> bool:
     return request.query.get("token") == token
 
 
-def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub) -> web.Application:
+def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub,
+               inventory: Optional[dict] = None, llm_cfg: Optional[dict] = None) -> web.Application:
     app = web.Application()
     app[HUB_KEY] = hub
     app[TOKEN_KEY] = token
     app[STORE_KEY] = Store(db_path) if db_path else None
+    app[INVENTORY_KEY] = inventory or {}
+    app[LLM_KEY] = llm_cfg or {}
 
     async def index(request: web.Request) -> web.Response:
         if not _check_auth(request, app[TOKEN_KEY]):
@@ -113,18 +119,71 @@ def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub) 
         try:
             await resp.write(b": connected\n\n")
             while True:
-                item = await q.get()
+                # Heartbeat: if no event arrives within the interval, send a
+                # comment ping. Writing to a client that has gone away raises,
+                # which prunes the subscriber here — otherwise a closed tab
+                # lingers as a phantom "live client" until the next real event.
+                try:
+                    item = await asyncio.wait_for(q.get(), timeout=20)
+                except asyncio.TimeoutError:
+                    await resp.write(b": ping\n\n")
+                    continue
                 await resp.write(f"data: {json.dumps(item, ensure_ascii=False)}\n\n".encode("utf-8"))
-        except (ConnectionResetError, asyncio.CancelledError):
+        except (ConnectionResetError, asyncio.CancelledError, RuntimeError):
             pass
         finally:
             app[HUB_KEY].unsubscribe(q)
         return resp
 
+    async def api_meta(request: web.Request) -> web.Response:
+        if not _check_auth(request, app[TOKEN_KEY]):
+            raise web.HTTPUnauthorized(text="missing or invalid token")
+        inv = app[INVENTORY_KEY] or {}
+        llm_cfg = app[LLM_KEY] or {}
+        meta = {
+            "inventory": {
+                "enabled": bool(inv.get("enabled")),
+                "mode": inv.get("match_mode", "highlight"),
+                "terms": list(inv.get("terms", []) or []),
+            },
+            "llm": {"enabled": bool(llm_cfg.get("enabled"))},
+        }
+        if llm_cfg.get("enabled"):
+            try:
+                meta["llm"].update(await LLM(llm_cfg).resolve())
+            except Exception as e:  # never let a probe failure break the page
+                meta["llm"]["error"] = type(e).__name__
+        return web.json_response(meta)
+
+    async def api_ai_summarize(request: web.Request) -> web.Response:
+        if not _check_auth(request, app[TOKEN_KEY]):
+            raise web.HTTPUnauthorized(text="missing or invalid token")
+        llm_cfg = app[LLM_KEY] or {}
+        if not llm_cfg.get("enabled"):
+            return web.json_response({"error": "LLM disabled — set llm.enabled: true in config."},
+                                     status=503)
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+        ev = payload.get("event") or {}
+        if not ev.get("title") and not ev.get("summary"):
+            return web.json_response({"error": "no event provided"}, status=400)
+        try:
+            text = await LLM(llm_cfg).summarize_event(ev)
+            return web.json_response({"text": text})
+        except LLMError as e:
+            return web.json_response({"error": str(e)}, status=503)
+        except Exception as e:
+            log.warning("AI summarize failed: %s", e)
+            return web.json_response({"error": f"{type(e).__name__}"}, status=502)
+
     app.router.add_get("/", index)
     app.router.add_get("/api/events", api_events)
     app.router.add_get("/api/stats", api_stats)
     app.router.add_get("/api/stream", api_stream)
+    app.router.add_get("/api/meta", api_meta)
+    app.router.add_post("/api/ai/summarize", api_ai_summarize)
     return app
 
 
@@ -132,11 +191,14 @@ class WebDashboardServer:
     """Runs the dashboard in a daemon thread with its own event loop."""
 
     def __init__(self, host: str = "127.0.0.1", port: int = 8080,
-                 token: Optional[str] = None, db_path: Optional[str] = None):
+                 token: Optional[str] = None, db_path: Optional[str] = None,
+                 inventory: Optional[dict] = None, llm_cfg: Optional[dict] = None):
         self.host = host
         self.port = int(port)
         self.token = token
         self.db_path = db_path
+        self.inventory = inventory or {}
+        self.llm_cfg = llm_cfg or {}
         self.incoming: queue.SimpleQueue = queue.SimpleQueue()
         self.hub = DashboardHub()
         self._thread: Optional[threading.Thread] = None
@@ -158,7 +220,8 @@ class WebDashboardServer:
         asyncio.run(self._amain())
 
     async def _amain(self):
-        app = create_app(self.db_path, self.token, self.hub)
+        app = create_app(self.db_path, self.token, self.hub,
+                         inventory=self.inventory, llm_cfg=self.llm_cfg)
         runner = web.AppRunner(app)
         await runner.setup()
         try:
@@ -187,16 +250,22 @@ _SERVERS_LOCK = threading.Lock()
 
 
 def get_server(host: str, port: int, token: Optional[str] = None,
-               db_path: Optional[str] = None) -> WebDashboardServer:
+               db_path: Optional[str] = None, inventory: Optional[dict] = None,
+               llm_cfg: Optional[dict] = None) -> WebDashboardServer:
     """One server per (host, port) for the whole process, reused across runs."""
     key = (host, int(port))
     with _SERVERS_LOCK:
         srv = _SERVERS.get(key)
         if srv is None:
-            srv = WebDashboardServer(host=host, port=port, token=token, db_path=db_path)
+            srv = WebDashboardServer(host=host, port=port, token=token, db_path=db_path,
+                                     inventory=inventory, llm_cfg=llm_cfg)
             _SERVERS[key] = srv
         else:
-            # Late binding: run_once resolves the DB path after construction.
+            # Late binding: run_once resolves these after construction.
             if db_path and not srv.db_path:
                 srv.db_path = db_path
+            if inventory and not srv.inventory:
+                srv.inventory = inventory
+            if llm_cfg and not srv.llm_cfg:
+                srv.llm_cfg = llm_cfg
         return srv
