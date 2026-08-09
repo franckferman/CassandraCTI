@@ -127,7 +127,8 @@ def test_auth_check():
 def test_create_app_routes():
     app = create_app(None, None, DashboardHub())
     paths = {r.resource.canonical for r in app.router.routes()}
-    assert {"/", "/api/events", "/api/stats", "/api/stream"} <= paths
+    assert {"/", "/api/events", "/api/stats", "/api/stream",
+            "/api/meta", "/api/ai/summarize"} <= paths
 
 
 def test_dashboard_page_is_self_contained():
@@ -135,3 +136,38 @@ def test_dashboard_page_is_self_contained():
     assert "EventSource" in DASHBOARD_PAGE
     assert "/api/stream" in DASHBOARD_PAGE
     assert "https://" not in DASHBOARD_PAGE.replace("https://e/", "")  # no CDN
+
+
+def test_dashboard_page_has_tabs_and_categories():
+    for token in ("Overview", "Ransomware", "Vulnerabilities", "IOCs", "--vuln", "--ioc", "/api/meta"):
+        assert token in DASHBOARD_PAGE
+
+
+def test_serialize_event_includes_meta():
+    ev = _ev(raw={"group_name": "qilin", "country": "US", "activity": "Manufacturing"})
+    d = serialize_event(ev)
+    assert d["meta"]["group_name"] == "qilin"
+    assert d["meta"]["activity"] == "Manufacturing"
+
+
+def test_store_persists_tags_and_meta_and_extended_stats(tmp_path):
+    store = Store(str(tmp_path / "m.db"))
+    store.upsert_event("k1", "cisa.kev", "https://e/k1", "CVE-2025-1", "s", "2025-06-01T00:00:00Z",
+                       tags=["kev", "ransomware"], meta={"cve": "CVE-2025-1", "vendor": "Acme"})
+    store.upsert_event("r1", "ransomware.live", "https://e/r1", "victim", "s", "2025-06-02T00:00:00Z",
+                       tags=["ransomware"], meta={"group_name": "qilin"})
+    store.mark_delivery("k1", "web-dashboard", "ok")
+
+    ev = store.recent_events(source="cisa.kev")[0]
+    assert ev["tags"] == ["kev", "ransomware"]
+    assert ev["meta"]["vendor"] == "Acme"
+
+    st = store.stats()
+    assert st["per_category"]["vuln"] == 1
+    assert st["per_category"]["ransomware"] == 1
+    assert len(st["activity"]) == 30
+    assert len(st["activity_hourly"]) == 24
+    assert set(st["windows"].keys()) == {"24h", "7d", "30d"}
+    assert "source_last" in st
+    assert st["deliveries"]["sent_ok"] == 1
+    assert "last_24h" in st
