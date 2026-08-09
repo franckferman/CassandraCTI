@@ -1,0 +1,1727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CassandraCTI — Documentation</title>
+  <meta name="description" content="Full technical documentation for CassandraCTI: configuration reference, CLI, sources, transports, routing, templates, Docker, metrics." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #04050a;
+      --bg2:      #070910;
+      --bg3:      #0b0d18;
+      --amber:    #f59e0b;
+      --amber2:   #fbbf24;
+      --amber-dim:#92600a;
+      --red:      #dc2626;
+      --cyan:     #00e5ff;
+      --green:    #22c55e;
+      --text:     #e8e6df;
+      --text-dim: #6b6a65;
+      --text-mid: #a09e97;
+      --border:   rgba(245,158,11,.12);
+      --border2:  rgba(245,158,11,.25);
+      --sidebar-w: 240px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,.06) 2px, rgba(0,0,0,.06) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(1.5rem,4vw,3rem);
+      height: 58px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(4,5,10,.92);
+      backdrop-filter: blur(12px);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-family: 'Space Mono', monospace;
+      font-size: .88rem;
+      font-weight: 700;
+      color: var(--amber);
+      text-decoration: none;
+      letter-spacing: .04em;
+    }
+
+    .nav-brand-eye {
+      width: 20px; height: 20px;
+      border: 1.5px solid var(--amber);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .nav-brand-eye::after {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--amber);
+      border-radius: 50%;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .nav-right a {
+      font-family: 'Space Mono', monospace;
+      font-size: .7rem;
+      color: var(--text-dim);
+      text-decoration: none;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      transition: color .2s;
+    }
+
+    .nav-right a:hover { color: var(--amber); }
+    .nav-right a.active { color: var(--amber); }
+
+    .nav-version {
+      font-family: 'Space Mono', monospace;
+      font-size: .68rem;
+      color: var(--text-dim);
+      border: 1px solid var(--border2);
+      padding: .2rem .55rem;
+      border-radius: 3px;
+    }
+
+    /* ── Layout ── */
+    .doc-wrapper {
+      display: flex;
+      margin-top: 58px;
+      min-height: calc(100vh - 58px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      position: sticky;
+      top: 58px;
+      height: calc(100vh - 58px);
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      padding: 2rem 0 4rem;
+      background: var(--bg2);
+      scrollbar-width: thin;
+      scrollbar-color: var(--border2) transparent;
+    }
+
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    .sb-section {
+      margin-bottom: .25rem;
+    }
+
+    .sb-label {
+      font-family: 'Space Mono', monospace;
+      font-size: .58rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--amber);
+      padding: .8rem 1.5rem .3rem;
+      display: block;
+    }
+
+    .sb-link {
+      display: block;
+      font-size: .78rem;
+      color: var(--text-dim);
+      text-decoration: none;
+      padding: .3rem 1.5rem .3rem 2rem;
+      border-left: 2px solid transparent;
+      transition: all .15s;
+      line-height: 1.4;
+    }
+
+    .sb-link:hover { color: var(--text); border-left-color: var(--border2); }
+    .sb-link.active { color: var(--amber); border-left-color: var(--amber); }
+
+    .sb-sub {
+      display: block;
+      font-size: .72rem;
+      color: var(--text-dim);
+      text-decoration: none;
+      padding: .2rem 1.5rem .2rem 3rem;
+      border-left: 2px solid transparent;
+      transition: all .15s;
+    }
+
+    .sb-sub:hover { color: var(--text-mid); border-left-color: var(--border); }
+
+    /* ── Main content ── */
+    .doc-content {
+      flex: 1;
+      min-width: 0;
+      padding: 3rem clamp(2rem,5vw,5rem) 8rem;
+      max-width: 860px;
+    }
+
+    /* ── Section ── */
+    .doc-section {
+      margin-bottom: 5rem;
+      scroll-margin-top: 80px;
+    }
+
+    .doc-section + .doc-section {
+      border-top: 1px solid var(--border);
+      padding-top: 4rem;
+    }
+
+    .section-tag {
+      font-family: 'Space Mono', monospace;
+      font-size: .62rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: .75rem;
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+
+    .section-tag::before {
+      content: '';
+      display: block;
+      width: 24px; height: 1px;
+      background: var(--amber);
+    }
+
+    h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      color: var(--text);
+      margin-bottom: 1rem;
+      line-height: 1.2;
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text);
+      margin: 2.5rem 0 .75rem;
+      padding-bottom: .4rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h4 {
+      font-size: .9rem;
+      font-weight: 600;
+      color: var(--amber);
+      margin: 1.5rem 0 .5rem;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: .04em;
+    }
+
+    p {
+      color: var(--text-mid);
+      line-height: 1.75;
+      margin-bottom: 1rem;
+    }
+
+    strong { color: var(--text); font-weight: 600; }
+
+    a { color: var(--amber); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    ul, ol {
+      color: var(--text-mid);
+      line-height: 1.75;
+      margin-bottom: 1rem;
+      padding-left: 1.5rem;
+    }
+
+    li { margin-bottom: .2rem; }
+    li strong { color: var(--text); }
+
+    /* ── Code ── */
+    code {
+      font-family: 'Space Mono', monospace;
+      font-size: .82em;
+      background: rgba(245,158,11,.08);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: .1em .4em;
+      color: var(--amber2);
+    }
+
+    pre {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      overflow-x: auto;
+      margin: 1rem 0 1.5rem;
+      position: relative;
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: .82rem;
+      color: var(--text-mid);
+      line-height: 1.65;
+    }
+
+    .pre-label {
+      position: absolute;
+      top: .6rem; right: .8rem;
+      font-family: 'Space Mono', monospace;
+      font-size: .58rem;
+      color: var(--text-dim);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .hl { color: var(--amber2); }
+    .hl-green { color: var(--green); }
+    .hl-dim { color: var(--text-dim); }
+    .hl-cyan { color: var(--cyan); }
+
+    /* ── Table ── */
+    .doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0 1.5rem;
+      font-size: .85rem;
+    }
+
+    .doc-table th {
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--amber);
+      text-align: left;
+      padding: .6rem .9rem;
+      border-bottom: 1px solid var(--border2);
+      background: rgba(245,158,11,.04);
+    }
+
+    .doc-table td {
+      padding: .55rem .9rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-mid);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    .doc-table td:first-child {
+      font-family: 'Space Mono', monospace;
+      font-size: .78rem;
+      color: var(--amber2);
+      white-space: nowrap;
+    }
+
+    .doc-table tr:last-child td { border-bottom: none; }
+
+    /* ── Callout ── */
+    .callout {
+      border-left: 3px solid var(--amber);
+      background: rgba(245,158,11,.06);
+      padding: .85rem 1.25rem;
+      margin: 1rem 0 1.5rem;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .callout p { margin: 0; font-size: .88rem; }
+
+    .callout-warn {
+      border-left-color: var(--red);
+      background: rgba(220,38,38,.06);
+    }
+
+    /* ── Chips ── */
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+      margin: .5rem 0 1rem;
+    }
+
+    .chip {
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      padding: .25rem .6rem;
+      background: rgba(245,158,11,.08);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text-dim);
+    }
+
+    .chip-amber { color: var(--amber); border-color: rgba(245,158,11,.3); }
+
+    /* ── Anchor offset ── */
+    [id] { scroll-margin-top: 80px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .doc-content { padding: 2rem 1.5rem 6rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="index.html">
+    <div class="nav-brand-eye"></div>
+    CASSANDRA<span style="color:var(--text-dim);font-weight:300">CTI</span>
+  </a>
+  <div class="nav-right">
+    <a href="index.html">Home</a>
+    <a href="doc.html" class="active">Docs</a>
+    <a href="https://github.com/franckferman/CassandraCTI" target="_blank" rel="noopener noreferrer">GitHub</a>
+    <span class="nav-version">v2.0.0</span>
+  </div>
+</nav>
+
+<div class="doc-wrapper">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-section">
+      <span class="sb-label">Getting Started</span>
+      <a class="sb-link" href="#overview">Overview</a>
+      <a class="sb-link" href="#installation">Installation</a>
+      <a class="sb-link" href="#quickstart">Quick Start</a>
+    </div>
+    <div class="sb-section">
+      <span class="sb-label">Configuration</span>
+      <a class="sb-link" href="#config-yaml">config.yaml</a>
+      <a class="sb-sub" href="#cfg-scheduler">Scheduler</a>
+      <a class="sb-sub" href="#cfg-sources">Sources</a>
+      <a class="sb-sub" href="#cfg-filters">Filters</a>
+      <a class="sb-sub" href="#cfg-transports">Transports</a>
+      <a class="sb-sub" href="#cfg-routes">Routes</a>
+      <a class="sb-sub" href="#cfg-store">Store</a>
+      <a class="sb-sub" href="#cfg-metrics">Metrics</a>
+      <a class="sb-link" href="#connectors-yaml">connectors.yaml</a>
+      <a class="sb-sub" href="#conn-teams">Teams params</a>
+      <a class="sb-sub" href="#conn-discord">Discord params</a>
+      <a class="sb-sub" href="#conn-telegram">Telegram params</a>
+      <a class="sb-sub" href="#conn-smtp">SMTP params</a>
+      <a class="sb-link" href="#env-vars">Environment Variables</a>
+    </div>
+    <div class="sb-section">
+      <span class="sb-label">Sources</span>
+      <a class="sb-link" href="#src-rss">RSS / Atom</a>
+      <a class="sb-link" href="#src-ransomware">Ransomware Live</a>
+      <a class="sb-link" href="#src-redflag">Red Flag Domains</a>
+      <a class="sb-link" href="#src-ransomware-press">Ransomware Press (PRO)</a>
+      <a class="sb-link" href="#src-ransomware-8k">Ransomware 8-K (PRO)</a>
+      <a class="sb-link" href="#src-ransomware-stats">Ransomware Stats (PRO)</a>
+    </div>
+    <div class="sb-section">
+      <span class="sb-label">Transports</span>
+      <a class="sb-link" href="#tr-teams">Microsoft Teams</a>
+      <a class="sb-link" href="#tr-discord">Discord</a>
+      <a class="sb-link" href="#tr-telegram">Telegram</a>
+      <a class="sb-link" href="#tr-smtp">Email (SMTP)</a>
+    </div>
+    <div class="sb-section">
+      <span class="sb-label">Routing</span>
+      <a class="sb-link" href="#routing">Routing Rules</a>
+    </div>
+    <div class="sb-section">
+      <span class="sb-label">CLI</span>
+      <a class="sb-link" href="#cli-run">cassandra run</a>
+      <a class="sb-link" href="#cli-init">cassandra init</a>
+      <a class="sb-link" href="#cli-add-source">add-source</a>
+      <a class="sb-link" href="#cli-add-connector">add-connector</a>
+      <a class="sb-link" href="#cli-routes-add">routes-add</a>
+      <a class="sb-link" href="#cli-doctor">doctor</a>
+      <a class="sb-link" href="#cli-backfill">backfill</a>
+      <a class="sb-link" href="#cli-other">db-reset / seen-clear / list</a>
+    </div>
+    <div class="sb-section">
+      <span class="sb-label">Templates</span>
+      <a class="sb-link" href="#templates">Jinja2 Templates</a>
+    </div>
+    <div class="sb-section">
+      <span class="sb-label">Operations</span>
+      <a class="sb-link" href="#running">Running Continuously</a>
+      <a class="sb-link" href="#docker">Docker</a>
+      <a class="sb-link" href="#metrics">Metrics</a>
+      <a class="sb-link" href="#architecture">Architecture</a>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="doc-content">
+
+    <!-- OVERVIEW -->
+    <div class="doc-section" id="overview">
+      <div class="section-tag">Introduction</div>
+      <h2>CassandraCTI Documentation</h2>
+      <p>CassandraCTI is a modular, asynchronous Cyber Threat Intelligence aggregator. It collects events from multiple sources, deduplicates them via SHA1 fingerprinting, routes them through configurable rules, renders messages from Jinja2 templates, and delivers them to Microsoft Teams, Discord, Telegram, or email (SMTP).</p>
+      <p>Named after the Trojan prophetess condemned to warn without being believed — CassandraCTI makes sure your threat intel <strong>actually reaches</strong> the people who need it.</p>
+
+      <h3>Pipeline at a glance</h3>
+      <pre><code><span class="hl-dim">Sources</span>   RSS / Atom · ransomware.live · Red Flag Domains
+          ransomware.press · ransomware.8k · ransomware.stats (PRO)
+   <span class="hl-dim">↓</span>
+<span class="hl-dim">Filter</span>    regex deny/allow · max_items_per_source · date filter
+   <span class="hl-dim">↓</span>
+<span class="hl-dim">Dedupe</span>    SHA1(source + url|title) → SQLite event store
+   <span class="hl-dim">↓</span>
+<span class="hl-dim">Route</span>     source prefix · tag match · regex (title / source) — all-match
+   <span class="hl-dim">↓</span>
+<span class="hl-dim">Render</span>    Jinja2 templates per route
+   <span class="hl-dim">↓</span>
+<span class="hl-dim">Send</span>      Teams · Discord · Telegram · Email (SMTP)  (retry + throttle)</code></pre>
+    </div>
+
+    <!-- INSTALLATION -->
+    <div class="doc-section" id="installation">
+      <div class="section-tag">Getting Started</div>
+      <h2>Installation</h2>
+
+      <h3>Requirements</h3>
+      <ul>
+        <li>Python <strong>3.10</strong> or later</li>
+        <li>pip</li>
+      </ul>
+
+      <h3>From source</h3>
+      <pre><code><span class="hl-dim"># Clone the repository</span>
+<span class="hl">git clone https://github.com/franckferman/CassandraCTI.git</span>
+<span class="hl">cd CassandraCTI</span>
+
+<span class="hl-dim"># Install dependencies</span>
+<span class="hl">pip install -r requirements.txt</span>
+
+<span class="hl-dim"># Or install as a package (installs the cassandra CLI entry point)</span>
+<span class="hl">pip install .</span></code></pre>
+
+      <h3>Configuration directory</h3>
+      <p>By default, CassandraCTI looks for its configuration in a platform-specific directory:</p>
+      <table class="doc-table">
+        <tr><th>Platform</th><th>Path</th></tr>
+        <tr><td>Linux</td><td><code>~/.config/cassandra-cti/</code> (or <code>$XDG_CONFIG_HOME/cassandra-cti/</code>)</td></tr>
+        <tr><td>macOS</td><td><code>~/Library/Application Support/cassandra-cti/</code></td></tr>
+        <tr><td>Windows</td><td><code>%APPDATA%\cassandra-cti\</code></td></tr>
+      </table>
+
+      <p>The directory contains two files:</p>
+      <pre><code>~/.config/cassandra-cti/
+├── config.yaml         <span class="hl-dim">← sources, routes, filters, store, metrics</span>
+├── connectors.yaml     <span class="hl-dim">← transport definitions (webhook URLs)</span>
+└── templates/          <span class="hl-dim">← custom Jinja2 templates (optional)</span></code></pre>
+    </div>
+
+    <!-- QUICK START -->
+    <div class="doc-section" id="quickstart">
+      <div class="section-tag">Getting Started</div>
+      <h2>Quick Start</h2>
+
+      <h4>1. Initialize config files</h4>
+      <pre><code><span class="hl">cassandra init</span></code></pre>
+
+      <h4>2. Add a Teams webhook connector</h4>
+      <pre><code><span class="hl">cassandra add-connector \
+  --id "teams-soc" \
+  --webhook-url "https://your-tenant.webhook.office.com/..." \
+  --theme-color "0078D7"</span></code></pre>
+
+      <h4>3. Add threat intel sources</h4>
+      <pre><code><span class="hl-dim"># RSS feed</span>
+<span class="hl">cassandra add-source rss \
+  --name "CERT-FR Alertes" \
+  --url "https://cert.ssi.gouv.fr/alerte/feed/" \
+  --tags "cert,fr"</span>
+
+<span class="hl-dim"># Ransomware tracker</span>
+<span class="hl">cassandra add-source ransomware_live</span>
+
+<span class="hl-dim"># Malicious domain list</span>
+<span class="hl">cassandra add-source redflag</span></code></pre>
+
+      <h4>4. Validate configuration</h4>
+      <pre><code><span class="hl">cassandra doctor config</span>
+<span class="hl">cassandra doctor connector --id teams-soc</span></code></pre>
+
+      <h4>5. Run</h4>
+      <pre><code><span class="hl-dim"># One-shot</span>
+<span class="hl">cassandra run</span>
+
+<span class="hl-dim"># Loop every 5 minutes</span>
+<span class="hl">cassandra run --loop --interval 300</span>
+
+<span class="hl-dim"># Dry run (no messages sent)</span>
+<span class="hl">cassandra run --dry-run --verbose</span></code></pre>
+    </div>
+
+    <!-- CONFIG.YAML -->
+    <div class="doc-section" id="config-yaml">
+      <div class="section-tag">Configuration</div>
+      <h2>config.yaml</h2>
+      <p>The main configuration file. Controls sources, routing, filtering, storage, and metrics. Supports <code>${VAR_NAME}</code> environment variable substitution anywhere in the file.</p>
+
+      <pre><code><span class="pre-label">config.yaml — full reference</span>
+<span class="hl">schema_version</span>: <span class="hl-green">1</span>
+
+<span class="hl">scheduler</span>:
+  <span class="hl-cyan">mode</span>: oneshot          <span class="hl-dim"># "oneshot" | "loop"</span>
+  <span class="hl-cyan">interval_seconds</span>: 300  <span class="hl-dim"># used when mode: loop</span>
+
+<span class="hl">sources</span>:
+  <span class="hl-cyan">rss</span>:
+    <span class="hl-dim">enabled</span>: true
+    <span class="hl-dim">feeds</span>:
+      - <span class="hl-dim">name</span>: "CERT-FR Alertes"
+        <span class="hl-dim">url</span>: "https://cert.ssi.gouv.fr/alerte/feed/"
+        <span class="hl-dim">tags</span>: ["cert", "fr"]
+  <span class="hl-cyan">ransomware_live</span>:
+    <span class="hl-dim">enabled</span>: true
+    <span class="hl-dim">lookback_days</span>: 30      <span class="hl-dim"># how far back to fetch attacks</span>
+    <span class="hl-dim">api_key</span>: ${RANSOMWARE_API_KEY}  <span class="hl-dim"># optional PRO tier → falls back to v2 → posts.json</span>
+    <span class="hl-dim">url</span>: "..."              <span class="hl-dim"># optional posts.json override</span>
+  <span class="hl-cyan">ransomware_press</span>:        <span class="hl-dim"># PRO-only cyber-press news feed (no fallback)</span>
+    <span class="hl-dim">enabled</span>: false
+    <span class="hl-dim">api_key</span>: ${RANSOMWARE_API_KEY}
+  <span class="hl-cyan">ransomware_8k</span>:           <span class="hl-dim"># PRO-only: SEC 8-K cyber-incident filings</span>
+    <span class="hl-dim">enabled</span>: false
+    <span class="hl-dim">api_key</span>: ${RANSOMWARE_API_KEY}
+  <span class="hl-cyan">ransomware_stats</span>:        <span class="hl-dim"># PRO-only: one daily tracker digest</span>
+    <span class="hl-dim">enabled</span>: false
+    <span class="hl-dim">api_key</span>: ${RANSOMWARE_API_KEY}
+  <span class="hl-cyan">red_flag_domains</span>:
+    <span class="hl-dim">enabled</span>: true
+    <span class="hl-dim">base_url</span>: "..."         <span class="hl-dim"># optional override</span>
+
+<span class="hl">filters</span>:
+  <span class="hl-cyan">title_regex_deny</span>:       <span class="hl-dim"># drop events whose title matches</span>
+    - "(?i)sponsored"
+    - "(?i)webinar"
+  <span class="hl-cyan">title_regex_allow</span>: []   <span class="hl-dim"># if non-empty, ONLY pass matching titles</span>
+  <span class="hl-cyan">max_items_per_source</span>: 50
+
+<span class="hl">transports</span>:
+  <span class="hl-cyan">use</span>: ["teams-soc", "discord-alert"]  <span class="hl-dim"># reference connector IDs</span>
+
+<span class="hl">routes</span>:
+  - <span class="hl-dim">name</span>: "cert-alerts"
+    <span class="hl-dim">include_tags</span>: ["cert"]
+    <span class="hl-dim">transports</span>: ["teams-soc"]
+    <span class="hl-dim">template</span>: "templates/rss_default.j2"   <span class="hl-dim"># optional</span>
+
+<span class="hl">store</span>:
+  <span class="hl-cyan">sqlite_path</span>: ".cassandra_cti.db"
+  <span class="hl-cyan">seen_ttl_days</span>: 90       <span class="hl-dim"># purge events older than N days</span>
+
+<span class="hl">logging</span>:
+  <span class="hl-cyan">level</span>: "INFO"           <span class="hl-dim"># DEBUG | INFO | WARNING | ERROR</span>
+
+<span class="hl">metrics</span>:
+  <span class="hl-cyan">enabled</span>: true
+  <span class="hl-cyan">host</span>: "127.0.0.1"       <span class="hl-dim"># localhost by default; set 0.0.0.0 to expose</span>
+  <span class="hl-cyan">port</span>: 9108</code></pre>
+
+      <h3 id="cfg-scheduler">Scheduler</h3>
+      <table class="doc-table">
+        <tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr>
+        <tr><td>mode</td><td>string</td><td>oneshot</td><td><code>oneshot</code> runs once and exits. <code>loop</code> repeats every <code>interval_seconds</code>.</td></tr>
+        <tr><td>interval_seconds</td><td>int</td><td>300</td><td>Loop interval in seconds. Only used when <code>mode: loop</code>.</td></tr>
+      </table>
+
+      <h3 id="cfg-sources">Sources</h3>
+      <table class="doc-table">
+        <tr><th>Key</th><th>Type</th><th>Description</th></tr>
+        <tr><td>rss.enabled</td><td>bool</td><td>Enable RSS/Atom source fetching.</td></tr>
+        <tr><td>rss.feeds</td><td>list</td><td>List of <code>{name, url, tags}</code> feed objects.</td></tr>
+        <tr><td>ransomware_live.enabled</td><td>bool</td><td>Enable ransomware.live source.</td></tr>
+        <tr><td>ransomware_live.lookback_days</td><td>int</td><td>How many days back to fetch ransomware events. Default: 30.</td></tr>
+        <tr><td>ransomware_live.api_key</td><td>string</td><td>Optional PRO API key (X-API-KEY). If set, the PRO backend is tried first, then API v2, then posts.json.</td></tr>
+        <tr><td>ransomware_live.url</td><td>string</td><td>Optional override for the legacy <code>posts.json</code> endpoint.</td></tr>
+        <tr><td>ransomware_press.enabled</td><td>bool</td><td>Enable the PRO-only cyber-press news feed. Requires <code>api_key</code>.</td></tr>
+        <tr><td>ransomware_8k.enabled</td><td>bool</td><td>Enable the PRO-only SEC 8-K cyber-incident feed. Requires <code>api_key</code>.</td></tr>
+        <tr><td>ransomware_stats.enabled</td><td>bool</td><td>Enable the PRO-only daily tracker digest. Requires <code>api_key</code>.</td></tr>
+        <tr><td>ransomware_*.api_key</td><td>string</td><td>PRO API key for the PRO-only feeds. Without it these feeds skip and warn (no fallback).</td></tr>
+        <tr><td>red_flag_domains.enabled</td><td>bool</td><td>Enable Red Flag Domains source.</td></tr>
+        <tr><td>red_flag_domains.base_url</td><td>string</td><td>Optional override for the daily list base URL.</td></tr>
+      </table>
+
+      <h3 id="cfg-filters">Filters</h3>
+      <table class="doc-table">
+        <tr><th>Key</th><th>Type</th><th>Description</th></tr>
+        <tr><td>title_regex_deny</td><td>list[str]</td><td>Python regex patterns. Events whose title matches any pattern are dropped.</td></tr>
+        <tr><td>title_regex_allow</td><td>list[str]</td><td>If non-empty, only events matching at least one pattern are kept.</td></tr>
+        <tr><td>max_items_per_source</td><td>int</td><td>Maximum events accepted per source per run. Default: 50.</td></tr>
+      </table>
+
+      <h3 id="cfg-transports">Transports reference</h3>
+      <table class="doc-table">
+        <tr><th>Key</th><th>Description</th></tr>
+        <tr><td>transports.use</td><td>List of connector IDs (defined in connectors.yaml) to activate.</td></tr>
+      </table>
+
+      <h3 id="cfg-routes">Routes</h3>
+      <p><strong>Every matching route fires</strong> — a single event can fan out to several routes at once. Per-transport deduplication guarantees the same event is never delivered twice to the same transport. An event not matched by any route is silently dropped.</p>
+      <table class="doc-table">
+        <tr><th>Key</th><th>Type</th><th>Description</th></tr>
+        <tr><td>name</td><td>string</td><td>Unique route identifier (used in logs).</td></tr>
+        <tr><td>include_sources</td><td>list[str]</td><td>Match by source ID prefix or exact name. e.g. <code>rss:</code> matches all RSS feeds.</td></tr>
+        <tr><td>include_tags</td><td>list[str]</td><td>Match if any event tag is in this list.</td></tr>
+        <tr><td>include_regex</td><td>string</td><td>Python regex tested against <code>title</code> and <code>source</code>.</td></tr>
+        <tr><td>transports</td><td>list[str]</td><td>Connector IDs to deliver matched events to.</td></tr>
+        <tr><td>template</td><td>string</td><td>Path to a Jinja2 template file. Optional — falls back to transport default.</td></tr>
+      </table>
+
+      <h3 id="cfg-store">Store</h3>
+      <table class="doc-table">
+        <tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr>
+        <tr><td>sqlite_path</td><td>string</td><td>.cassandra_cti.db</td><td>Path to the SQLite deduplication database. Relative paths are resolved from the config file directory.</td></tr>
+        <tr><td>seen_ttl_days</td><td>int</td><td>90</td><td>Events older than this are purged on each run. Set to 0 to disable.</td></tr>
+      </table>
+
+      <h3 id="cfg-metrics">Metrics</h3>
+      <table class="doc-table">
+        <tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr>
+        <tr><td>enabled</td><td>bool</td><td>false</td><td>Start a Prometheus HTTP metrics endpoint.</td></tr>
+        <tr><td>host</td><td>string</td><td>127.0.0.1</td><td>Bind address. Localhost by default; set <code>0.0.0.0</code> to expose to other containers/hosts.</td></tr>
+        <tr><td>port</td><td>int</td><td>9108</td><td>Port for the metrics HTTP server.</td></tr>
+      </table>
+    </div>
+
+    <!-- CONNECTORS.YAML -->
+    <div class="doc-section" id="connectors-yaml">
+      <div class="section-tag">Configuration</div>
+      <h2>connectors.yaml</h2>
+      <p>Defines transport instances (webhook endpoints, formatting options). Kept separate from <code>config.yaml</code> so it can be secrets-managed independently. Supports <code>${VAR_NAME}</code> substitution.</p>
+
+      <pre><code><span class="pre-label">connectors.yaml</span>
+<span class="hl">connectors</span>:
+  - <span class="hl-dim">id</span>: "teams-soc"
+    <span class="hl-dim">type</span>: "teams"
+    <span class="hl-dim">params</span>:
+      <span class="hl-dim">webhook_url</span>: ${MSTEAMS_WEBHOOK_SOC}
+      <span class="hl-dim">theme_color</span>: "0078D7"
+      <span class="hl-dim">emojis</span>: true
+      <span class="hl-dim">throttle_ms</span>: 1000
+      <span class="hl-dim">batching</span>:
+        <span class="hl-dim">enabled</span>: true
+        <span class="hl-dim">max_items</span>: 5
+
+  - <span class="hl-dim">id</span>: "discord-alert"
+    <span class="hl-dim">type</span>: "discord"
+    <span class="hl-dim">params</span>:
+      <span class="hl-dim">webhook_url</span>: ${DISCORD_WEBHOOK_URL}
+      <span class="hl-dim">username</span>: "CassandraCTI"
+      <span class="hl-dim">avatar_url</span>: "https://..."
+      <span class="hl-dim">emojis</span>: true
+      <span class="hl-dim">throttle_ms</span>: 500
+
+  - <span class="hl-dim">id</span>: "telegram-soc"
+    <span class="hl-dim">type</span>: "telegram"
+    <span class="hl-dim">params</span>:
+      <span class="hl-dim">bot_token</span>: ${TELEGRAM_BOT_TOKEN}
+      <span class="hl-dim">chat_id</span>: ${TELEGRAM_CHAT_ID}   <span class="hl-dim"># "@publicchannel" or -100123456789</span>
+      <span class="hl-dim">parse_mode</span>: "HTML"           <span class="hl-dim"># default; falls back to plain text on parse errors</span>
+      <span class="hl-dim">emojis</span>: true
+      <span class="hl-dim">throttle_ms</span>: 1000
+
+  - <span class="hl-dim">id</span>: "email-soc"
+    <span class="hl-dim">type</span>: "smtp"
+    <span class="hl-dim">params</span>:
+      <span class="hl-dim">host</span>: ${SMTP_HOST}            <span class="hl-dim"># e.g. smtp.gmail.com</span>
+      <span class="hl-dim">port</span>: 587
+      <span class="hl-dim">security</span>: "starttls"         <span class="hl-dim"># starttls (587) | ssl (465) | none (25)</span>
+      <span class="hl-dim">username</span>: ${SMTP_USERNAME}
+      <span class="hl-dim">password</span>: ${SMTP_PASSWORD}    <span class="hl-dim"># app password / API key</span>
+      <span class="hl-dim">from_addr</span>: ${SMTP_FROM}       <span class="hl-dim"># defaults to username</span>
+      <span class="hl-dim">to_addrs</span>: ${SMTP_TO}          <span class="hl-dim"># "a@x.com,b@y.com" or a YAML list</span>
+      <span class="hl-dim">subject_prefix</span>: "[CTI]"</code></pre>
+
+      <h3 id="conn-teams">Teams connector params</h3>
+      <table class="doc-table">
+        <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        <tr><td>webhook_url</td><td>string</td><td>Yes</td><td>Microsoft Teams incoming webhook URL.</td></tr>
+        <tr><td>theme_color</td><td>string</td><td>No</td><td>Hex color without <code>#</code> for the card border. Default: black.</td></tr>
+        <tr><td>emojis</td><td>bool</td><td>No</td><td>Prepend computed emoji to message title. Default: true.</td></tr>
+        <tr><td>emoji_map</td><td>dict</td><td>No</td><td>Custom <code>source_id → emoji</code> overrides.</td></tr>
+        <tr><td>throttle_ms</td><td>int</td><td>No</td><td>Minimum ms between sends. Minimum 1000ms for Teams. Default: 1000.</td></tr>
+        <tr><td>batching.enabled</td><td>bool</td><td>No</td><td>Group multiple events into a single card. Default: false.</td></tr>
+        <tr><td>batching.max_items</td><td>int</td><td>No</td><td>Max events per batched card. Default: 10.</td></tr>
+      </table>
+
+      <h4>Theme color suggestions</h4>
+      <table class="doc-table">
+        <tr><th>Color</th><th>Hex</th><th>Recommended use</th></tr>
+        <tr><td>Blue</td><td>0078D7</td><td>General / Microsoft</td></tr>
+        <tr><td>Purple</td><td>8E44AD</td><td>Vendor news</td></tr>
+        <tr><td>Orange</td><td>D83B01</td><td>General news</td></tr>
+        <tr><td>Green</td><td>107C10</td><td>Ransomware</td></tr>
+        <tr><td>Red</td><td>C0392B</td><td>Malicious domains</td></tr>
+      </table>
+
+      <h3 id="conn-discord">Discord connector params</h3>
+      <table class="doc-table">
+        <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        <tr><td>webhook_url</td><td>string</td><td>Yes</td><td>Discord webhook URL.</td></tr>
+        <tr><td>username</td><td>string</td><td>No</td><td>Display name for the bot.</td></tr>
+        <tr><td>avatar_url</td><td>string</td><td>No</td><td>Avatar image URL for the bot.</td></tr>
+        <tr><td>emojis</td><td>bool</td><td>No</td><td>Prepend emoji to embed title.</td></tr>
+        <tr><td>emoji_map</td><td>dict</td><td>No</td><td>Custom <code>source_id → emoji</code> overrides.</td></tr>
+        <tr><td>throttle_ms</td><td>int</td><td>No</td><td>Minimum ms between sends. Default: 500.</td></tr>
+        <tr><td>batching.enabled</td><td>bool</td><td>No</td><td>Group events into a single embed.</td></tr>
+        <tr><td>batching.max_items</td><td>int</td><td>No</td><td>Max events per batched embed.</td></tr>
+      </table>
+
+      <div class="callout">
+        <p><strong>Discord limits enforced automatically:</strong> embed title is truncated at 256 chars, description at 4000 chars (with <code>... (truncated)</code> suffix).</p>
+      </div>
+
+      <h3 id="conn-telegram">Telegram connector params</h3>
+      <p>Unlike Teams/Discord there is <strong>no incoming-webhook URL</strong>. Sending is a POST to the Bot API <code>sendMessage</code> endpoint, so a <code>bot_token</code> and a <code>chat_id</code> are required.</p>
+      <table class="doc-table">
+        <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        <tr><td>bot_token</td><td>string</td><td>Yes</td><td>Bot token from <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a> (<code>/newbot</code>).</td></tr>
+        <tr><td>chat_id</td><td>string / int</td><td>Yes</td><td>Target chat: a public <code>@channelusername</code> or a numeric id (e.g. <code>-100123456789</code>). Add the bot to the channel/group as an administrator.</td></tr>
+        <tr><td>parse_mode</td><td>string</td><td>No</td><td>Message formatting. Default: <code>HTML</code>. Falls back to plain text automatically if Telegram rejects the entities.</td></tr>
+        <tr><td>emojis</td><td>bool</td><td>No</td><td>Prepend computed emoji to the message title. Default: true.</td></tr>
+        <tr><td>emoji_map</td><td>dict</td><td>No</td><td>Custom <code>source_id → emoji</code> overrides.</td></tr>
+        <tr><td>disable_web_page_preview</td><td>bool</td><td>No</td><td>Suppress link previews. Default: true.</td></tr>
+        <tr><td>throttle_ms</td><td>int</td><td>No</td><td>Minimum ms between sends. Default: 1000.</td></tr>
+        <tr><td>batching.enabled</td><td>bool</td><td>No</td><td>Group multiple events into a single message.</td></tr>
+        <tr><td>batching.max_items</td><td>int</td><td>No</td><td>Max events per batched message.</td></tr>
+      </table>
+      <div class="callout">
+        <p>Messages render as HTML with a <strong>4096-char limit</strong> (auto-truncated). On a <code>429</code> the transport honours Telegram's <code>retry_after</code> and backs off. Assign a Telegram-flavoured template (e.g. <code>templates/telegram_default.j2</code>) — Teams/Discord Markdown won't render as rich text on Telegram.</p>
+      </div>
+
+      <h3 id="conn-smtp">SMTP (email) connector params</h3>
+      <p>Sends HTML email through any SMTP server using the Python standard-library <code>smtplib</code> (no extra dependency). The body is a <code>multipart/alternative</code> message (plain text + HTML).</p>
+      <table class="doc-table">
+        <tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        <tr><td>host</td><td>string</td><td>Yes</td><td>SMTP server hostname (e.g. <code>smtp.gmail.com</code>).</td></tr>
+        <tr><td>port</td><td>int</td><td>No</td><td>SMTP port. Default: 587.</td></tr>
+        <tr><td>security</td><td>string</td><td>No</td><td><code>starttls</code> (587, default) · <code>ssl</code> (implicit TLS, 465) · <code>none</code> (plaintext, e.g. an internal relay on 25).</td></tr>
+        <tr><td>username</td><td>string</td><td>No</td><td>SMTP auth username. Login is skipped if username/password are omitted.</td></tr>
+        <tr><td>password</td><td>string</td><td>No</td><td>SMTP auth password / app password / API key.</td></tr>
+        <tr><td>from_addr</td><td>string</td><td>No</td><td>Envelope sender. Defaults to <code>username</code>.</td></tr>
+        <tr><td>to_addrs</td><td>string / list</td><td>Yes</td><td>Recipients: <code>"a@x.com,b@y.com"</code> or a YAML list.</td></tr>
+        <tr><td>subject_prefix</td><td>string</td><td>No</td><td>Prepended to the subject line. Default: <code>[CTI]</code>.</td></tr>
+        <tr><td>emojis</td><td>bool</td><td>No</td><td>Prepend computed emoji to the subject. Default: true.</td></tr>
+        <tr><td>throttle_ms</td><td>int</td><td>No</td><td>Minimum ms between sends. Default: 1000.</td></tr>
+        <tr><td>batching.enabled</td><td>bool</td><td>No</td><td>Group events into a single digest email.</td></tr>
+        <tr><td>batching.max_items</td><td>int</td><td>No</td><td>Max events per digest email.</td></tr>
+      </table>
+      <div class="callout">
+        <p><strong>Gmail example:</strong> host <code>smtp.gmail.com</code>, port <code>587</code>, security <code>starttls</code>, username = your address, password = a Google App Password (not your login password). Batching is recommended so you receive one digest instead of one email per event.</p>
+      </div>
+    </div>
+
+    <!-- ENV VARS -->
+    <div class="doc-section" id="env-vars">
+      <div class="section-tag">Configuration</div>
+      <h2>Environment Variables</h2>
+      <p>Runtime behavior can be overridden via environment variables without touching config files.</p>
+
+      <table class="doc-table">
+        <tr><th>Variable</th><th>Description</th></tr>
+        <tr><td>CTI_CONNECTORS</td><td>Override path to <code>connectors.yaml</code>.</td></tr>
+        <tr><td>CTI_LOGLEVEL</td><td>Override log level at runtime: <code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>.</td></tr>
+        <tr><td>CTI_SINCE</td><td>Only process events published after this ISO8601 date (e.g. <code>2025-03-01</code>). Overrides <code>--since</code> flag.</td></tr>
+        <tr><td>CTI_NO_DEDUPE</td><td>Set to any non-empty value to skip deduplication entirely.</td></tr>
+        <tr><td>CTI_DRY_RUN</td><td>Set to any non-empty value to log delivery actions without sending anything.</td></tr>
+        <tr><td>CTI_TLS_NO_VERIFY</td><td>Set to <code>1</code> to disable TLS certificate verification on all fetches (for intercepting corporate proxies). TLS is verified by default.</td></tr>
+      </table>
+
+      <p>Config files also support <code>${VAR_NAME}</code> substitution, which is resolved at load time. Use this to inject webhook URLs, bot tokens, API keys, and other secrets without committing them to disk:</p>
+      <pre><code>connectors:
+  - id: "teams-soc"
+    type: "teams"
+    params:
+      webhook_url: <span class="hl">${MSTEAMS_WEBHOOK_SOC}</span>
+
+sources:
+  ransomware_live:
+    api_key: <span class="hl">${RANSOMWARE_API_KEY}</span></code></pre>
+
+      <div class="callout">
+        <p><strong>Secure by default.</strong> HTTP fetches are TLS-verified (opt out with <code>CTI_TLS_NO_VERIFY=1</code>), response bodies are size-capped at 25 MiB, and the Prometheus metrics server binds <code>127.0.0.1</code> unless you set <code>metrics.host</code> to <code>0.0.0.0</code>. A PRO <code>api_key</code> left as an unexpanded <code>${VAR}</code> placeholder is treated as no key.</p>
+      </div>
+    </div>
+
+    <!-- SOURCES -->
+    <div class="doc-section" id="src-rss">
+      <div class="section-tag">Sources</div>
+      <h2>RSS / Atom Feeds</h2>
+      <p>The RSS source fetches and parses any standard RSS or Atom feed. Each feed is identified as <code>rss:{name}</code>, enabling per-feed routing rules.</p>
+
+      <h3>Configuration</h3>
+      <pre><code>sources:
+  rss:
+    enabled: true
+    feeds:
+      - name: "CERT-FR Alertes"
+        url: "https://cert.ssi.gouv.fr/alerte/feed/"
+        tags: ["cert", "fr"]
+      - name: "BleepingComputer"
+        url: "https://www.bleepingcomputer.com/feed/"
+        tags: ["news"]</code></pre>
+
+      <h3>Bulk import from CSV</h3>
+      <pre><code><span class="hl-dim"># Format: Name,URL,Tags (tags are pipe-separated)</span>
+<span class="hl">cassandra import-feeds feeds.csv</span></code></pre>
+
+      <h3>Event fields</h3>
+      <table class="doc-table">
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>source</td><td><code>rss:{name}</code> — e.g. <code>rss:CERT-FR Alertes</code></td></tr>
+        <tr><td>title</td><td>Feed entry title</td></tr>
+        <tr><td>url</td><td>Feed entry link</td></tr>
+        <tr><td>summary</td><td>Entry content/description (HTML stripped)</td></tr>
+        <tr><td>published_at</td><td>Normalized to UTC</td></tr>
+        <tr><td>tags</td><td>Tags defined per feed in config</td></tr>
+        <tr><td>raw</td><td>Full feedparser entry object</td></tr>
+      </table>
+
+      <h3>Pre-configured feeds (30+)</h3>
+      <div class="chip-list">
+        <span class="chip" style="color:var(--amber);font-size:.6rem;letter-spacing:.08em;width:100%;border:none;background:none;padding:.25rem 0 .1rem">CERTs</span>
+        <span class="chip chip-amber">CERT-FR Alertes</span><span class="chip chip-amber">CERT-FR Avis</span>
+        <span class="chip" style="color:var(--amber);font-size:.6rem;letter-spacing:.08em;width:100%;border:none;background:none;padding:.25rem 0 .1rem">Microsoft</span>
+        <span class="chip chip-amber">Microsoft Security</span><span class="chip chip-amber">Microsoft Sentinel</span><span class="chip chip-amber">MSRC</span>
+        <span class="chip" style="color:var(--amber);font-size:.6rem;letter-spacing:.08em;width:100%;border:none;background:none;padding:.25rem 0 .1rem">Vendors</span>
+        <span class="chip">Cisco Talos</span><span class="chip">Trend Micro</span><span class="chip">Proofpoint</span><span class="chip">Checkpoint Research</span>
+        <span class="chip">SentinelOne</span><span class="chip">RedCanary</span><span class="chip">Palo Alto Unit 42</span>
+        <span class="chip">Kaspersky Securelist</span><span class="chip">Recorded Future</span><span class="chip">Google TAG</span><span class="chip">ATT LevelBlue</span>
+        <span class="chip" style="color:var(--amber);font-size:.6rem;letter-spacing:.08em;width:100%;border:none;background:none;padding:.25rem 0 .1rem">News</span>
+        <span class="chip">Krebs on Security</span><span class="chip">BleepingComputer</span><span class="chip">Dark Reading</span>
+        <span class="chip">Hacker News</span><span class="chip">Threatpost</span><span class="chip">SANS ISC Diary</span>
+        <span class="chip">Schneier on Security</span><span class="chip">Graham Cluley</span><span class="chip">VirusBulletin</span>
+        <span class="chip">InfoSecurity Magazine</span><span class="chip">Cyber-News.fr</span>
+        <span class="chip" style="color:var(--amber);font-size:.6rem;letter-spacing:.08em;width:100%;border:none;background:none;padding:.25rem 0 .1rem">Technical</span>
+        <span class="chip">Adam Chester (XPN)</span><span class="chip">Modexp</span><span class="chip">James Forshaw</span>
+      </div>
+      <p>Full list with URLs available in <code>config.example.yaml</code>.</p>
+    </div>
+
+    <div class="doc-section" id="src-ransomware">
+      <div class="section-tag">Sources</div>
+      <h2>Ransomware Live</h2>
+      <p>Tracks ransomware group attacks from <a href="https://ransomware.live" target="_blank" rel="noopener noreferrer">ransomware.live</a>. Each attack becomes a deduplicated event with rich metadata. The source uses a resilient <strong>multi-backend fallback chain</strong>: it tries each backend in order and returns the first that yields events, so a paid tier or an outage never breaks collection.</p>
+
+      <h3>Backend fallback chain</h3>
+      <table class="doc-table">
+        <tr><th>Order</th><th>Backend</th><th>Auth</th></tr>
+        <tr><td>1</td><td>API PRO — <code>api-pro.ransomware.live/victims/recent</code></td><td>Header <code>X-API-KEY</code> (from <code>api_key</code>); tried first only when a key is set.</td></tr>
+        <tr><td>2</td><td>API v2 — <code>api.ransomware.live/v2/recentvictims</code></td><td>Free, no auth.</td></tr>
+        <tr><td>3</td><td>posts.json — <code>data.ransomware.live/posts.json</code></td><td>Free legacy dump.</td></tr>
+      </table>
+      <p>Whichever backend serves the data, every record is normalised to the same canonical <code>raw</code> keys so templates behave identically. The <code>raw.backend</code> field records which one answered (<code>pro</code> / <code>v2</code> / <code>posts</code>).</p>
+
+      <h3>Configuration</h3>
+      <pre><code>sources:
+  ransomware_live:
+    enabled: true
+    lookback_days: 30                 <span class="hl-dim"># fetch attacks up to 30 days old</span>
+    api_key: ${RANSOMWARE_API_KEY}    <span class="hl-dim"># optional PRO tier; else v2 → posts.json</span></code></pre>
+
+      <h3>Event fields</h3>
+      <table class="doc-table">
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>source</td><td><code>ransomware.live</code></td></tr>
+        <tr><td>title</td><td><code>{victim} by {group}</code></td></tr>
+        <tr><td>url</td><td>Stable ransomware.live permalink (falls back to the leak URL)</td></tr>
+        <tr><td>tags</td><td><code>["ransomware"]</code></td></tr>
+        <tr><td>raw.victim</td><td>Victim name</td></tr>
+        <tr><td>raw.group_name</td><td>Ransomware group name</td></tr>
+        <tr><td>raw.country</td><td>Victim country (ISO-2 code)</td></tr>
+        <tr><td>raw.country_display</td><td>Full country label — e.g. <code>France (FR)</code>. Falls back to the raw code when unknown, empty when absent.</td></tr>
+        <tr><td>raw.country_flag</td><td>Flag emoji computed from the ISO-2 code — e.g. 🇫🇷. Empty for an invalid/empty code.</td></tr>
+        <tr><td>raw.activity</td><td>Victim sector / group activity</td></tr>
+        <tr><td>raw.website</td><td>Victim domain</td></tr>
+        <tr><td>raw.discovered</td><td>Discovery date</td></tr>
+        <tr><td>raw.attackdate</td><td>Attack date</td></tr>
+        <tr><td>raw.infostealer</td><td>ransomware.live infostealer <strong>object</strong> (users/employees/third-parties counts + a per-family <code>infostealer_stats</code> breakdown) — <strong>not</strong> a boolean.</td></tr>
+        <tr><td>raw.infostealer_summary</td><td>Human summary of the counts — e.g. <code>886 users, 32 employees, 251 third-parties</code>. Empty when all counts are zero (no false positive).</td></tr>
+        <tr><td>raw.infostealer_stealers</td><td>Top stealer families — e.g. <code>Lumma (137), RedLine (132)</code>. Empty when absent.</td></tr>
+        <tr><td>raw.data_size</td><td>Exfiltrated data size (when reported)</td></tr>
+        <tr><td>raw.leak_url</td><td>Group's onion leak-site post URL, when the backend provides it</td></tr>
+        <tr><td>raw.backend</td><td>Backend that served the record (<code>pro</code> / <code>v2</code> / <code>posts</code>)</td></tr>
+      </table>
+
+      <h3>Enrichment</h3>
+      <p>Whichever backend serves a record, it is enriched with derived fields so the cards render consistently:</p>
+      <ul>
+        <li><strong>Country.</strong> <code>country_display</code> (e.g. <code>France (FR)</code>) and <code>country_flag</code> (🇫🇷) are computed from the ISO-2 <code>country</code> code via <code>cassandra_cti/countries.py</code> — a full ISO-3166 name map plus a regional-indicator flag builder. Unknown codes fall back to the raw code; empty codes yield empty strings.</li>
+        <li><strong>Infostealer.</strong> ransomware.live's <code>infostealer</code> field is a rich <strong>object</strong> — users / employees / third-parties counts plus a per-stealer-family breakdown in <code>infostealer_stats</code> — <strong>not</strong> a boolean. It is condensed into <code>infostealer_summary</code> (e.g. <code>886 users, 32 employees, 251 third-parties</code>) and <code>infostealer_stealers</code> (top families, e.g. <code>Lumma (137), RedLine (132)</code>). Both stay empty when every count is zero — the API attaches the object even when it correlated nothing, so this avoids a false positive. The card renders the real counts and top stealer families only when they are non-zero.</li>
+        <li><strong>Leak link.</strong> <code>leak_url</code> is the group's onion leak site (when the backend provides it). The event <code>url</code> stays the stable ransomware.live permalink so dedup identity does not shift on a fallback; the cards link <strong>both</strong> the permalink and the leak site.</li>
+      </ul>
+
+      <div class="callout">
+        <p>The <strong>title</strong> country-flag emoji is detected from the event URL TLD — <strong>🇫🇷 🇬🇧 🇩🇪 🇺🇸 🇨🇦 ...</strong> — and prepended when <code>emojis: true</code>. This is separate from the <code>raw.country_flag</code> field above, which is derived from the ISO-2 <code>country</code> code.</p>
+      </div>
+    </div>
+
+    <div class="doc-section" id="src-redflag">
+      <div class="section-tag">Sources</div>
+      <h2>Red Flag Domains</h2>
+      <p>Downloads the daily malicious domain list from <a href="https://red.flag.domains" target="_blank" rel="noopener noreferrer">red.flag.domains</a>. One event is generated per run containing a preview and link to the full list.</p>
+
+      <h3>Configuration</h3>
+      <pre><code>sources:
+  red_flag_domains:
+    enabled: true</code></pre>
+
+      <h3>Event fields</h3>
+      <table class="doc-table">
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>source</td><td><code>red.flag.domains</code></td></tr>
+        <tr><td>title</td><td><code>Red Flag Domains – YYYY-MM-DD</code></td></tr>
+        <tr><td>summary</td><td>Full domain list (newline-separated)</td></tr>
+        <tr><td>tags</td><td><code>["domains"]</code></td></tr>
+        <tr><td>raw.file</td><td>Downloaded filename</td></tr>
+        <tr><td>raw.count</td><td>Total domain count</td></tr>
+        <tr><td>raw.date</td><td>List date (YYYY-MM-DD)</td></tr>
+      </table>
+
+      <p>The <code>domains_list.j2</code> template formats this event with a 50-domain preview and a direct link to the full list.</p>
+    </div>
+
+    <div class="doc-section" id="src-ransomware-press">
+      <div class="section-tag">Sources · PRO</div>
+      <h2>Ransomware Press</h2>
+      <p>Recent cyber-press news from the ransomware.live PRO endpoint <code>/press/recent</code>. <strong>PRO-only</strong> — there is no free equivalent, so without a valid <code>api_key</code> the source degrades gracefully: it logs a warning and yields nothing instead of failing the run.</p>
+
+      <h3>Configuration</h3>
+      <pre><code>sources:
+  ransomware_press:
+    enabled: true
+    api_key: ${RANSOMWARE_API_KEY}
+    <span class="hl-dim"># country: US   # optional ISO-2 filter</span></code></pre>
+
+      <h3>Event fields</h3>
+      <table class="doc-table">
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>source</td><td><code>ransomware.press</code></td></tr>
+        <tr><td>title</td><td>Victim / headline (falls back to <code>Cyber press</code>)</td></tr>
+        <tr><td>url</td><td><code>None</code> — <code>/press/recent</code> items carry no article link</td></tr>
+        <tr><td>summary</td><td>Article summary</td></tr>
+        <tr><td>tags</td><td><code>["press", "news"]</code></td></tr>
+        <tr><td>raw</td><td>Full item: <code>date, victim, domain, country, summary</code></td></tr>
+      </table>
+      <p>Pair with <code>templates/telegram_press.j2</code> on Telegram routes. Dedup identity is per <code>(source, victim)</code> since there is no URL.</p>
+    </div>
+
+    <div class="doc-section" id="src-ransomware-8k">
+      <div class="section-tag">Sources · PRO</div>
+      <h2>Ransomware 8-K</h2>
+      <p>SEC <strong>Form 8-K</strong> cyber-incident filings by US public companies, from the ransomware.live PRO endpoint <code>/8k</code>. <strong>PRO-only</strong>; skips and warns without an <code>api_key</code>. Up to 50 of the most recent filings per run.</p>
+
+      <h3>Configuration</h3>
+      <pre><code>sources:
+  ransomware_8k:
+    enabled: true
+    api_key: ${RANSOMWARE_API_KEY}</code></pre>
+
+      <h3>Event fields</h3>
+      <table class="doc-table">
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>source</td><td><code>ransomware.8k</code></td></tr>
+        <tr><td>title</td><td><code>{company} ({ticker})</code> — ticker omitted if absent</td></tr>
+        <tr><td>url</td><td>Real SEC / EDGAR filing link (also the dedup key)</td></tr>
+        <tr><td>summary</td><td><code>SEC 8-K filing</code> + matched items</td></tr>
+        <tr><td>tags</td><td><code>["sec", "8k", "disclosure"]</code></td></tr>
+        <tr><td>raw.item105</td><td>Item 1.05 — Material Cybersecurity Incident</td></tr>
+        <tr><td>raw.item801</td><td>Item 8.01 — Other Events</td></tr>
+        <tr><td>raw.file_date</td><td>Filing date</td></tr>
+        <tr><td>raw</td><td>Full form: <code>company, stockticker, form, file_date, cik, adsh, link, item105, item801</code></td></tr>
+      </table>
+      <p>Pair with <code>templates/telegram_8k.j2</code> on Telegram routes.</p>
+    </div>
+
+    <div class="doc-section" id="src-ransomware-stats">
+      <div class="section-tag">Sources · PRO</div>
+      <h2>Ransomware Stats</h2>
+      <p>A daily tracker digest from the ransomware.live PRO endpoint <code>/stats</code>. <strong>PRO-only</strong>; skips and warns without an <code>api_key</code>. Emits <strong>one event summarising the tracker</strong>, deduplicated per day so you get a single digest each day.</p>
+
+      <h3>Configuration</h3>
+      <pre><code>sources:
+  ransomware_stats:
+    enabled: true
+    api_key: ${RANSOMWARE_API_KEY}</code></pre>
+
+      <h3>Event fields</h3>
+      <table class="doc-table">
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>source</td><td><code>ransomware.stats</code></td></tr>
+        <tr><td>title</td><td><code>Ransomware tracker - {YYYY-MM-DD}</code></td></tr>
+        <tr><td>url</td><td><code>None</code></td></tr>
+        <tr><td>summary</td><td><code>Victims tracked: … | Groups: … | Press articles: …</code></td></tr>
+        <tr><td>tags</td><td><code>["stats", "digest"]</code></td></tr>
+        <tr><td>raw</td><td><code>{stats: {victims, groups, press}, last_update, day}</code></td></tr>
+      </table>
+      <p>Pair with <code>templates/telegram_stats.j2</code> on Telegram routes.</p>
+
+      <div class="callout">
+        <p><strong>PRO feeds &amp; <code>doctor</code>:</strong> <code>ransomware_press</code>, <code>ransomware_8k</code>, and <code>ransomware_stats</code> all require a PRO <code>api_key</code> and have no free fallback. Enabled without one, they skip with a warning (the pipeline isolates each source, so others are unaffected). <code>cassandra doctor config</code> flags any PRO feed that is enabled but missing a key.</p>
+      </div>
+    </div>
+
+    <!-- TRANSPORTS -->
+    <div class="doc-section" id="tr-teams">
+      <div class="section-tag">Transports</div>
+      <h2>Microsoft Teams</h2>
+      <p>Sends Adaptive Cards (MessageCard format) to a Teams incoming webhook. Supports single-event and batched delivery.</p>
+
+      <h3>Example connector</h3>
+      <pre><code>connectors:
+  - id: "teams-cert"
+    type: "teams"
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_CERT}
+      theme_color: "0078D7"
+      emojis: true
+      throttle_ms: 1000
+      batching:
+        enabled: false
+        max_items: 10</code></pre>
+
+      <h3>Payload format (MessageCard)</h3>
+      <pre><code>{
+  "@type": "MessageCard",
+  "@context": "http://schema.org/extensions",
+  "themeColor": "<span class="hl">0078D7</span>",
+  "summary": "<span class="hl">event title</span>",
+  "title": "<span class="hl">emoji + title</span>",
+  "text": "<span class="hl">rendered template body</span>",
+  "potentialAction": [{
+    "@type": "OpenUri",
+    "name": "View Source",
+    "targets": [{ "os": "default", "uri": "<span class="hl">event url</span>" }]
+  }]
+}</code></pre>
+
+      <h3>Rate limiting and retries</h3>
+      <ul>
+        <li>Minimum <code>throttle_ms: 1000</code> between sends (Teams enforces this)</li>
+        <li>Automatic retry on 429 (Too Many Requests) with exponential backoff</li>
+        <li>3 retry attempts total</li>
+      </ul>
+    </div>
+
+    <div class="doc-section" id="tr-discord">
+      <div class="section-tag">Transports</div>
+      <h2>Discord</h2>
+      <p>Sends rich Embed messages to a Discord webhook. Supports custom bot username and avatar.</p>
+
+      <h3>Example connector</h3>
+      <pre><code>connectors:
+  - id: "discord-alert"
+    type: "discord"
+    params:
+      webhook_url: ${DISCORD_WEBHOOK_URL}
+      username: "CassandraCTI"
+      avatar_url: "https://..."
+      emojis: true
+      throttle_ms: 500
+      batching:
+        enabled: true
+        max_items: 5</code></pre>
+
+      <h3>Payload format (Embed)</h3>
+      <pre><code>{
+  "username": "<span class="hl">CassandraCTI</span>",
+  "avatar_url": "<span class="hl">https://...</span>",
+  "embeds": [{
+    "title": "<span class="hl">max 256 chars</span>",
+    "description": "<span class="hl">max 4000 chars</span>",
+    "color": 5814783,
+    "url": "<span class="hl">event url (single events only)</span>"
+  }]
+}</code></pre>
+
+      <h3>Limits and retries</h3>
+      <ul>
+        <li>Title truncated at 256 chars, description at 4000 chars</li>
+        <li>5 retry attempts with exponential backoff (1s to 60s cap)</li>
+      </ul>
+    </div>
+
+    <div class="doc-section" id="tr-telegram">
+      <div class="section-tag">Transports</div>
+      <h2>Telegram</h2>
+      <p>Sends messages to a chat/channel via the Telegram <strong>Bot API</strong> (<code>sendMessage</code>). Unlike Teams/Discord there is <strong>no incoming-webhook URL</strong> — you need a <code>bot_token</code> and a <code>chat_id</code>.</p>
+
+      <h3>Example connector</h3>
+      <pre><code>connectors:
+  - id: "telegram-soc"
+    type: "telegram"
+    params:
+      bot_token: ${TELEGRAM_BOT_TOKEN}
+      chat_id: ${TELEGRAM_CHAT_ID}     <span class="hl-dim"># "@publicchannel" or -100123456789</span>
+      parse_mode: "HTML"               <span class="hl-dim"># default</span>
+      emojis: true
+      throttle_ms: 1000</code></pre>
+
+      <h3>Setup</h3>
+      <ol>
+        <li>Create a bot with <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a> → <code>/newbot</code> → copy the token.</li>
+        <li>Add the bot to your channel/group <strong>as an administrator</strong>.</li>
+        <li>Use the public <code>@channelusername</code>, or read <code>result[].message.chat.id</code> from <code>getUpdates</code> for a numeric id.</li>
+        <li>Test it live: <code>cassandra doctor connector --id telegram-soc</code>.</li>
+      </ol>
+
+      <h3>Rendering, limits and retries</h3>
+      <ul>
+        <li>Messages render as <strong>HTML</strong> (<code>parse_mode: HTML</code>); the card title is emitted as <code>&lt;b&gt;…&lt;/b&gt;</code> by the transport, the body from a per-route template.</li>
+        <li>Text is truncated at the Telegram <strong>4096-char limit</strong>.</li>
+        <li>On <code>429</code> it honours Telegram's <code>retry_after</code> and backs off; 5 retry attempts with exponential backoff.</li>
+        <li><strong>Graceful plain-text fallback:</strong> if Telegram rejects the HTML entities (<code>can't parse entities</code>), the message is resent as plain text — this failure is deterministic and excluded from the retry policy.</li>
+      </ul>
+      <div class="callout">
+        <p>Assign a Telegram-flavoured template to Telegram routes (<code>telegram_default</code>, <code>telegram_ransomware</code>, <code>telegram_press</code>, <code>telegram_8k</code>, <code>telegram_stats</code>, <code>telegram_domains</code>). Teams/Discord Markdown won't render as rich text on Telegram.</p>
+      </div>
+    </div>
+
+    <div class="doc-section" id="tr-smtp">
+      <div class="section-tag">Transports</div>
+      <h2>Email (SMTP)</h2>
+      <p>Sends HTML email through any SMTP server (Gmail, SendGrid, a corporate relay…). Uses the Python standard-library <code>smtplib</code> run in a worker thread so it never blocks the event loop — no extra dependency.</p>
+
+      <h3>Example connector</h3>
+      <pre><code>connectors:
+  - id: "email-soc"
+    type: "smtp"
+    params:
+      host: ${SMTP_HOST}            <span class="hl-dim"># e.g. smtp.gmail.com</span>
+      port: 587
+      security: "starttls"          <span class="hl-dim"># starttls (587) | ssl (465) | none (25)</span>
+      username: ${SMTP_USERNAME}
+      password: ${SMTP_PASSWORD}    <span class="hl-dim"># app password / API key</span>
+      from_addr: ${SMTP_FROM}       <span class="hl-dim"># defaults to username</span>
+      to_addrs: ${SMTP_TO}          <span class="hl-dim"># "a@x.com,b@y.com" or a YAML list</span>
+      subject_prefix: "[CTI]"
+      batching: { enabled: true, max_items: 20 }   <span class="hl-dim"># optional digest emails</span></code></pre>
+
+      <h3>Message format</h3>
+      <ul>
+        <li><strong>Subject:</strong> <code>subject_prefix</code> + the event/source title.</li>
+        <li><strong>Body:</strong> a <code>multipart/alternative</code> message — plain text (tags stripped) plus HTML rendered from <code>templates/smtp_default.j2</code> (or a custom per-route template).</li>
+        <li><code>security</code> selects the connection: <code>starttls</code> (587, default), <code>ssl</code> (implicit TLS, 465), or <code>none</code> (plaintext relay on 25). Login is skipped when username/password are omitted.</li>
+        <li>A recipient (<code>to_addrs</code>) is required; sending without one raises a configuration error.</li>
+      </ul>
+      <div class="callout">
+        <p><strong>Gmail example:</strong> host <code>smtp.gmail.com</code>, port <code>587</code>, security <code>starttls</code>, username = your address, password = a <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer">Google App Password</a> (not your login password). Enable batching to get one digest email instead of one per event.</p>
+      </div>
+    </div>
+
+    <!-- ROUTING -->
+    <div class="doc-section" id="routing">
+      <div class="section-tag">Routing</div>
+      <h2>Routing Rules</h2>
+      <p>Routes match incoming events and determine which transports receive them. <strong>Every matching route fires</strong> — a single event can fan out across several routes at once (e.g. a "firehose" route alongside a topic route). <strong>Per-transport deduplication</strong> guarantees the same event is never delivered twice to the same transport, even when overlapping routes target it. Events not matched by any route are silently dropped.</p>
+
+      <h3>Match by source prefix</h3>
+      <pre><code>routes:
+  - name: "all-rss"
+    include_sources: ["rss:"]          <span class="hl-dim"># matches rss:CERT-FR, rss:Krebs, ...</span>
+    transports: ["discord-alert"]</code></pre>
+
+      <h3>Match by exact source</h3>
+      <pre><code>routes:
+  - name: "ransomware"
+    include_sources: ["ransomware.live"]
+    transports: ["teams-soc"]</code></pre>
+
+      <h3>Match by tag</h3>
+      <pre><code>routes:
+  - name: "cert-only"
+    include_tags: ["cert"]
+    transports: ["teams-cert", "discord-alert"]</code></pre>
+
+      <h3>Match by regex</h3>
+      <pre><code>routes:
+  - name: "critical-cves"
+    include_regex: "(?i)(critical|zero.day|0-day|CVE)"
+    transports: ["teams-soc", "discord-alert"]</code></pre>
+
+      <div class="callout">
+        <p><strong>Regex</strong> is tested against both <code>title</code> and <code>source</code>. You can combine matchers: a route matches if <em>any</em> of its configured criteria match the event.</p>
+      </div>
+
+      <h3>Fan-out to multiple transports</h3>
+      <pre><code>routes:
+  - name: "cert-alerts"
+    include_tags: ["cert"]
+    transports: ["teams-cert", "discord-alert", "teams-mgmt"]  <span class="hl-dim"># all three receive it</span></code></pre>
+
+      <h3>With a custom template</h3>
+      <pre><code>routes:
+  - name: "ransomware-rich"
+    include_sources: ["ransomware.live"]
+    transports: ["teams-soc"]
+    template: "templates/ransomware_card.j2"</code></pre>
+    </div>
+
+    <!-- CLI -->
+    <div class="doc-section" id="cli-run">
+      <div class="section-tag">CLI Reference</div>
+      <h2>cassandra run</h2>
+      <p>Execute the aggregation and delivery pipeline.</p>
+      <pre><code><span class="hl">cassandra run</span> [OPTIONS]</code></pre>
+
+      <table class="doc-table">
+        <tr><th>Option</th><th>Type</th><th>Description</th></tr>
+        <tr><td>--config</td><td>PATH</td><td>Path to config.yaml.</td></tr>
+        <tr><td>--connectors</td><td>PATH</td><td>Path to connectors.yaml.</td></tr>
+        <tr><td>--loop</td><td>flag</td><td>Run in loop mode (uses <code>scheduler.interval_seconds</code>).</td></tr>
+        <tr><td>--interval</td><td>INT</td><td>Override loop interval in seconds.</td></tr>
+        <tr><td>--sources</td><td>TEXT</td><td>Comma-separated source filter. E.g. <code>"rss:,ransomware.live"</code>.</td></tr>
+        <tr><td>--dry-run</td><td>flag</td><td>Log delivery actions without sending anything.</td></tr>
+        <tr><td>--verbose</td><td>flag</td><td>Set log level to DEBUG.</td></tr>
+        <tr><td>--since</td><td>TEXT</td><td>Only process events after this date (ISO8601 or YYYY-MM-DD).</td></tr>
+        <tr><td>--no-dedupe</td><td>flag</td><td>Skip deduplication — resend all events.</td></tr>
+      </table>
+
+      <h4>Examples</h4>
+      <pre><code><span class="hl-dim"># Standard run</span>
+<span class="hl">cassandra run</span>
+
+<span class="hl-dim"># Loop every 10 minutes, verbose output</span>
+<span class="hl">cassandra run --loop --interval 600 --verbose</span>
+
+<span class="hl-dim"># Only fetch ransomware and CERT feeds</span>
+<span class="hl">cassandra run --sources "ransomware.live,rss:CERT-FR Alertes"</span>
+
+<span class="hl-dim"># Backfill the past week without deduplication</span>
+<span class="hl">cassandra run --since 2025-03-12 --no-dedupe</span>
+
+<span class="hl-dim"># Test a config change without sending anything</span>
+<span class="hl">cassandra run --dry-run --verbose</span></code></pre>
+    </div>
+
+    <div class="doc-section" id="cli-init">
+      <div class="section-tag">CLI Reference</div>
+      <h2>cassandra init</h2>
+      <p>Scaffold the configuration directory with default files.</p>
+      <pre><code><span class="hl">cassandra init</span> [--config PATH] [--connectors PATH]</code></pre>
+      <p>Creates <code>config.yaml</code>, <code>connectors.yaml</code>, and a <code>templates/</code> directory in the default config path (or the paths you specify). Skips files that already exist — safe to re-run.</p>
+    </div>
+
+    <div class="doc-section" id="cli-add-source">
+      <div class="section-tag">CLI Reference</div>
+      <h2>cassandra add-source</h2>
+      <p>Add a source to <code>config.yaml</code>.</p>
+      <pre><code><span class="hl-dim"># Add an RSS feed</span>
+<span class="hl">cassandra add-source rss \
+  --name "CERT-FR Alertes" \
+  --url "https://cert.ssi.gouv.fr/alerte/feed/" \
+  --tags "cert,fr"</span>
+
+<span class="hl-dim"># Enable ransomware.live</span>
+<span class="hl">cassandra add-source ransomware_live</span>
+
+<span class="hl-dim"># Enable Red Flag Domains</span>
+<span class="hl">cassandra add-source redflag</span></code></pre>
+
+      <p><code>add-source</code> accepts <code>rss</code>, <code>ransomware_live</code>, and <code>redflag</code>. The PRO-only feeds (<code>ransomware_press</code>, <code>ransomware_8k</code>, <code>ransomware_stats</code>) are enabled by editing <code>config.yaml</code> directly and adding an <code>api_key</code>.</p>
+
+      <h3>Bulk import from CSV</h3>
+      <pre><code><span class="hl-dim"># CSV format: Name,URL,Tags  (tags are pipe-separated)</span>
+<span class="hl">cassandra import-feeds feeds.csv</span></code></pre>
+    </div>
+
+    <div class="doc-section" id="cli-add-connector">
+      <div class="section-tag">CLI Reference</div>
+      <h2>cassandra add-connector</h2>
+      <p>Add a Teams connector to <code>connectors.yaml</code>.</p>
+      <pre><code><span class="hl">cassandra add-connector \
+  --id "teams-soc" \
+  --webhook-url "https://..." \
+  --theme-color "0078D7" \
+  --emojis</span></code></pre>
+    </div>
+
+    <div class="doc-section" id="cli-routes-add">
+      <div class="section-tag">CLI Reference</div>
+      <h2>cassandra routes-add</h2>
+      <p>Add or update a routing rule in <code>config.yaml</code>.</p>
+      <pre><code><span class="hl">cassandra routes-add \
+  --name "cert-alerts" \
+  --include-tag "cert" \
+  --transports "teams-cert,discord-alert"</span></code></pre>
+    </div>
+
+    <div class="doc-section" id="cli-doctor">
+      <div class="section-tag">CLI Reference</div>
+      <h2>cassandra doctor</h2>
+      <p>Validate configuration and test transport connectivity.</p>
+      <pre><code><span class="hl-dim"># Validate YAML schema</span>
+<span class="hl">cassandra doctor config</span>
+
+<span class="hl-dim"># Send a test message to a connector (Teams, Discord, Telegram, or SMTP)</span>
+<span class="hl">cassandra doctor connector --id teams-soc</span></code></pre>
+      <p><code>doctor config</code> also warns when a PRO-only feed (<code>ransomware_press</code>, <code>ransomware_8k</code>, <code>ransomware_stats</code>) is enabled but has no <code>api_key</code> — those feeds would silently skip.</p>
+    </div>
+
+    <div class="doc-section" id="cli-backfill">
+      <div class="section-tag">CLI Reference</div>
+      <h2>cassandra backfill</h2>
+      <p>Replay past events from the SQLite store to a specific transport.</p>
+      <pre><code><span class="hl">cassandra backfill --to teams-soc --since 2025-03-01</span></code></pre>
+      <p>Events are sent in batches of 10. Delivery is recorded in the store so events are not re-sent on the next regular run.</p>
+    </div>
+
+    <div class="doc-section" id="cli-other">
+      <div class="section-tag">CLI Reference</div>
+      <h2>db-reset · seen-clear · list</h2>
+
+      <h3>cassandra list</h3>
+      <p>Display currently configured sources, routes, and connectors.</p>
+      <pre><code><span class="hl">cassandra list</span></code></pre>
+
+      <h3>cassandra db-reset</h3>
+      <p>Delete the SQLite database (clears all deduplication history). Prompts for confirmation unless <code>--force</code> is passed.</p>
+      <pre><code><span class="hl">cassandra db-reset</span>         <span class="hl-dim"># prompts for confirmation</span>
+<span class="hl">cassandra db-reset --force</span>  <span class="hl-dim"># skip confirmation</span></code></pre>
+      <div class="callout callout-warn">
+        <p><strong>Destructive.</strong> All delivery tracking is lost — every event will be re-sent on the next run.</p>
+      </div>
+
+      <h3>cassandra seen-clear</h3>
+      <p>Selectively clear deduplication history without resetting the entire database.</p>
+      <pre><code><span class="hl-dim"># Clear all events from a specific feed</span>
+<span class="hl">cassandra seen-clear --source-prefix "rss:BleepingComputer"</span>
+
+<span class="hl-dim"># Clear events seen before a date</span>
+<span class="hl">cassandra seen-clear --before 2025-01-01</span>
+
+<span class="hl-dim"># Clear events from a source after a date</span>
+<span class="hl">cassandra seen-clear --source-prefix "ransomware.live" --since 2025-03-01</span></code></pre>
+    </div>
+
+    <!-- TEMPLATES -->
+    <div class="doc-section" id="templates">
+      <div class="section-tag">Templates</div>
+      <h2>Jinja2 Templates</h2>
+      <p>Every message sent by CassandraCTI is rendered from a Jinja2 template. Templates can be assigned per route; if omitted, each transport uses its built-in default.</p>
+
+      <h3>Built-in templates</h3>
+      <table class="doc-table">
+        <tr><th>File</th><th>Use case</th></tr>
+        <tr><td>templates/rss_default.j2</td><td>Standard single RSS event (source, summary, link)</td></tr>
+        <tr><td>templates/discord_default.j2</td><td>Discord-optimized layout with <code>&gt;&gt;&gt;</code> quote blocks</td></tr>
+        <tr><td>templates/ransomware_card.j2</td><td>Rich ransomware alert (group, country, activity, dates)</td></tr>
+        <tr><td>templates/domains_list.j2</td><td>Malicious domain list with 50-domain preview and full link</td></tr>
+        <tr><td>templates/batch_default.j2</td><td>Batched multi-event summary with emoji per event</td></tr>
+        <tr><td>templates/smtp_default.j2</td><td>Default HTML email body for SMTP routes</td></tr>
+      </table>
+
+      <h4>Telegram templates (HTML, <code>parse_mode=HTML</code>)</h4>
+      <p>Telegram routes should use a Telegram-flavoured template — these emit Telegram HTML (the title is bolded by the transport; dynamic values are HTML-escaped):</p>
+      <table class="doc-table">
+        <tr><th>File</th><th>Use case</th></tr>
+        <tr><td>templates/telegram_default.j2</td><td>Generic single-event body with a "Read more" link</td></tr>
+        <tr><td>templates/telegram_ransomware.j2</td><td>Structured ransomware.live card (group, country, sector, victim, date); skips empty fields</td></tr>
+        <tr><td>templates/telegram_press.j2</td><td>Cyber-press card (location, date, summary)</td></tr>
+        <tr><td>templates/telegram_8k.j2</td><td>SEC 8-K card (form, item 1.05 / 8.01, CIK, EDGAR link)</td></tr>
+        <tr><td>templates/telegram_stats.j2</td><td>Daily tracker digest</td></tr>
+        <tr><td>templates/telegram_domains.j2</td><td>Red Flag Domains card (count, sample, full-list link)</td></tr>
+      </table>
+
+      <h3>Template context variables</h3>
+      <table class="doc-table">
+        <tr><th>Variable</th><th>Type</th><th>Description</th></tr>
+        <tr><td>title</td><td>str</td><td>Event title</td></tr>
+        <tr><td>source</td><td>str</td><td>Source ID (e.g. <code>rss:CERT-FR</code>)</td></tr>
+        <tr><td>summary</td><td>str</td><td>Event body text</td></tr>
+        <tr><td>url</td><td>str | None</td><td>Event URL</td></tr>
+        <tr><td>emoji</td><td>str</td><td>Computed emoji for this source/event</td></tr>
+        <tr><td>events</td><td>list[Event]</td><td>All events in the current batch</td></tr>
+        <tr><td>raw</td><td>dict</td><td>Raw source data (fields vary by source type)</td></tr>
+      </table>
+
+      <h3>Custom template example</h3>
+      <pre><code><span class="pre-label">templates/my_cert_card.j2</span><span class="hl-dim">{# Custom Teams card for CERT alerts #}</span>
+<span class="hl">🚨 **{{ title }}**</span>
+
+| Field | Value |
+|---|---|
+| **Source** | {{ source }} |
+| **Date** | {{ raw.published if raw.published else "unknown" }} |
+
+{{ summary | truncate(300) }}
+
+[Read more]({{ url }})</code></pre>
+
+      <p>Assign it to a route:</p>
+      <pre><code>routes:
+  - name: "cert-alerts"
+    include_tags: ["cert"]
+    transports: ["teams-cert"]
+    template: "templates/my_cert_card.j2"</code></pre>
+    </div>
+
+    <!-- RUNNING CONTINUOUSLY -->
+    <div class="doc-section" id="running">
+      <div class="section-tag">Operations</div>
+      <h2>Running Continuously</h2>
+      <p>The single most important thing to understand: <strong>deduplication is what makes "only send new items" work — not a flag.</strong> Every run reloads the config, fetches every source, and the SQLite store remembers what has already been delivered <em>to each transport</em>. Each pass therefore sends only items that were never delivered — run the same command a hundred times and each article goes out exactly once.</p>
+
+      <pre><code><span class="hl-dim">reload config → fetch all sources → filter → </span><span class="hl">DEDUP (SQLite)</span><span class="hl-dim"> → route → deliver</span></code></pre>
+
+      <p>The store keeps this delivery history for <code>store.seen_ttl_days</code> (default 90) before purging older entries.</p>
+
+      <h3>One-shot vs. loop</h3>
+      <pre><code><span class="hl-dim"># One pass and exit — ideal behind cron or a systemd timer</span>
+<span class="hl">cassandra run --config config.yaml --connectors connectors.yaml</span>
+
+<span class="hl-dim"># Stay alive and repeat every N seconds (default 300 = 5 min)</span>
+<span class="hl">cassandra run --config config.yaml --connectors connectors.yaml --loop --interval 300</span></code></pre>
+      <p>In <code>--loop</code> mode the process reloads <code>config.yaml</code> <strong>at the start of every cycle</strong>, so adding a feed or editing a route is picked up on the next pass — no restart needed. RSS and <code>ransomware.live</code> share the exact same fetch → dedup → deliver cycle.</p>
+
+      <h3>First run: avoid the backlog flood</h3>
+      <p>On a <strong>fresh</strong> database the first pass sees every item currently in your feeds as "new" and would send the whole backlog at once. Seed with a date floor, then let dedup take over:</p>
+      <pre><code><span class="hl-dim"># 1) Seed: only recent items, sent once</span>
+<span class="hl">cassandra run --config config.yaml --connectors connectors.yaml --since 2026-07-05</span>
+
+<span class="hl-dim"># 2) Then run continuously — dedup prevents any repeats</span>
+<span class="hl">cassandra run --config config.yaml --connectors connectors.yaml --loop --interval 300</span></code></pre>
+      <ul>
+        <li><strong>dedup</strong> (always on) — never re-sends a delivered item. Bypass for testing with <code>--no-dedupe</code>.</li>
+        <li><strong><code>--since YYYY-MM-DD</code></strong> — an optional date floor; most useful on the first run.</li>
+        <li><strong><code>filters.max_items_per_source</code></strong> (config) — caps how many items each feed emits per cycle.</li>
+      </ul>
+
+      <h3>Ransomware &amp; PRO feeds</h3>
+      <p>Same model. <code>sources.ransomware_live.lookback_days</code> controls how far back the source looks on each fetch; dedup guarantees each victim is delivered once, so in loop mode every newly-disclosed victim goes out on the next cycle. The PRO feeds (<code>ransomware_press</code>, <code>ransomware_8k</code>, <code>ransomware_stats</code>) run through the identical cycle — <code>ransomware_stats</code> deduplicates per day, so you get one digest daily.</p>
+
+      <h3>As a service</h3>
+      <h4>systemd — long-running loop, auto-restart</h4>
+      <pre><code><span class="pre-label">/etc/systemd/system/cassandra-cti.service</span>
+[Unit]
+Description=CassandraCTI aggregator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/cassandra run --config /etc/cassandra/config.yaml --connectors /etc/cassandra/connectors.yaml --loop --interval 300
+Environment=RANSOMWARE_API_KEY=xxxxxxxx
+Environment=DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+      <pre><code><span class="hl">systemctl daemon-reload</span>
+<span class="hl">systemctl enable --now cassandra-cti</span>
+<span class="hl">journalctl -u cassandra-cti -f</span>          <span class="hl-dim"># follow the logs</span></code></pre>
+
+      <h4>cron / systemd timer — one-shot each fire (dedup makes repeats harmless)</h4>
+      <pre><code><span class="hl">*/5 * * * * cassandra run --config ~/.config/cassandra-cti/config.yaml --connectors ~/.config/cassandra-cti/connectors.yaml</span></code></pre>
+
+      <p><strong>Docker:</strong> see <a href="#docker">Docker</a> below — run the container with <code>--loop</code> and <code>restart: unless-stopped</code>.</p>
+
+      <h3>Choosing the interval</h3>
+      <table class="doc-table">
+        <tr><th>--interval</th><th>Result</th></tr>
+        <tr><td>300 (5 min)</td><td>Near-real-time — each new post within ~5 min.</td></tr>
+        <tr><td>3600 (1 h)</td><td>Hourly sweeps.</td></tr>
+        <tr><td>86400 (daily)</td><td>One pass per day.</td></tr>
+      </table>
+      <div class="callout">
+        <p>For a <strong>grouped digest</strong> (one message instead of one per item) enable <code>batching</code> on the connector (see <a href="#tr-teams">Transports</a>) and pair it with a longer interval for a daily roundup.</p>
+      </div>
+    </div>
+
+    <!-- DOCKER -->
+    <div class="doc-section" id="docker">
+      <div class="section-tag">Operations</div>
+      <h2>Docker</h2>
+
+      <h3>Build and run</h3>
+      <pre><code><span class="hl">docker build -t cassandra-cti .</span>
+
+<span class="hl">docker run \
+  -v /path/to/your/config:/config \
+  -e MSTEAMS_WEBHOOK_SOC="https://..." \
+  -e DISCORD_WEBHOOK_URL="https://..." \
+  cassandra-cti</span></code></pre>
+
+      <h3>Loop mode</h3>
+      <pre><code><span class="hl">docker run \
+  -v /path/to/your/config:/config \
+  -e MSTEAMS_WEBHOOK_SOC="https://..." \
+  cassandra-cti \
+  cassandra run --config /config/config.yaml --loop --interval 300</span></code></pre>
+
+      <h3>Docker Compose</h3>
+      <pre><code>services:
+  cassandra-cti:
+    build: .
+    volumes:
+      - ./config:/config
+    environment:
+      - MSTEAMS_WEBHOOK_SOC=${MSTEAMS_WEBHOOK_SOC}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+    command: cassandra run --config /config/config.yaml --loop --interval 300
+    restart: unless-stopped</code></pre>
+
+      <h3>Dockerfile overview</h3>
+      <pre><code>FROM python:3.12-slim
+WORKDIR /app
+COPY pyproject.toml /app/
+RUN pip install --upgrade pip && pip install .
+COPY . /app
+ENV CTI_CONNECTORS=/config/connectors.yaml
+ENV PYTHONUNBUFFERED=1
+CMD ["cassandra", "run", "--config", "/config/config.yaml"]</code></pre>
+
+      <div class="callout">
+        <p>Mount a volume at <code>/config</code> containing <code>config.yaml</code> and <code>connectors.yaml</code>. Inject webhook URLs via environment variables — never commit them to the image.</p>
+      </div>
+    </div>
+
+    <!-- METRICS -->
+    <div class="doc-section" id="metrics">
+      <div class="section-tag">Operations</div>
+      <h2>Prometheus Metrics</h2>
+      <p>When <code>metrics.enabled: true</code>, CassandraCTI exposes a Prometheus-compatible endpoint at <code>http://127.0.0.1:9108/metrics</code>. The server binds localhost by default; set <code>metrics.host: 0.0.0.0</code> to expose it to other containers or hosts.</p>
+
+      <table class="doc-table">
+        <tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr>
+        <tr><td>cassandra_cti_events_sent</td><td>Counter</td><td>route</td><td>Events successfully delivered.</td></tr>
+        <tr><td>cassandra_cti_fetch_total</td><td>Counter</td><td>source, status</td><td>Fetch attempts per source (<code>ok</code> or <code>err</code>).</td></tr>
+      </table>
+
+      <h3>Prometheus scrape config</h3>
+      <pre><code>scrape_configs:
+  - job_name: "cassandra-cti"
+    static_configs:
+      - targets: ["cassandra-cti:9108"]</code></pre>
+    </div>
+
+    <!-- ARCHITECTURE -->
+    <div class="doc-section" id="architecture">
+      <div class="section-tag">Internals</div>
+      <h2>Architecture</h2>
+
+      <h3>Module map</h3>
+      <table class="doc-table">
+        <tr><th>Module</th><th>Responsibility</th></tr>
+        <tr><td>cli.py</td><td>Typer CLI — all user-facing commands</td></tr>
+        <tr><td>main.py</td><td>Core pipeline orchestration (fetch → filter → route → send)</td></tr>
+        <tr><td>models.py</td><td><code>Event</code> dataclass</td></tr>
+        <tr><td>config.py</td><td>YAML loading, env substitution, <code>Settings</code> / <code>RouteDef</code> / <code>TransportDef</code></td></tr>
+        <tr><td>config_schema.py</td><td>Pydantic schema validation for config.yaml</td></tr>
+        <tr><td>router.py</td><td>Route matching (source / tag / regex)</td></tr>
+        <tr><td>store.py</td><td>SQLite deduplication and delivery tracking</td></tr>
+        <tr><td>emoji.py</td><td>Emoji selection logic (source map + country detection)</td></tr>
+        <tr><td>util.py</td><td><code>expand_env()</code>, <code>canon()</code> URL normalizer, <code>make_event_id()</code> SHA1</td></tr>
+        <tr><td>net.py</td><td>Shared HTTP/TLS helpers: <code>ssl_ctx()</code> (verify by default), size-capped <code>read_capped()</code></td></tr>
+        <tr><td>sources/rss.py</td><td>RSS/Atom feed fetcher</td></tr>
+        <tr><td>sources/ransomware_live.py</td><td>ransomware.live multi-backend fetcher (PRO → v2 → posts.json)</td></tr>
+        <tr><td>sources/rwpro_base.py</td><td>Shared base for PRO-only feeds (X-API-KEY, graceful skip without a key)</td></tr>
+        <tr><td>sources/ransomware_press.py</td><td>PRO cyber-press news feed (<code>/press/recent</code>)</td></tr>
+        <tr><td>sources/ransomware_8k.py</td><td>PRO SEC 8-K cyber-incident filings (<code>/8k</code>)</td></tr>
+        <tr><td>sources/ransomware_stats.py</td><td>PRO daily tracker digest (<code>/stats</code>)</td></tr>
+        <tr><td>sources/redflag.py</td><td>Red Flag Domains daily list scraper</td></tr>
+        <tr><td>transports/teams.py</td><td>Microsoft Teams MessageCard transport</td></tr>
+        <tr><td>transports/discord.py</td><td>Discord Embed transport</td></tr>
+        <tr><td>transports/telegram.py</td><td>Telegram Bot API transport (HTML, plain-text fallback)</td></tr>
+        <tr><td>transports/smtp.py</td><td>Email transport over stdlib <code>smtplib</code> (multipart plain + HTML)</td></tr>
+        <tr><td>transports/__init__.py</td><td>Transport factory registry</td></tr>
+      </table>
+
+      <h3>Deduplication</h3>
+      <p>Event IDs are generated as <code>SHA1(source + canonical_url + title)</code>. This makes IDs deterministic and stable across restarts. Two SQLite tables track state:</p>
+      <ul>
+        <li><strong>events</strong> — stores event metadata with first/last seen timestamps</li>
+        <li><strong>deliveries</strong> — tracks per-transport delivery status (ok / failed)</li>
+      </ul>
+      <p>An event is only sent to a transport if it has no successful delivery record for that transport. Using <code>--no-dedupe</code> or setting <code>CTI_NO_DEDUPE</code> bypasses this check.</p>
+
+      <h3>Async concurrency</h3>
+      <p>All source fetches run concurrently as <code>asyncio</code> tasks. Transport sends are sequential per route (respecting throttle delays) but multiple routes can fan out to different transports. The event loop is created fresh for each <code>cassandra run</code> invocation; loop mode calls <code>run_once()</code> in a sleep-loop.</p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const links = Array.from(document.querySelectorAll('.sb-link, .sb-sub'));
+
+  // Deduplicate IDs and keep only those that exist in the DOM
+  const ids = [...new Set(
+    links.map(l => l.getAttribute('href')?.slice(1)).filter(Boolean)
+  )].filter(id => document.getElementById(id));
+
+  // Walk the offsetParent chain to get the true absolute Y position in the document.
+  // This is reliable for elements at any nesting depth (h3 inside div, etc.) and is
+  // not affected by viewport state or timing of the call.
+  function absTop(el) {
+    let t = 0;
+    for (let e = el; e; e = e.offsetParent) t += e.offsetTop;
+    return t;
+  }
+
+  let sections = [];
+
+  function buildSections() {
+    sections = ids
+      .map(id => ({ id, top: absTop(document.getElementById(id)) }))
+      .sort((a, b) => a.top - b.top);
+  }
+
+  function updateActive() {
+    const pos = window.scrollY + 100;
+    let active = sections[0]?.id || null;
+    for (const { id, top } of sections) {
+      if (top <= pos) active = id;
+    }
+    links.forEach(l => l.classList.toggle('active', l.getAttribute('href')?.slice(1) === active));
+  }
+
+  buildSections();
+  updateActive();
+  window.addEventListener('scroll', updateActive, { passive: true });
+  window.addEventListener('load', () => { buildSections(); updateActive(); });
+  window.addEventListener('resize', () => { buildSections(); updateActive(); });
+</script>
+
+</body>
+</html>

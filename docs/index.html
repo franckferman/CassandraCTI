@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CassandraCTI — Modular Cyber Threat Intelligence Aggregator</title>
+  <meta name="description" content="CassandraCTI aggregates threat intelligence from RSS feeds, ransomware trackers and malicious domain lists, then routes it automatically to Microsoft Teams, Discord, Telegram and email." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #04050a;
+      --bg2:      #070910;
+      --amber:    #f59e0b;
+      --amber2:   #fbbf24;
+      --amber-dim:#92600a;
+      --red:      #dc2626;
+      --red2:     #ef4444;
+      --cyan:     #00e5ff;
+      --cyan-dim: #0891b2;
+      --green:    #22c55e;
+      --text:     #e8e6df;
+      --text-dim: #6b6a65;
+      --text-mid: #a09e97;
+      --border:   rgba(245,158,11,.12);
+      --border2:  rgba(245,158,11,.25);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── Scanlines ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,.08) 2px,
+        rgba(0,0,0,.08) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── Canvas bg ── */
+    #canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      opacity: .5;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(1.5rem,5vw,4rem);
+      height: 58px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(4,5,10,.9);
+      backdrop-filter: blur(12px);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-family: 'Space Mono', monospace;
+      font-size: .9rem;
+      font-weight: 700;
+      color: var(--amber);
+      text-decoration: none;
+      letter-spacing: .04em;
+    }
+
+    .nav-brand-eye {
+      width: 22px;
+      height: 22px;
+      border: 1.5px solid var(--amber);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .nav-brand-eye::after {
+      content: '';
+      width: 7px; height: 7px;
+      background: var(--amber);
+      border-radius: 50%;
+      animation: blink 3s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%,90%,100% { opacity: 1; transform: scale(1); }
+      95% { opacity: 0; transform: scale(.1); }
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-family: 'Space Mono', monospace;
+      font-size: .72rem;
+      color: var(--text-dim);
+      text-decoration: none;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      transition: color .2s;
+    }
+
+    .nav-links a:hover { color: var(--amber); }
+
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      font-family: 'Space Mono', monospace;
+      font-size: .7rem;
+      color: var(--green);
+      letter-spacing: .05em;
+    }
+
+    .status-dot {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; box-shadow: 0 0 8px var(--green); }
+      50% { opacity: .4; box-shadow: 0 0 3px var(--green); }
+    }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 4rem;
+      padding: 8rem clamp(1.5rem,5vw,4rem) 4rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .hero-left {}
+
+    .hero-eyebrow {
+      font-family: 'Space Mono', monospace;
+      font-size: .72rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+
+    .hero-eyebrow::before {
+      content: '';
+      display: block;
+      width: 32px;
+      height: 1px;
+      background: var(--amber);
+    }
+
+    .hero-title {
+      font-size: clamp(3rem,6vw,5.5rem);
+      font-weight: 700;
+      letter-spacing: -.03em;
+      line-height: 1;
+      margin-bottom: 2rem;
+    }
+
+    .hero-title-top {
+      display: block;
+      color: var(--text);
+      font-weight: 300;
+      font-size: .6em;
+      letter-spacing: .02em;
+      margin-bottom: .2em;
+    }
+
+    .hero-title-main {
+      display: block;
+      color: var(--amber);
+      text-shadow: 0 0 60px rgba(245,158,11,.4);
+    }
+
+    .hero-title-sub {
+      display: block;
+      color: var(--text-dim);
+      font-size: .32em;
+      font-weight: 400;
+      letter-spacing: .04em;
+      font-family: 'Space Mono', monospace;
+      margin-top: .6em;
+    }
+
+    .hero-desc {
+      font-size: 1rem;
+      color: var(--text-mid);
+      line-height: 1.75;
+      max-width: 440px;
+      margin-bottom: 2.5rem;
+      border-left: 2px solid var(--border2);
+      padding-left: 1.25rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: 'Space Mono', monospace;
+      font-size: .78rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: .7rem 1.5rem;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      transition: all .2s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-amber {
+      background: var(--amber);
+      color: #000;
+      font-weight: 700;
+    }
+
+    .btn-amber:hover {
+      background: var(--amber2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(245,158,11,.35);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-mid);
+      border: 1px solid var(--border2);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+      transform: translateY(-2px);
+    }
+
+    /* ── Hero right: feed ticker ── */
+    .hero-right {
+      position: relative;
+    }
+
+    .feed-panel {
+      background: rgba(7,9,16,.85);
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 0 80px rgba(245,158,11,.06), inset 0 0 40px rgba(0,0,0,.5);
+    }
+
+    .feed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(245,158,11,.03);
+    }
+
+    .feed-header-left {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-family: 'Space Mono', monospace;
+      font-size: .7rem;
+      color: var(--amber);
+      letter-spacing: .08em;
+    }
+
+    .feed-header-right {
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      color: var(--text-dim);
+    }
+
+    .feed-body {
+      height: 380px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .feed-stream {
+      animation: scroll-up 22s linear infinite;
+    }
+
+    @keyframes scroll-up {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-50%); }
+    }
+
+    .feed-item {
+      display: grid;
+      grid-template-columns: 70px 1fr 80px;
+      align-items: center;
+      gap: .75rem;
+      padding: .6rem 1rem;
+      border-bottom: 1px solid rgba(245,158,11,.05);
+      font-family: 'Space Mono', monospace;
+      font-size: .7rem;
+      transition: background .15s;
+    }
+
+    .feed-item:hover { background: rgba(245,158,11,.04); }
+
+    .feed-time { color: var(--text-dim); white-space: nowrap; }
+    .feed-content {}
+    .feed-source { font-size: .6rem; margin-bottom: .15rem; }
+    .feed-title { color: var(--text); line-height: 1.3; }
+    .feed-badge {
+      text-align: right;
+      font-size: .6rem;
+      padding: .15rem .4rem;
+      border-radius: 3px;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+    .b-ransomware { background: rgba(220,38,38,.15); color: var(--red2); border: 1px solid rgba(220,38,38,.25); }
+    .b-cert { background: rgba(245,158,11,.12); color: var(--amber); border: 1px solid rgba(245,158,11,.2); }
+    .b-news { background: rgba(0,229,255,.08); color: var(--cyan); border: 1px solid rgba(0,229,255,.15); }
+    .b-domain { background: rgba(34,197,94,.1); color: var(--green); border: 1px solid rgba(34,197,94,.2); }
+    .b-vendor { color: #c084fc; background: rgba(192,132,252,.08); border: 1px solid rgba(192,132,252,.2); }
+
+    .feed-footer {
+      padding: .6rem 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      color: var(--text-dim);
+    }
+
+    .feed-counter {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .counter-val { color: var(--amber); font-weight: 700; }
+
+    /* ── Ticker marquee ── */
+    .ticker {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+      padding: .6rem 0;
+      background: rgba(245,158,11,.02);
+    }
+
+    .ticker-track {
+      display: flex;
+      gap: 3rem;
+      animation: marquee 30s linear infinite;
+      white-space: nowrap;
+    }
+
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    .ticker-item {
+      font-family: 'Space Mono', monospace;
+      font-size: .68rem;
+      color: var(--text-dim);
+      letter-spacing: .06em;
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      flex-shrink: 0;
+    }
+
+    .ticker-item .dot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--amber);
+      flex-shrink: 0;
+    }
+
+    /* ── Sections ── */
+    .section {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 6rem clamp(1.5rem,5vw,4rem);
+    }
+
+    .section-header {
+      margin-bottom: 3.5rem;
+    }
+
+    .eyebrow {
+      font-family: 'Space Mono', monospace;
+      font-size: .68rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: .75rem;
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+
+    .eyebrow::before {
+      content: '//';
+      opacity: .5;
+    }
+
+    h2 {
+      font-size: clamp(2rem,4vw,3rem);
+      font-weight: 700;
+      letter-spacing: -.03em;
+      line-height: 1.1;
+      margin-bottom: .75rem;
+    }
+
+    .section-lead {
+      font-size: 1rem;
+      color: var(--text-mid);
+      line-height: 1.7;
+      max-width: 520px;
+    }
+
+    /* ── Full-width rule ── */
+    .hr {
+      position: relative;
+      z-index: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, var(--border2) 20%, var(--border2) 80%, transparent 100%);
+    }
+
+    /* ── Stat strip ── */
+    .stat-strip {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: rgba(245,158,11,.015);
+    }
+
+    .stat-item {
+      padding: 2.5rem;
+      border-right: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .stat-item:last-child { border-right: none; }
+
+    .stat-val {
+      font-size: 3rem;
+      font-weight: 700;
+      letter-spacing: -.04em;
+      color: var(--amber);
+      text-shadow: 0 0 40px rgba(245,158,11,.3);
+      font-family: 'Space Mono', monospace;
+      line-height: 1;
+      margin-bottom: .4rem;
+    }
+
+    .stat-lbl {
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    /* ── Pipeline ── */
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .pipe-step {
+      padding: 2rem 1.5rem;
+      border-right: 1px solid var(--border);
+      position: relative;
+      transition: background .2s;
+    }
+
+    .pipe-step:last-child { border-right: none; }
+
+    .pipe-step:hover { background: rgba(245,158,11,.03); }
+
+    .pipe-num {
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      color: var(--amber-dim);
+      margin-bottom: 1rem;
+      letter-spacing: .08em;
+    }
+
+    .pipe-icon { font-size: 1.75rem; margin-bottom: .75rem; }
+
+    .pipe-title {
+      font-size: .9rem;
+      font-weight: 700;
+      margin-bottom: .5rem;
+    }
+
+    .pipe-items {
+      font-family: 'Space Mono', monospace;
+      font-size: .68rem;
+      color: var(--text-dim);
+      line-height: 1.9;
+    }
+
+    .pipe-arrow {
+      position: absolute;
+      right: -13px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 10;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .65rem;
+      color: var(--amber);
+    }
+
+    /* ── Sources ── */
+    .sources-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .source-block {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+
+    .source-block:hover { border-color: var(--border2); }
+
+    .source-block.wide { grid-column: 1 / -1; }
+
+    .source-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(245,158,11,.02);
+    }
+
+    .source-head-left {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+
+    .source-icon {
+      width: 34px; height: 34px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .si-rss { background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.2); }
+    .si-ransomware { background: rgba(220,38,38,.1); border: 1px solid rgba(220,38,38,.2); }
+    .si-domain { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2); }
+
+    .source-name { font-size: .9rem; font-weight: 700; }
+    .source-id {
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      color: var(--text-dim);
+      margin-top: .1rem;
+    }
+
+    .source-body { padding: 1.25rem; }
+
+    .source-desc {
+      font-size: .875rem;
+      color: var(--text-mid);
+      line-height: 1.65;
+      margin-bottom: 1rem;
+    }
+
+    /* Scrolling feed list */
+    .rss-list {
+      display: flex;
+      gap: .35rem;
+      flex-wrap: wrap;
+    }
+
+    .rss-cat {
+      font-family: 'Space Mono', monospace;
+      font-size: .58rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--amber);
+      width: 100%;
+      margin-top: .4rem;
+      padding-top: .4rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .rss-tag {
+      font-family: 'Space Mono', monospace;
+      font-size: .62rem;
+      padding: .2rem .5rem;
+      background: rgba(245,158,11,.07);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .source-fields {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px,1fr));
+      gap: .5rem;
+    }
+
+    .field-chip {
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      padding: .35rem .7rem;
+      background: rgba(0,0,0,.3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+    }
+
+    .field-chip::before {
+      content: '→';
+      color: var(--amber-dim);
+    }
+
+    /* ── Transports ── */
+    .transports-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .transport-block {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .transport-block:hover {
+      border-color: var(--border2);
+      box-shadow: 0 0 40px rgba(245,158,11,.04);
+    }
+
+    .tb-head {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .tb-type {
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      letter-spacing: .08em;
+      color: var(--amber);
+      margin-bottom: .35rem;
+    }
+
+    .tb-name { font-size: 1.1rem; font-weight: 700; }
+
+    .tb-glyph {
+      font-size: 2rem;
+      opacity: .6;
+    }
+
+    .tb-body { padding: 1.25rem; }
+
+    .param-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: .5rem 0;
+      border-bottom: 1px solid rgba(245,158,11,.05);
+      gap: 1rem;
+    }
+
+    .param-row:last-child { border-bottom: none; }
+
+    .pk {
+      font-family: 'Space Mono', monospace;
+      font-size: .72rem;
+      color: var(--cyan-dim);
+    }
+
+    .pv {
+      font-size: .8rem;
+      color: var(--text-mid);
+      text-align: right;
+      max-width: 200px;
+    }
+
+    /* ── CLI ── */
+    .cli-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: .75rem;
+    }
+
+    .cli-card {
+      background: rgba(7,9,16,.9);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 1rem 1.1rem;
+      cursor: default;
+      transition: border-color .2s, background .2s;
+    }
+
+    .cli-card:hover {
+      border-color: rgba(245,158,11,.35);
+      background: rgba(245,158,11,.02);
+    }
+
+    .cli-cmd {
+      font-family: 'Space Mono', monospace;
+      font-size: .78rem;
+      color: var(--amber);
+      margin-bottom: .4rem;
+      font-weight: 700;
+    }
+
+    .cli-desc {
+      font-size: .8rem;
+      color: var(--text-dim);
+      line-height: 1.55;
+    }
+
+    /* ── Code ── */
+    .code-win {
+      background: #020307;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .code-win-bar {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(245,158,11,.02);
+    }
+
+    .code-win-bar span {
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      color: var(--text-dim);
+      margin-left: .25rem;
+    }
+
+    .d { width: 10px; height: 10px; border-radius: 50%; }
+    .dr { background: #ff5f57; }
+    .dy { background: #ffbd2e; }
+    .dg { background: #28c940; }
+
+    pre {
+      padding: 1.25rem 1.5rem;
+      font-family: 'Space Mono', monospace;
+      font-size: .78rem;
+      line-height: 1.8;
+      overflow-x: auto;
+      color: var(--text-mid);
+    }
+
+    .ck  { color: #f97316; }   /* keyword/key */
+    .cs  { color: #86efac; }   /* string */
+    .cc  { color: var(--text-dim); font-style: italic; }  /* comment */
+    .cn  { color: var(--amber); }  /* number/special */
+    .cv  { color: var(--cyan); }   /* variable */
+    .co  { color: #a78bfa; }   /* operator/prompt */
+
+    /* ── Getting started timeline ── */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 20px;
+      top: 0; bottom: 0;
+      width: 1px;
+      background: var(--border2);
+    }
+
+    .tl-step {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 1.5rem;
+      padding-bottom: 3rem;
+    }
+
+    .tl-step:last-child { padding-bottom: 0; }
+
+    .tl-num {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Space Mono', monospace;
+      font-size: .75rem;
+      font-weight: 700;
+      color: var(--amber);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tl-content {}
+
+    .tl-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: .4rem;
+      padding-top: .6rem;
+    }
+
+    .tl-desc {
+      font-size: .875rem;
+      color: var(--text-mid);
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+
+    /* ── CTA ── */
+    .cta {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 8rem clamp(1.5rem,5vw,4rem);
+      border-top: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .cta-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%,-50%);
+      width: 700px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(245,158,11,.07) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .cta h2 {
+      font-size: clamp(2.5rem,5vw,4rem);
+      font-weight: 700;
+      letter-spacing: -.04em;
+      line-height: 1.05;
+      margin-bottom: 1.25rem;
+    }
+
+    .cta h2 em {
+      font-style: normal;
+      color: var(--amber);
+    }
+
+    .cta p {
+      font-size: 1rem;
+      color: var(--text-mid);
+      margin-bottom: 2.5rem;
+    }
+
+    /* ── Footer ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 2rem clamp(1.5rem,5vw,4rem);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .footer-brand {
+      font-family: 'Space Mono', monospace;
+      font-size: .78rem;
+      color: var(--amber);
+      font-weight: 700;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: color .2s;
+    }
+
+    .footer-links a:hover { color: var(--amber); }
+
+    .footer-copy {
+      font-family: 'Space Mono', monospace;
+      font-size: .65rem;
+      color: var(--text-dim);
+    }
+
+    /* ── Glitch on hover ── */
+    .glitch {
+      position: relative;
+      display: inline-block;
+    }
+
+    .glitch:hover::before,
+    .glitch:hover::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0;
+      color: inherit;
+    }
+
+    .glitch:hover::before {
+      animation: glitch1 .3s steps(2) forwards;
+      color: var(--red2);
+      clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+    }
+
+    .glitch:hover::after {
+      animation: glitch2 .3s steps(2) forwards;
+      color: var(--cyan);
+      clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
+    }
+
+    @keyframes glitch1 {
+      0%   { transform: translate(-2px, 0); }
+      33%  { transform: translate(2px, 0); }
+      66%  { transform: translate(-1px, 0); }
+      100% { transform: translate(0); }
+    }
+
+    @keyframes glitch2 {
+      0%   { transform: translate(2px, 0); }
+      33%  { transform: translate(-2px, 0); }
+      66%  { transform: translate(1px, 0); }
+      100% { transform: translate(0); }
+    }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; gap: 3rem; }
+      .stat-strip { grid-template-columns: repeat(2,1fr); }
+      .stat-item { border-bottom: 1px solid var(--border); }
+      .pipeline { grid-template-columns: 1fr 1fr; }
+      .pipe-step:nth-child(2) { border-right: none; }
+      .sources-layout { grid-template-columns: 1fr; }
+      .source-block.wide { grid-column: auto; }
+      .transports-grid { grid-template-columns: 1fr; }
+      .cli-grid { grid-template-columns: 1fr 1fr; }
+      .nav-links { display: none; }
+    }
+
+    @media (max-width: 560px) {
+      .stat-strip { grid-template-columns: 1fr 1fr; }
+      .cli-grid { grid-template-columns: 1fr; }
+      .pipeline { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-brand">
+    <div class="nav-brand-eye"></div>
+    CASSANDRA<span style="color:var(--text-dim);font-weight:300">CTI</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#sources">Sources</a></li>
+    <li><a href="#transports">Transports</a></li>
+    <li><a href="#cli">CLI</a></li>
+    <li><a href="#start">Get Started</a></li>
+    <li><a href="doc.html" style="color:var(--amber)">Docs</a></li>
+  </ul>
+  <div class="nav-status">
+    <div class="status-dot"></div>
+    ACTIVE · v2.0.0
+  </div>
+</nav>
+
+<!-- TICKER -->
+<div class="ticker" style="position:relative;z-index:1;margin-top:58px;">
+  <div class="ticker-track">
+    <div class="ticker-item"><div class="dot"></div>CERT-FR Alertes</div>
+    <div class="ticker-item"><div class="dot"></div>ransomware.live</div>
+    <div class="ticker-item"><div class="dot"></div>BleepingComputer</div>
+    <div class="ticker-item"><div class="dot"></div>Red Flag Domains</div>
+    <div class="ticker-item"><div class="dot"></div>Microsoft Security</div>
+    <div class="ticker-item"><div class="dot"></div>Krebs on Security</div>
+    <div class="ticker-item"><div class="dot"></div>Google TAG</div>
+    <div class="ticker-item"><div class="dot"></div>Cisco Talos</div>
+    <div class="ticker-item"><div class="dot"></div>SANS ISC Diary</div>
+    <div class="ticker-item"><div class="dot"></div>Dark Reading</div>
+    <div class="ticker-item"><div class="dot"></div>Recorded Future</div>
+    <div class="ticker-item"><div class="dot"></div>Palo Alto Unit 42</div>
+    <!-- duplicate for seamless loop -->
+    <div class="ticker-item"><div class="dot"></div>CERT-FR Alertes</div>
+    <div class="ticker-item"><div class="dot"></div>ransomware.live</div>
+    <div class="ticker-item"><div class="dot"></div>BleepingComputer</div>
+    <div class="ticker-item"><div class="dot"></div>Red Flag Domains</div>
+    <div class="ticker-item"><div class="dot"></div>Microsoft Security</div>
+    <div class="ticker-item"><div class="dot"></div>Krebs on Security</div>
+    <div class="ticker-item"><div class="dot"></div>Google TAG</div>
+    <div class="ticker-item"><div class="dot"></div>Cisco Talos</div>
+    <div class="ticker-item"><div class="dot"></div>SANS ISC Diary</div>
+    <div class="ticker-item"><div class="dot"></div>Dark Reading</div>
+    <div class="ticker-item"><div class="dot"></div>Recorded Future</div>
+    <div class="ticker-item"><div class="dot"></div>Palo Alto Unit 42</div>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow">Cyber Threat Intelligence · Open Source</div>
+    <h1 class="hero-title">
+      <span class="hero-title-top">Introducing</span>
+      <span class="hero-title-main glitch" data-text="Cassandra">Cassandra</span>
+      <span class="hero-title-sub">// Modular CTI Aggregator</span>
+    </h1>
+    <p class="hero-desc">
+      She warned of the danger. Nobody listened.<br><br>
+      CassandraCTI collects threat intelligence from multiple sources and makes sure
+      your team <em style="font-style:normal;color:var(--amber)">actually receives it</em> — on Teams, Discord, Telegram or email.
+    </p>
+    <div class="hero-actions">
+      <a href="#start" class="btn btn-amber">→ Get Started</a>
+      <a href="https://github.com/franckferman/CassandraCTI" class="btn btn-ghost">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+        View Source
+      </a>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="feed-panel">
+      <div class="feed-header">
+        <div class="feed-header-left">
+          <div class="status-dot" style="width:6px;height:6px;"></div>
+          LIVE INTEL FEED
+        </div>
+        <div class="feed-header-right" id="feed-clock">—</div>
+      </div>
+      <div class="feed-body">
+        <div class="feed-stream" id="feed-stream">
+          <!-- JS generated below -->
+        </div>
+      </div>
+      <div class="feed-footer">
+        <div class="feed-counter">
+          <span><span class="counter-val">32</span> SOURCES</span>
+          <span><span class="counter-val">0</span> DUPES</span>
+          <span><span class="counter-val" id="evt-count">—</span> EVENTS</span>
+        </div>
+        <span>DEDUP: ON · SQLITE</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STAT STRIP -->
+<div class="stat-strip">
+  <div class="stat-item">
+    <div class="stat-val">30+</div>
+    <div class="stat-lbl">Feeds pre-configured</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">6</div>
+    <div class="stat-lbl">Source types</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">4</div>
+    <div class="stat-lbl">Delivery transports</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">0</div>
+    <div class="stat-lbl">Duplicate alerts sent</div>
+  </div>
+</div>
+
+<!-- PIPELINE -->
+<section class="section" id="pipeline">
+  <div class="section-header">
+    <div class="eyebrow">Architecture</div>
+    <h2>Four steps.<br>Zero noise.</h2>
+    <p class="section-lead">Every run fetches, deduplicates, routes, and delivers. No dashboard to check — events come to your team.</p>
+  </div>
+  <div class="pipeline">
+    <div class="pipe-step">
+      <div class="pipe-num">01 / FETCH</div>
+      <div class="pipe-icon">📡</div>
+      <div class="pipe-title">Sources</div>
+      <div class="pipe-items">
+        RSS / Atom feeds<br>
+        Ransomware.live (PRO→v2)<br>
+        SEC 8-K · Press · Stats<br>
+        Red Flag Domains
+      </div>
+      <div class="pipe-arrow">›</div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">02 / FILTER</div>
+      <div class="pipe-icon">🔇</div>
+      <div class="pipe-title">Deduplicate</div>
+      <div class="pipe-items">
+        Regex deny / allow<br>
+        Max items / source<br>
+        SQLite event store
+      </div>
+      <div class="pipe-arrow">›</div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">03 / ROUTE</div>
+      <div class="pipe-icon">🗺</div>
+      <div class="pipe-title">Router</div>
+      <div class="pipe-items">
+        Source prefix<br>
+        Tag match<br>
+        Regex (title / source)
+      </div>
+      <div class="pipe-arrow">›</div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">04 / SEND</div>
+      <div class="pipe-icon">📤</div>
+      <div class="pipe-title">Transports</div>
+      <div class="pipe-items">
+        Teams · Discord<br>
+        Telegram · Email<br>
+        Retry + throttle
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="hr"></div>
+
+<!-- SOURCES -->
+<section class="section" id="sources">
+  <div class="section-header">
+    <div class="eyebrow">Sources</div>
+    <h2>Six threat intel<br>sources, ready to go.</h2>
+    <p class="section-lead">Six sources across three providers — generic RSS/Atom feeds, the <strong style="color:var(--text-mid)">ransomware.live</strong> family (victims, plus Cyber Press · SEC 8-K · Tracker Stats on its PRO tier), and Red Flag Domains. Every fetch is TLS-verified by default (opt out with <code style="font-family:monospace;font-size:.85em;color:var(--amber)">CTI_TLS_NO_VERIFY=1</code> behind a proxy); the PRO feeds authenticate with <code style="font-family:monospace;font-size:.85em;color:var(--amber)">${RANSOMWARE_API_KEY}</code>.</p>
+  </div>
+
+  <div class="sources-layout">
+    <div class="source-block wide">
+      <div class="source-head">
+        <div class="source-head-left">
+          <div class="source-icon si-rss">📰</div>
+          <div>
+            <div class="source-name">RSS / Atom Feeds</div>
+            <div class="source-id">source_id → rss:{name}</div>
+          </div>
+        </div>
+      </div>
+      <div class="source-body">
+        <p class="source-desc">Polls any RSS or Atom feed with custom User-Agent. HTML stripped via BeautifulSoup, dates normalized to UTC. Fine-grained routing per feed via <code style="font-family:monospace;font-size:.82em;color:var(--amber)">rss:{name}</code> identifiers.</p>
+        <div class="rss-list">
+          <span class="rss-cat">CERTs</span>
+          <span class="rss-tag">CERT-FR Alertes</span><span class="rss-tag">CERT-FR Avis</span>
+          <span class="rss-cat">Microsoft</span>
+          <span class="rss-tag">Microsoft Security</span><span class="rss-tag">Microsoft Sentinel</span><span class="rss-tag">MSRC</span>
+          <span class="rss-cat">Vendors</span>
+          <span class="rss-tag">Cisco Talos</span><span class="rss-tag">Trend Micro</span><span class="rss-tag">Proofpoint</span>
+          <span class="rss-tag">Checkpoint Research</span><span class="rss-tag">SentinelOne</span><span class="rss-tag">RedCanary</span>
+          <span class="rss-tag">Palo Alto Unit 42</span><span class="rss-tag">Kaspersky Securelist</span>
+          <span class="rss-tag">Recorded Future</span><span class="rss-tag">Google TAG</span><span class="rss-tag">ATT LevelBlue</span>
+          <span class="rss-cat">News</span>
+          <span class="rss-tag">Krebs on Security</span><span class="rss-tag">BleepingComputer</span>
+          <span class="rss-tag">Dark Reading</span><span class="rss-tag">Hacker News</span><span class="rss-tag">Threatpost</span>
+          <span class="rss-tag">SANS ISC Diary</span><span class="rss-tag">Schneier on Security</span>
+          <span class="rss-tag">Graham Cluley</span><span class="rss-tag">VirusBulletin</span>
+          <span class="rss-tag">InfoSecurity Magazine</span><span class="rss-tag">Cyber-News.fr</span>
+          <span class="rss-cat">Technical</span>
+          <span class="rss-tag">Adam Chester (XPN)</span><span class="rss-tag">Modexp</span><span class="rss-tag">James Forshaw</span>
+          <span class="rss-tag" style="color:var(--amber);border-color:rgba(245,158,11,.3)">+ custom feeds</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="source-block">
+      <div class="source-head">
+        <div class="source-head-left">
+          <div class="source-icon si-ransomware">🏴‍☠️</div>
+          <div>
+            <div class="source-name">Ransomware Live</div>
+            <div class="source-id">source_id → ransomware.live</div>
+          </div>
+        </div>
+      </div>
+      <div class="source-body">
+        <p class="source-desc">Ransomware-group victim disclosures via a resilient multi-backend chain: <strong style="color:var(--text-mid)">PRO API</strong> (<code style="font-family:monospace;font-size:.82em;color:var(--amber)">api-pro.ransomware.live</code>, X-API-KEY) → free <strong style="color:var(--text-mid)">API v2</strong> → legacy <code style="font-family:monospace;font-size:.82em;color:var(--amber)">posts.json</code>. Stable permalink keeps dedup identity across fallbacks. Country flag emoji auto-detected; configurable lookback window.</p>
+        <div class="source-fields">
+          <span class="field-chip">victim</span>
+          <span class="field-chip">group_name</span>
+          <span class="field-chip">country 🇫🇷🇬🇧🇺🇸</span>
+          <span class="field-chip">activity</span>
+          <span class="field-chip">website</span>
+          <span class="field-chip">discovered</span>
+          <span class="field-chip">infostealer</span>
+          <span class="field-chip">data_size</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="source-block">
+      <div class="source-head">
+        <div class="source-head-left">
+          <div class="source-icon si-domain">🚩</div>
+          <div>
+            <div class="source-name">Red Flag Domains</div>
+            <div class="source-id">source_id → red.flag.domains</div>
+          </div>
+        </div>
+      </div>
+      <div class="source-body">
+        <p class="source-desc">Downloads the daily malicious domain list. One event per run with a 50-domain preview and a direct link to the full list.</p>
+        <div class="source-fields">
+          <span class="field-chip">daily .txt file</span>
+          <span class="field-chip">domain count</span>
+          <span class="field-chip">50 preview</span>
+          <span class="field-chip">full list link</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="source-block">
+      <div class="source-head">
+        <div class="source-head-left">
+          <div class="source-icon si-ransomware">📣</div>
+          <div>
+            <div class="source-name">Cyber Press</div>
+            <div class="source-id">source_id → ransomware.press · PRO</div>
+          </div>
+        </div>
+      </div>
+      <div class="source-body">
+        <p class="source-desc">Recent cyber-press news articles from the ransomware.live PRO API (<code style="font-family:monospace;font-size:.82em;color:var(--amber)">/press/recent</code>). PRO-only — degrades gracefully to nothing without an api_key. Optional ISO-2 country filter.</p>
+        <div class="source-fields">
+          <span class="field-chip">victim</span>
+          <span class="field-chip">summary</span>
+          <span class="field-chip">country</span>
+          <span class="field-chip">date</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="source-block">
+      <div class="source-head">
+        <div class="source-head-left">
+          <div class="source-icon si-ransomware">🏛️</div>
+          <div>
+            <div class="source-name">SEC 8-K Filings</div>
+            <div class="source-id">source_id → ransomware.8k · PRO</div>
+          </div>
+        </div>
+      </div>
+      <div class="source-body">
+        <p class="source-desc">US public companies disclosing cyber incidents to the SEC, surfaced via the <strong style="color:var(--text-mid)">ransomware.live PRO API</strong>. PRO-only. Each event links to the real SEC / EDGAR filing. Item 1.05 = Material Cybersecurity Incident, Item 8.01 = Other Events.</p>
+        <div class="source-fields">
+          <span class="field-chip">company</span>
+          <span class="field-chip">stockticker</span>
+          <span class="field-chip">file_date</span>
+          <span class="field-chip">EDGAR link</span>
+          <span class="field-chip">item105</span>
+          <span class="field-chip">item801</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="source-block wide">
+      <div class="source-head">
+        <div class="source-head-left">
+          <div class="source-icon si-ransomware">📊</div>
+          <div>
+            <div class="source-name">Tracker Stats</div>
+            <div class="source-id">source_id → ransomware.stats · PRO</div>
+          </div>
+        </div>
+      </div>
+      <div class="source-body">
+        <p class="source-desc">One daily digest summarising the ransomware.live tracker — victims tracked, active groups and press-article counts. PRO-only. Dedup identity includes the day, so you get exactly one digest per day.</p>
+        <div class="source-fields">
+          <span class="field-chip">victims</span>
+          <span class="field-chip">groups</span>
+          <span class="field-chip">press</span>
+          <span class="field-chip">last_update</span>
+          <span class="field-chip">one digest / day</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="hr"></div>
+
+<!-- TRANSPORTS -->
+<section class="section" id="transports">
+  <div class="section-header">
+    <div class="eyebrow">Transports</div>
+    <h2>Reach your team<br>where they work.</h2>
+    <p class="section-lead">Batching, throttling, emoji mapping, retry with backoff. Each transport is independently configurable.</p>
+  </div>
+
+  <div class="transports-grid">
+    <div class="transport-block">
+      <div class="tb-head">
+        <div>
+          <div class="tb-type">TYPE: TEAMS</div>
+          <div class="tb-name">Microsoft Teams</div>
+        </div>
+        <div class="tb-glyph">💬</div>
+      </div>
+      <div class="tb-body">
+        <div class="param-row"><span class="pk">webhook_url</span><span class="pv">Incoming webhook · env var</span></div>
+        <div class="param-row"><span class="pk">theme_color</span><span class="pv">Hex border color, e.g. 0078D7</span></div>
+        <div class="param-row"><span class="pk">throttle_ms</span><span class="pv">Min 1000ms between cards</span></div>
+        <div class="param-row"><span class="pk">emojis</span><span class="pv">Auto emoji per source</span></div>
+        <div class="param-row"><span class="pk">batching.max_items</span><span class="pv">Group N events per card</span></div>
+        <div class="param-row"><span class="pk">retry</span><span class="pv">3× · 2s fixed · 429-aware</span></div>
+      </div>
+    </div>
+
+    <div class="transport-block">
+      <div class="tb-head">
+        <div>
+          <div class="tb-type">TYPE: DISCORD</div>
+          <div class="tb-name">Discord</div>
+        </div>
+        <div class="tb-glyph">🎮</div>
+      </div>
+      <div class="tb-body">
+        <div class="param-row"><span class="pk">webhook_url</span><span class="pv">Discord webhook · env var</span></div>
+        <div class="param-row"><span class="pk">username</span><span class="pv">Bot display name override</span></div>
+        <div class="param-row"><span class="pk">avatar_url</span><span class="pv">Bot avatar image URL</span></div>
+        <div class="param-row"><span class="pk">throttle_ms</span><span class="pv">Default 500ms</span></div>
+        <div class="param-row"><span class="pk">batching.max_items</span><span class="pv">Group N events per embed</span></div>
+        <div class="param-row"><span class="pk">retry</span><span class="pv">5× · exponential · 60s max</span></div>
+      </div>
+    </div>
+
+    <div class="transport-block">
+      <div class="tb-head">
+        <div>
+          <div class="tb-type">TYPE: TELEGRAM</div>
+          <div class="tb-name">Telegram</div>
+        </div>
+        <div class="tb-glyph">✈️</div>
+      </div>
+      <div class="tb-body">
+        <div class="param-row"><span class="pk">bot_token</span><span class="pv">@BotFather token · env var</span></div>
+        <div class="param-row"><span class="pk">chat_id</span><span class="pv">@channel or numeric id</span></div>
+        <div class="param-row"><span class="pk">parse_mode</span><span class="pv">HTML · plain-text fallback</span></div>
+        <div class="param-row"><span class="pk">throttle_ms</span><span class="pv">Default 1000ms</span></div>
+        <div class="param-row"><span class="pk">disable_web_page_preview</span><span class="pv">Link previews off</span></div>
+        <div class="param-row"><span class="pk">retry</span><span class="pv">5× · exponential · 429-aware</span></div>
+      </div>
+    </div>
+
+    <div class="transport-block">
+      <div class="tb-head">
+        <div>
+          <div class="tb-type">TYPE: SMTP</div>
+          <div class="tb-name">Email / SMTP</div>
+        </div>
+        <div class="tb-glyph">✉️</div>
+      </div>
+      <div class="tb-body">
+        <div class="param-row"><span class="pk">host · port</span><span class="pv">Relay · 587 / 465 / 25</span></div>
+        <div class="param-row"><span class="pk">security</span><span class="pv">starttls · ssl · none</span></div>
+        <div class="param-row"><span class="pk">username · password</span><span class="pv">Auth · env var</span></div>
+        <div class="param-row"><span class="pk">from_addr · to_addrs</span><span class="pv">Sender · recipient list</span></div>
+        <div class="param-row"><span class="pk">subject_prefix</span><span class="pv">Default [CTI]</span></div>
+        <div class="param-row"><span class="pk">body</span><span class="pv">Multipart plain + HTML · stdlib smtplib</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:1.5rem;">
+    <div class="code-win">
+      <div class="code-win-bar">
+        <div class="d dr"></div><div class="d dy"></div><div class="d dg"></div>
+        <span>connectors.yaml</span>
+      </div>
+      <pre><span class="cc"># No secrets in files — use environment variables</span>
+<span class="ck">connectors</span>:
+  - <span class="ck">id</span>: <span class="cs">"teams-cert"</span>
+    <span class="ck">type</span>: <span class="cs">"teams"</span>
+    <span class="ck">params</span>:
+      <span class="ck">webhook_url</span>: <span class="cv">${MSTEAMS_WEBHOOK_CERT}</span>
+      <span class="ck">theme_color</span>: <span class="cs">"0078D7"</span>
+      <span class="ck">emojis</span>: <span class="cn">true</span>
+      <span class="ck">batching</span>: { <span class="ck">enabled</span>: <span class="cn">true</span>, <span class="ck">max_items</span>: <span class="cn">5</span> }
+
+  - <span class="ck">id</span>: <span class="cs">"discord-alert"</span>
+    <span class="ck">type</span>: <span class="cs">"discord"</span>
+    <span class="ck">params</span>:
+      <span class="ck">webhook_url</span>: <span class="cv">${DISCORD_WEBHOOK_URL}</span>
+      <span class="ck">username</span>: <span class="cs">"CassandraCTI"</span>
+      <span class="ck">throttle_ms</span>: <span class="cn">500</span>
+
+  - <span class="ck">id</span>: <span class="cs">"telegram-soc"</span>
+    <span class="ck">type</span>: <span class="cs">"telegram"</span>
+    <span class="ck">params</span>:
+      <span class="ck">bot_token</span>: <span class="cv">${TELEGRAM_BOT_TOKEN}</span>
+      <span class="ck">chat_id</span>: <span class="cv">${TELEGRAM_CHAT_ID}</span>
+      <span class="ck">parse_mode</span>: <span class="cs">"HTML"</span>
+
+  - <span class="ck">id</span>: <span class="cs">"email-soc"</span>
+    <span class="ck">type</span>: <span class="cs">"smtp"</span>
+    <span class="ck">params</span>:
+      <span class="ck">host</span>: <span class="cv">${SMTP_HOST}</span>
+      <span class="ck">port</span>: <span class="cn">587</span>
+      <span class="ck">security</span>: <span class="cs">"starttls"</span>       <span class="cc"># ssl (465) | none (25)</span>
+      <span class="ck">username</span>: <span class="cv">${SMTP_USERNAME}</span>
+      <span class="ck">password</span>: <span class="cv">${SMTP_PASSWORD}</span>
+      <span class="ck">to_addrs</span>: <span class="cv">${SMTP_TO}</span></pre>
+    </div>
+  </div>
+</section>
+
+<div class="hr"></div>
+
+<!-- CLI -->
+<section class="section" id="cli">
+  <div class="section-header">
+    <div class="eyebrow">CLI Reference</div>
+    <h2>One tool to rule<br>the full lifecycle.</h2>
+    <p class="section-lead">Init, run, debug, repair — everything from a single <code style="font-family:monospace;color:var(--amber)">cassandra</code> command.</p>
+  </div>
+
+  <div class="cli-grid">
+    <div class="cli-card"><div class="cli-cmd">cassandra init</div><div class="cli-desc">Create default config in <code style="font-family:monospace;font-size:.8em">~/.config/cassandra-cti/</code>. First step on any new machine.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra run</div><div class="cli-desc">Execute the aggregation cycle. <code style="font-family:monospace;font-size:.8em">--loop</code> for daemon mode, <code style="font-family:monospace;font-size:.8em">--dry-run</code> to test without sending.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra add-source</div><div class="cli-desc">Add an RSS feed or enable ransomware_live / redflag with one command.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra import-feeds</div><div class="cli-desc">Bulk import RSS feeds from CSV. Format: <code style="font-family:monospace;font-size:.8em">Name,URL,Tags</code>.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra add-connector</div><div class="cli-desc">Register a Teams connector: webhook, color, batching, emoji config.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra routes-add</div><div class="cli-desc">Add or update a routing rule (source, tag, or regex) → transport(s).</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra doctor</div><div class="cli-desc">Validate YAML schema or fire a test message through any connector.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra list</div><div class="cli-desc">Print all configured sources, routes, and connector IDs.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra backfill</div><div class="cli-desc">Replay historical events to a transport — recover from downtime.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra db-reset</div><div class="cli-desc">Delete the SQLite database. Clears all dedup history. Requires <code style="font-family:monospace;font-size:.8em">--force</code>.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra seen-clear</div><div class="cli-desc">Surgically clear dedup history by source prefix, date range, or both.</div></div>
+  </div>
+</section>
+
+<div class="hr"></div>
+
+<!-- GET STARTED -->
+<section class="section" id="start">
+  <div class="section-header">
+    <div class="eyebrow">Get Started</div>
+    <h2>From zero to alerts<br>in five minutes.</h2>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;">
+    <div class="timeline">
+      <div class="tl-step">
+        <div class="tl-num">01</div>
+        <div class="tl-content">
+          <div class="tl-title">Install</div>
+          <p class="tl-desc">Clone and install. The <code style="font-family:monospace;font-size:.85em;color:var(--amber)">cassandra</code> CLI entry point is available globally after install.</p>
+          <div class="code-win">
+            <pre><span class="co">$</span> git clone https://github.com/franckferman/CassandraCTI.git
+<span class="co">$</span> cd CassandraCTI && pip install .</pre>
+          </div>
+        </div>
+      </div>
+      <div class="tl-step">
+        <div class="tl-num">02</div>
+        <div class="tl-content">
+          <div class="tl-title">Initialize</div>
+          <p class="tl-desc">Create default config files. Edit them — or use CLI commands to populate them.</p>
+          <div class="code-win">
+            <pre><span class="co">$</span> cassandra init
+<span class="cc"># → ~/.config/cassandra-cti/config.yaml</span>
+<span class="cc"># → ~/.config/cassandra-cti/connectors.yaml</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="tl-step">
+        <div class="tl-num">03</div>
+        <div class="tl-content">
+          <div class="tl-title">Add connector & sources</div>
+          <p class="tl-desc">Register your webhook. Add feeds. Enable trackers.</p>
+          <div class="code-win">
+            <pre><span class="co">$</span> cassandra add-connector \
+    --id <span class="cs">"teams-soc"</span> \
+    --webhook-url <span class="cs">"https://..."</span>
+
+<span class="co">$</span> cassandra add-source rss \
+    --name <span class="cs">"CERT-FR"</span> \
+    --url <span class="cs">"https://cert.ssi.gouv.fr/alerte/feed/"</span> \
+    --tags <span class="cs">"cert,fr"</span>
+
+<span class="co">$</span> cassandra add-source ransomware_live</pre>
+          </div>
+        </div>
+      </div>
+      <div class="tl-step">
+        <div class="tl-num">04</div>
+        <div class="tl-content">
+          <div class="tl-title">Validate & run</div>
+          <div class="code-win">
+            <pre><span class="co">$</span> cassandra doctor config
+<span class="co">$</span> cassandra doctor connector --id teams-soc
+<span class="co">$</span> cassandra run --dry-run --verbose
+
+<span class="cc"># Go live — loop every 5 minutes</span>
+<span class="co">$</span> cassandra run --loop --interval 300</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:1.5rem;">
+      <div class="code-win">
+        <div class="code-win-bar">
+          <div class="d dr"></div><div class="d dy"></div><div class="d dg"></div>
+          <span>config.yaml — minimal example</span>
+        </div>
+        <pre><span class="ck">schema_version</span>: <span class="cn">1</span>
+
+<span class="ck">sources</span>:
+  <span class="ck">rss</span>:
+    <span class="ck">enabled</span>: <span class="cn">true</span>
+    <span class="ck">feeds</span>:
+      - <span class="ck">name</span>: <span class="cs">"CERT-FR Alertes"</span>
+        <span class="ck">url</span>: <span class="cs">"https://cert.ssi.gouv.fr/alerte/feed/"</span>
+        <span class="ck">tags</span>: [<span class="cs">"cert"</span>, <span class="cs">"fr"</span>]
+  <span class="ck">ransomware_live</span>:
+    <span class="ck">enabled</span>: <span class="cn">true</span>
+    <span class="ck">lookback_days</span>: <span class="cn">30</span>
+
+<span class="ck">transports</span>:
+  <span class="ck">use</span>: [<span class="cs">"teams-soc"</span>]
+
+<span class="ck">routes</span>:
+  - <span class="ck">name</span>: <span class="cs">"cert-alerts"</span>
+    <span class="ck">include_tags</span>: [<span class="cs">"cert"</span>]
+    <span class="ck">transports</span>: [<span class="cs">"teams-soc"</span>]
+
+  - <span class="ck">name</span>: <span class="cs">"ransomware"</span>
+    <span class="ck">include_sources</span>: [<span class="cs">"ransomware.live"</span>]
+    <span class="ck">transports</span>: [<span class="cs">"teams-soc"</span>]
+    <span class="ck">template</span>: <span class="cs">"templates/ransomware_card.j2"</span>
+
+<span class="ck">store</span>:
+  <span class="ck">sqlite_path</span>: <span class="cs">".cassandra_cti.db"</span>
+  <span class="ck">seen_ttl_days</span>: <span class="cn">90</span></pre>
+      </div>
+
+      <div class="code-win">
+        <div class="code-win-bar">
+          <div class="d dr"></div><div class="d dy"></div><div class="d dg"></div>
+          <span>Docker Compose</span>
+        </div>
+        <pre><span class="ck">services</span>:
+  <span class="ck">cassandra-cti</span>:
+    <span class="ck">build</span>: <span class="cs">.</span>
+    <span class="ck">volumes</span>:
+      - <span class="cs">./config:/config</span>
+    <span class="ck">environment</span>:
+      - <span class="cs">MSTEAMS_WEBHOOK_SOC</span>=<span class="cv">${MSTEAMS_WEBHOOK_SOC}</span>
+      - <span class="cs">DISCORD_WEBHOOK_URL</span>=<span class="cv">${DISCORD_WEBHOOK_URL}</span>
+    <span class="ck">command</span>: >
+      cassandra run
+        --config /config/config.yaml
+        --loop --interval 300
+    <span class="ck">restart</span>: <span class="cs">unless-stopped</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta">
+  <div class="cta-glow"></div>
+  <h2>The oracle warned you.<br>Will you <em>listen</em> this time?</h2>
+  <p>CassandraCTI is free, open-source, AGPL-3.0.</p>
+  <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
+    <a href="https://github.com/franckferman/CassandraCTI" class="btn btn-amber">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+      GitHub →
+    </a>
+    <a href="https://github.com/franckferman/CassandraCTI/blob/stable/README.md" class="btn btn-ghost">Documentation</a>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">// CassandraCTI</div>
+  <ul class="footer-links">
+    <li><a href="https://github.com/franckferman/CassandraCTI">GitHub</a></li>
+    <li><a href="https://github.com/franckferman/CassandraCTI/blob/stable/LICENSE">AGPL-3.0</a></li>
+    <li><a href="https://github.com/franckferman/CassandraCTI/issues">Issues</a></li>
+    <li><a href="https://www.linkedin.com/in/franckferman">LinkedIn</a></li>
+  </ul>
+  <div class="footer-copy">Franck FERMAN · 2026</div>
+</footer>
+
+<script>
+// ── Canvas: drifting node network ──
+(function(){
+  const cv = document.getElementById('canvas');
+  const ctx = cv.getContext('2d');
+  let W, H, nodes, raf;
+  const AMBER = [245,158,11];
+  const CYAN  = [0,229,255];
+
+  function resize(){
+    W = cv.width  = window.innerWidth;
+    H = cv.height = window.innerHeight;
+  }
+
+  function mkNode(){
+    return {
+      x: Math.random()*W,
+      y: Math.random()*H,
+      vx:(Math.random()-.5)*.25,
+      vy:(Math.random()-.5)*.25,
+      r: Math.random()*1.5+.5,
+      c: Math.random()<.7 ? AMBER : CYAN
+    };
+  }
+
+  function init(){
+    resize();
+    nodes = Array.from({length:90},mkNode);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const D = 130;
+
+    for(let i=0;i<nodes.length;i++){
+      const a = nodes[i];
+      for(let j=i+1;j<nodes.length;j++){
+        const b = nodes[j];
+        const dx = a.x-b.x, dy = a.y-b.y;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if(dist<D){
+          const op = (1-dist/D)*.15;
+          ctx.strokeStyle = `rgba(${a.c[0]},${a.c[1]},${a.c[2]},${op})`;
+          ctx.lineWidth = .5;
+          ctx.beginPath();
+          ctx.moveTo(a.x,a.y);
+          ctx.lineTo(b.x,b.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    for(const n of nodes){
+      ctx.fillStyle=`rgba(${n.c[0]},${n.c[1]},${n.c[2]},.6)`;
+      ctx.shadowColor=`rgba(${n.c[0]},${n.c[1]},${n.c[2]},.4)`;
+      ctx.shadowBlur=4;
+      ctx.beginPath();
+      ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur=0;
+
+      n.x+=n.vx; n.y+=n.vy;
+      if(n.x<-20||n.x>W+20) n.vx*=-1;
+      if(n.y<-20||n.y>H+20) n.vy*=-1;
+    }
+
+    raf=requestAnimationFrame(draw);
+  }
+
+  init();
+  draw();
+  window.addEventListener('resize',()=>{ cancelAnimationFrame(raf); init(); draw(); });
+})();
+
+// ── Live feed clock ──
+function updateClock(){
+  const el = document.getElementById('feed-clock');
+  if(el) el.textContent = new Date().toISOString().replace('T',' ').slice(0,19)+' UTC';
+}
+updateClock();
+setInterval(updateClock,1000);
+
+// ── Fake event counter ──
+let evtBase = Math.floor(Math.random()*2000)+800;
+function updateEvt(){
+  evtBase += Math.floor(Math.random()*3);
+  const el = document.getElementById('evt-count');
+  if(el) el.textContent = evtBase.toLocaleString();
+}
+updateEvt();
+setInterval(updateEvt,4000);
+
+// ── Feed stream items ──
+const items = [
+  {time:'14:32:01',source:'rss:CERT-FR Alertes',title:'Vulnérabilité critique dans OpenSSH 9.7',badge:'cert',bl:'b-cert'},
+  {time:'14:31:47',source:'ransomware.live',title:'ALPHV by BlackCat — Victim: FinanceCorp 🇫🇷',badge:'ransomware',bl:'b-ransomware'},
+  {time:'14:30:55',source:'rss:BleepingComputer',title:'Microsoft patches 6 zero-days in April Patch Tuesday',badge:'news',bl:'b-news'},
+  {time:'14:29:03',source:'red.flag.domains',title:'Red Flag Domains – 2026-03-19 (12,847 domains)',badge:'domains',bl:'b-domain'},
+  {time:'14:28:21',source:'rss:Cisco Talos',title:'New campaign targeting ICS systems in Europe',badge:'vendor',bl:'b-vendor'},
+  {time:'14:27:44',source:'ransomware.live',title:'LockBit 3.0 — Victim: LogisticsGmbH 🇩🇪',badge:'ransomware',bl:'b-ransomware'},
+  {time:'14:26:18',source:'rss:Google TAG',title:'APT29 infrastructure update — credential phishing wave',badge:'vendor',bl:'b-vendor'},
+  {time:'14:25:09',source:'rss:Krebs on Security',title:'Inside the leak that exposed 50M health records',badge:'news',bl:'b-news'},
+  {time:'14:24:33',source:'rss:SANS ISC Diary',title:'CVE-2026-0831: Apache RCE under active exploitation',badge:'cert',bl:'b-cert'},
+  {time:'14:23:11',source:'rss:Palo Alto Unit 42',title:'Scattered Spider pivots to cloud-native intrusion path',badge:'vendor',bl:'b-vendor'},
+  {time:'14:22:58',source:'ransomware.live',title:'Akira — Victim: HealthGroup 🇬🇧',badge:'ransomware',bl:'b-ransomware'},
+  {time:'14:21:07',source:'rss:Microsoft Sentinel',title:'Detection rule: suspicious LSASS access patterns',badge:'vendor',bl:'b-vendor'},
+  {time:'14:20:42',source:'ransomware.press',title:'Cyber Press: RetailCorp breach disclosed 🇺🇸',badge:'press',bl:'b-news'},
+  {time:'14:19:55',source:'ransomware.8k',title:'SEC 8-K: MedTech Inc (MDTK) — Item 1.05 filing',badge:'sec',bl:'b-cert'},
+];
+
+function buildFeed(){
+  const stream = document.getElementById('feed-stream');
+  if(!stream) return;
+  const doubled = [...items,...items];
+  stream.innerHTML = doubled.map(i=>`
+    <div class="feed-item">
+      <span class="feed-time">${i.time}</span>
+      <span class="feed-content">
+        <div class="feed-source" style="color:var(--amber)">${i.source}</div>
+        <div class="feed-title">${i.title}</div>
+      </span>
+      <span class="feed-badge ${i.bl}">${i.badge}</span>
+    </div>`).join('');
+}
+
+buildFeed();
+</script>
+</body>
+</html>

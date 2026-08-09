@@ -1,0 +1,62 @@
+# CassandraCTI - Modular Cyber Threat Intelligence Aggregator
+# Copyright (C) 2025 Franck Ferman
+# transports/web.py
+#
+# The web dashboard as a connector: route events to it like any other
+# transport and they show up live in the browser. The HTTP server itself runs
+# in a dedicated thread (see cassandra_cti.web.app) so it survives the
+# per-iteration `asyncio.run()` lifecycle of the scheduler loop.
+from __future__ import annotations
+import os
+from typing import List, Optional
+
+from ..models import Event
+from ..web.app import get_server
+
+
+def serialize_event(ev: Event) -> dict:
+    return {
+        "source": ev.source,
+        "title": ev.title,
+        "url": ev.url,
+        "summary": ev.summary or "",
+        "published_at": ev.published_at.isoformat() if ev.published_at else None,
+        "tags": list(ev.tags or []),
+    }
+
+
+class WebTransport:
+    def __init__(self, host: str = "127.0.0.1", port: int = 8080,
+                 token: Optional[str] = None, db_path: Optional[str] = None,
+                 batching: dict | None = None):
+        self.host = host
+        self.port = int(port)
+        self.token = token
+        # Late-bound by run_once (the DB path is resolved from the config
+        # file location after transports are built).
+        self.db_path = db_path
+        self.batch_cfg = batching or {}
+        self._server = None  # resolved lazily on first send
+
+    def _resolve_server(self):
+        if self._server is None:
+            self._server = get_server(self.host, self.port, token=self.token, db_path=self.db_path)
+        if self.db_path and not self._server.db_path:
+            self._server.db_path = self.db_path
+        return self._server
+
+    async def send(self, events: List[Event], title: str | None = None, template_text: str | None = None):
+        if os.getenv("CTI_DRY_RUN") == "1":
+            for ev in events:
+                print(f"[DRYRUN:WEB] {ev.source} :: {ev.title} -> {ev.url}")
+            return
+
+        server = self._resolve_server()
+        server.start()
+        for ev in events:
+            server.incoming.put(serialize_event(ev))
+
+    async def aclose(self):
+        # The server is shared process-wide and bound to its own thread;
+        # nothing per-run to close here.
+        pass

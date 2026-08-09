@@ -1,0 +1,17 @@
+{#- Telegram ransomware card (parse_mode=HTML). The "<victim> by <group>" title
+    is bolded by the transport; this is the structured body. Empty / N/A fields
+    are skipped; the description is de-Markdowned, tag-stripped and truncated. -#}
+{%- set NA = ['', 'N/A', 'n/a', 'None', 'none', 'Not Found', '-', 'null', 'Unknown'] -%}
+🩸 <b>Group:</b> {{ raw.group_name | default('Unknown', true) | e }}
+{% if raw.country and raw.country not in NA %}🌍 <b>Country:</b> {{ (raw.country_display or raw.country) | e }}{% if raw.country_flag %} {{ raw.country_flag }}{% endif %}
+{% endif %}{% if raw.activity and raw.activity not in NA %}🏭 <b>Sector:</b> {{ raw.activity | e }}
+{% endif %}{% if raw.website and raw.website not in NA and '.onion' not in raw.website %}🌐 <b>Victim:</b> {{ raw.website | e }}
+{% endif %}{% if raw.discovered %}🕓 <b>Discovered:</b> {{ raw.discovered | string | truncate(19, true, '') | replace('T', ' ') | e }} UTC
+{% endif %}{% if raw.infostealer_summary %}🕵️ <b>Infostealer:</b> {{ raw.infostealer_summary | e }} compromised
+{% endif %}{% if raw.infostealer_stealers %}🦠 <b>Top stealers:</b> {{ raw.infostealer_stealers | e }}
+{% endif %}{% if raw.data_size %}💾 <b>Data size:</b> {{ raw.data_size | e }}
+{% endif %}{% if summary and summary not in NA %}
+📝 {{ summary | striptags | truncate(350, true) | e }}
+{% endif %}{% if url %}
+🌐 <a href="{{ url | e }}">ransomware.live</a>{% endif %}{% if raw.leak_url and '.onion' in raw.leak_url %}
+🧅 <a href="{{ raw.leak_url | e }}">Leak site (onion)</a>{% endif %}

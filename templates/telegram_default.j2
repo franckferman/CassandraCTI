@@ -1,0 +1,9 @@
+{# Telegram default template — emits Telegram-flavoured HTML (parse_mode=HTML).
+   The transport bolds the source name as the header; this body leads with the
+   article title, then the summary. Escaped with the `e` filter to stay parse-safe. #}
+<b>{{ title | e }}</b>
+
+{{ summary | striptags | e | truncate(500, True) }}
+{% if url %}
+<a href="{{ url | e }}">🔗 Read more</a>
+{% endif %}

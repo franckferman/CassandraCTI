@@ -1,0 +1,7 @@
+{#- Telegram cyber-press card (parse_mode=HTML). The victim/headline is bolded
+    by the transport; this is the body: location, date, article summary. -#}
+{% if raw.country %}📍 {{ raw.country | e }}{% if raw.domain %} · <code>{{ raw.domain | e }}</code>{% endif %}
+{% elif raw.domain %}📍 <code>{{ raw.domain | e }}</code>
+{% endif %}{% if raw.date %}📅 {{ raw.date | e }}
+{% endif %}
+📰 {{ summary | striptags | e | truncate(700, True) }}

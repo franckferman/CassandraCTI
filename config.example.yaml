@@ -1,0 +1,138 @@
+schema_version: 1
+scheduler:
+  mode: oneshot
+  interval_seconds: 0
+
+sources:
+  rss:
+    enabled: true
+    feeds:
+      # --- CERTs & Agencies (Tag: cert) ---
+      - { name: "FR-CERT Alertes", url: "https://cert.ssi.gouv.fr/alerte/feed/", tags: ["cert", "fr"] }
+      - { name: "FR-CERT Avis", url: "https://cert.ssi.gouv.fr/avis/feed/", tags: ["cert", "fr"] }
+      # - { name: "US-CERT CISA", url: "https://www.cisa.gov/uscert/ncas/alerts.xml", tags: ["cert", "us"] }
+      # - { name: "US-CERT CISA", url: "https://www.cisa.gov/cybersecurity-advisories/cybersecurity-advisories.xml", tags: ["cert", "us"] }
+      # - { name: "NCSC", url: "https://www.ncsc.gov.uk/api/1/services/v1/report-rss-feed.xml", tags: ["cert", "uk"] }
+      # - { name: "EU-ENISA", url: "https://www.enisa.europa.eu/publications/RSS", tags: ["cert", "eu"] }
+      # - { name: "CIS Security", url: "https://www.cisecurity.org/feed/advisories", tags: ["cert"] }
+
+      # --- Microsoft Ecosystem (Tag: microsoft) ---
+      - { name: "Microsoft Security", url: "https://www.microsoft.com/en-us/msrc/blog", tags: ["microsoft"] }
+      # - { name: "Microsoft Sentinel", url: "https://techcommunity.microsoft.com/plugins/custom/microsoft/o365/custom-blog-rss?tid=8149516204242144484&board=MicrosoftSentinelBlog&size=25", tags: ["microsoft", "sentinel"] }
+      - { name: "Microsoft Sentinel", url: "https://techcommunity.microsoft.com/t5/s/gxcuf89792/rss/board?board.id=microsoft-security-blog", tags: ["microsoft", "sentinel"] }
+      - { name: "MSRC Update Guide", url: "https://api.msrc.microsoft.com/update-guide/rss", tags: ["microsoft", "vuln"] }
+
+      # --- Major Vendors (Tag: vendor) ---
+      - { name: "Cisco", url: "https://blogs.cisco.com/security/feed", tags: ["vendor"] }
+      - { name: "Trend Micro", url: "http://feeds.trendmicro.com/TrendMicroResearch", tags: ["vendor"] }
+      - { name: "Proofpoint", url: "https://www.proofpoint.com/us/rss.xml", tags: ["vendor"] }
+      - { name: "Checkpoint Research", url: "https://research.checkpoint.com/feed/", tags: ["vendor"] }
+      - { name: "SentinelOne", url: "https://www.sentinelone.com/feed/", tags: ["vendor"] }
+      - { name: "RedCanary", url: "https://redcanary.com/feed/", tags: ["vendor"] }
+      - { name: "PaloAlto Unit42", url: "https://unit42.paloaltonetworks.com/feed/", tags: ["vendor"] }
+      - { name: "Securelist (Kaspersky)", url: "https://securelist.com/feed/", tags: ["vendor"] }
+      # - { name: "Binary Defense", url: "https://www.binarydefense.com/feed/", tags: ["vendor"] }
+      - { name: "Recorded Future", url: "https://www.recordedfuture.com/feed", tags: ["vendor"] }
+      # - { name: "NCC Group", url: "https://research.nccgroup.com/category/threat-intelligence/feed/", tags: ["vendor"] }
+      # - { name: "NCC Group", url: "https://www.nccgroup.com/research-blog/feed", tags: ["vendor"] }
+      - { name: "Google TAG", url: "https://blog.google/threat-analysis-group/rss/", tags: ["vendor", "google"] }
+      - { name: "VirusBulletin", url: "https://www.virusbulletin.com/rss", tags: ["vendor"] }
+      # - { name: "ATT Cybersecurity", url: "https://cybersecurity.att.com/site/blog-all-rss", tags: ["vendor"] }
+      - { name: "ATT Cybersecurity", url: "https://levelblue.com/site/blog-all-rss", tags: ["vendor"] }
+
+      # --- News & Blogs (Tag: news) ---
+      - { name: "Krebs on Security", url: "https://krebsonsecurity.com/feed/", tags: ["news", "must-read"] }
+      - { name: "The Hacker News", url: "http://feeds.feedburner.com/TheHackersNews?format=xml", tags: ["news"] }
+      - { name: "Bleeping Computer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+      - { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml", tags: ["news"] }
+      - { name: "Threatpost", url: "https://threatpost.com/feed/", tags: ["news"] }
+      - { name: "Schneier on Security", url: "https://www.schneier.com/feed/atom/", tags: ["news"] }
+      - { name: "Graham Cluley", url: "https://grahamcluley.com/feed/", tags: ["news"] }
+      - { name: "Cyber-News.fr", url: "https://cyber-news.fr/feed/atom", tags: ["news", "fr"] }
+      - { name: "InfoSecurity Mag", url: "https://www.infosecurity-magazine.com/rss/news/", tags: ["news"] }
+      - { name: "SANS ISC", url: "https://isc.sans.edu/rssfeed.xml", tags: ["news", "technical"] }
+
+      # --- Technical & Research (Tag: tech) ---
+      - { name: "James Forshaw", url: "https://www.tiraniddo.dev/feeds/posts/default", tags: ["tech", "research"] }
+      - { name: "Adam Chester (XPN)", url: "https://blog.xpnsec.com/rss.xml", tags: ["tech", "research"] }
+      - { name: "Modexp", url: "https://modexp.wordpress.com/feed/", tags: ["tech", "research"] }
+      - { name: "Leak-Lookup", url: "https://leak-lookup.com/rss", tags: ["tech", "leaks"] }
+      - { name: "DaVinci Forensics", url: "https://davinciforensics.co.za/cybersecurity/feed/", tags: ["tech"] }
+
+  ransomware_live:
+    enabled: true
+    lookback_days: 30
+    # api_key: ${RANSOMWARE_API_KEY}   # optional PRO tier; else falls back to v2 -> posts.json
+  ransomware_press:                    # PRO-only cyber-press news feed (no fallback)
+    enabled: false
+    api_key: ${RANSOMWARE_API_KEY}
+    # country: US                      # optional ISO-2 filter
+  ransomware_8k:                       # PRO-only: SEC 8-K cyber-incident filings
+    enabled: false
+    api_key: ${RANSOMWARE_API_KEY}
+  ransomware_stats:                    # PRO-only: one daily tracker digest
+    enabled: false
+    api_key: ${RANSOMWARE_API_KEY}
+  red_flag_domains:
+    enabled: true
+
+filters:
+  title_regex_deny: ["^Weekly", "^Job", "Market Research"]
+  title_regex_allow: []
+  max_items_per_source: 50
+
+transports:
+  # LIST ONLY IDs HERE.
+  # The actual configuration (Webhook URL, etc.) MUST be in connectors.yaml
+  use: ["cassandra-cert", "cassandra-vendor", "cassandra-news", "cassandra-ransomware", "cassandra-domains", "discord-alert"]
+
+routes:
+  # --- CRITICAL ALERTS ---
+  - name: ransomware
+    include_sources: ["ransomware.live"]
+    transports: ["cassandra-ransomware", "discord-alert"]
+    template: "templates/ransomware_card.j2"
+  
+  - name: malicious-domains
+    include_sources: ["red.flag.domains"]
+    transports: ["cassandra-domains"] 
+    template: "templates/domains_list.j2"
+
+  # --- RSS ROUTING ---
+  # CERTs -> Dedicated Channel
+  - name: cert-alerts
+    include_tags: ["cert"]
+    transports: ["cassandra-cert"]
+    template: "templates/rss_default.j2"
+
+  # Microsoft & Vendors -> Vendor Channel
+  - name: vendor-news
+    include_tags: ["vendor", "microsoft"]
+    transports: ["cassandra-vendor"]
+    template: "templates/rss_default.j2"
+
+  # General News & Tech -> News Channel
+  - name: general-news
+    include_tags: ["news", "tech"]
+    transports: ["cassandra-news"]
+    template: "templates/rss_default.j2"
+  
+  # Discord gets everything (as an example of 'firehose')
+  - name: discord-all
+    include_sources: ["rss:"]
+    transports: ["discord-alert"]
+    template: "templates/discord_default.j2"
+
+store:
+  sqlite_path: .cassandra_cti.db
+  seen_ttl_days: 90
+
+logging:
+  level: INFO
+  json: false
+  file: null
+
+metrics:
+  enabled: true
+  host: 127.0.0.1      # localhost by default; set 0.0.0.0 to expose to other containers/hosts
+  port: 9108

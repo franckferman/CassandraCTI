@@ -1,0 +1,7 @@
+{#- Telegram SEC 8-K card. "Company (TICKER)" headline bolded by the transport. -#}
+📄 <b>{{ raw.form | default('8-K', true) | e }}</b>{% if raw.file_date %} · {{ raw.file_date | e }}{% endif %}
+{% if raw.item105 %}🔴 Item 1.05 — Material Cybersecurity Incident
+{% elif raw.item801 %}🟠 Item 8.01 — Other Events
+{% endif %}{% if raw.cik %}🏛️ CIK {{ raw.cik | e }}
+{% endif %}{% if url %}
+🔗 <a href="{{ url | e }}">SEC filing (EDGAR)</a>{% endif %}
