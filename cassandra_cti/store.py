@@ -183,14 +183,17 @@ class Store:
         def iso(dt):
             return dt.isoformat(timespec="seconds").replace("+00:00", "Z")
 
-        col = "COALESCE(published_at, first_seen_at)"
+        # `ts` is a fixed column expression (no user input) inlined into each
+        # query as a literal so static analysers don't flag string-built SQL.
         with closing(self._connect()) as db:
             total = db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
             per_source = dict(db.execute(
                 "SELECT source, COUNT(*) FROM events GROUP BY source ORDER BY COUNT(*) DESC").fetchall())
-            latest = db.execute("SELECT MAX(" + col + ") FROM events").fetchone()[0]
+            latest = db.execute(
+                "SELECT MAX(COALESCE(published_at, first_seen_at)) FROM events").fetchone()[0]
             source_last = dict(db.execute(
-                "SELECT source, MAX(" + col + ") FROM events GROUP BY source").fetchall())
+                "SELECT source, MAX(COALESCE(published_at, first_seen_at)) FROM events "
+                "GROUP BY source").fetchall())
 
             per_category: Dict[str, int] = {}
             for src, cnt in per_source.items():
@@ -200,8 +203,9 @@ class Store:
                 lo = iso(now - timedelta(hours=h_from))
                 hi = iso(now - timedelta(hours=h_to)) if h_to else iso(now + timedelta(hours=1))
                 return db.execute(
-                    "SELECT COUNT(*) FROM events WHERE " + col + " >= ? AND " + col + " < ?",
-                    (lo, hi)).fetchone()[0]
+                    "SELECT COUNT(*) FROM events WHERE "
+                    "COALESCE(published_at, first_seen_at) >= ? AND "
+                    "COALESCE(published_at, first_seen_at) < ?", (lo, hi)).fetchone()[0]
 
             windows = {
                 "24h": {"cur": count_between(24, 0), "prev": count_between(48, 24)},
@@ -210,15 +214,17 @@ class Store:
             }
 
             by_day = dict(db.execute(
-                "SELECT substr(" + col + ", 1, 10) d, COUNT(*) FROM events GROUP BY d").fetchall())
+                "SELECT substr(COALESCE(published_at, first_seen_at), 1, 10) d, COUNT(*) "
+                "FROM events GROUP BY d").fetchall())
             today = now.date()
             activity = [{"date": (today - timedelta(days=i)).isoformat(),
                          "count": int(by_day.get((today - timedelta(days=i)).isoformat(), 0))}
                         for i in range(29, -1, -1)]
 
             by_hour = dict(db.execute(
-                "SELECT substr(" + col + ", 1, 13) h, COUNT(*) FROM events "
-                "WHERE " + col + " >= ? GROUP BY h", (iso(now - timedelta(hours=24)),)).fetchall())
+                "SELECT substr(COALESCE(published_at, first_seen_at), 1, 13) h, COUNT(*) "
+                "FROM events WHERE COALESCE(published_at, first_seen_at) >= ? GROUP BY h",
+                (iso(now - timedelta(hours=24)),)).fetchall())
             activity_hourly = []
             for i in range(23, -1, -1):
                 key = iso(now - timedelta(hours=i))[:13]
