@@ -1,0 +1,12 @@
+{#- Telegram abuse.ch IOC card (parse_mode=HTML). The "<malware> — <ioc>" title
+    is bolded by the transport; this is the structured body. The IOC value is
+    wrapped in <code> for tap-to-copy. Empty fields are skipped. -#}
+{%- set NA = ['', 'N/A', 'n/a', 'None', 'none', '-', 'null', 'Unknown'] -%}
+🦠 <b>{{ raw.malware | default('IOC', true) | e }}</b>
+{% if raw.ioc and raw.ioc not in NA %}🎯 <code>{{ raw.ioc | e }}</code>{% if raw.ioc_type %} ({{ raw.ioc_type | e }}){% endif %}
+{% endif %}{% if raw.confidence %}📊 Confidence: {{ raw.confidence }}%
+{% endif %}{% if raw.country and raw.country not in NA %}🌍 {{ raw.country | e }}
+{% endif %}{% if raw.status and raw.status not in NA %}🟢 {{ raw.status | e }}
+{% endif %}{% if raw.feed and raw.feed not in NA %}🗂️ abuse.ch / {{ raw.feed | e }}
+{% endif %}{% if url and url.strip() %}
+🔗 <a href="{{ url | e }}">Details</a>{% endif %}

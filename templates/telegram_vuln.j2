@@ -1,0 +1,13 @@
+{#- Telegram CISA KEV card (parse_mode=HTML). The "<CVE> — <name>" title is
+    bolded by the transport; this is the structured body. Empty fields skipped. -#}
+{%- set NA = ['', 'N/A', 'n/a', 'None', 'none', '-', 'null', 'Unknown'] -%}
+🛡️ <b>{{ raw.cve | default('CVE', true) | e }}</b>{% if raw.ransomware_use %} · ⚠️ ransomware{% endif %}
+{% if (raw.vendor and raw.vendor not in NA) or (raw.product and raw.product not in NA) %}🏷️ <b>Affected:</b> {{ raw.vendor | e }}{% if raw.vendor and raw.product %} {% endif %}{{ raw.product | e }}
+{% endif %}{% if raw.date_added and raw.date_added not in NA %}📅 <b>Added:</b> {{ raw.date_added | e }}
+{% endif %}{% if raw.due_date and raw.due_date not in NA %}⏳ <b>Due:</b> {{ raw.due_date | e }}
+{% endif %}{% if summary and summary not in NA %}
+📝 {{ summary | striptags | truncate(350, true) | e }}
+{% endif %}{% if raw.required_action and raw.required_action not in NA %}
+✅ {{ raw.required_action | striptags | truncate(200, true) | e }}
+{% endif %}{% if url and url.strip() %}
+🔗 <a href="{{ url | e }}">NVD detail</a>{% endif %}

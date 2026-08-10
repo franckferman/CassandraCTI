@@ -1,0 +1,16 @@
+{#- abuse.ch IOC card (Markdown — Discord & Teams). The card title is the source
+    name; the "<malware> — <ioc>" article title is rendered here. The IOC value
+    is fenced in backticks for safe copy/paste. Optional fields omitted if empty. -#}
+{%- set NA = ['', 'N/A', 'n/a', 'None', 'none', '-', 'null', 'Unknown'] -%}
+**{{ title }}**
+
+{% if raw.malware and raw.malware not in NA %}- **Malware:** {{ raw.malware }}
+{% endif %}{% if raw.ioc and raw.ioc not in NA %}- **IOC:** `{{ raw.ioc }}`{% if raw.ioc_type %} ({{ raw.ioc_type }}){% endif %}
+{% endif %}{% if raw.confidence %}- **Confidence:** {{ raw.confidence }}%
+{% endif %}{% if raw.country and raw.country not in NA %}- **Country:** {{ raw.country }}
+{% endif %}{% if raw.status and raw.status not in NA %}- **Status:** {{ raw.status }}
+{% endif %}{% if raw.feed and raw.feed not in NA %}- **Feed:** abuse.ch / {{ raw.feed }}
+{% endif %}{% if summary and summary not in NA %}
+> {{ summary }}
+{% endif %}{% if url and url.strip() %}
+🔎 [Details]({{ url }}){% endif %}

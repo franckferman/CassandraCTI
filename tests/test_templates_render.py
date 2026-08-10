@@ -20,6 +20,13 @@ RAW = {
     "country_display": "United States (US)", "country_flag": "🇺🇸",
     "infostealer_summary": "15 users, 6 employees",
     "infostealer_stealers": "Lumma (137), RedLine (132)",
+    # cisa.kev fields
+    "cve": "CVE-2026-1234", "vendor": "Acme", "product": "VPN Gateway",
+    "due_date": "2026-08-20", "date_added": "2026-08-01",
+    "ransomware_use": True, "required_action": "Apply vendor patch.",
+    # abuse.ch fields
+    "ioc": "203.0.113.9:443", "ioc_type": "ip:port", "malware": "Emotet",
+    "confidence": 100, "status": "online", "feed": "feodo",
 }
 
 TDIR = os.path.join(os.path.dirname(__file__), os.pardir, "templates")
@@ -53,6 +60,33 @@ def test_ransomware_templates_tolerate_empty_raw():
         assert "Group" in out                       # the always-present field renders
         assert "infostealer" not in out.lower()     # absent object -> no line
         assert "onion" not in out.lower()           # absent leak_url -> no onion line
+
+
+def test_vuln_and_ioc_cards_surface_key_fields():
+    """The new source-kind cards must render their defining datum: the CVE for a
+    KEV card, the IOC value for an abuse.ch card."""
+    for name in ("vuln_card.j2", "telegram_vuln.j2"):
+        text = open(os.path.join(TDIR, name), encoding="utf-8").read()
+        out = Template(text).render(title="CVE-2026-1234 — Acme RCE", events=[],
+                                    emoji="🛡️", source="cisa.kev",
+                                    summary="Actively exploited RCE.", url="", raw=RAW)
+        assert "CVE-2026-1234" in out, f"{name} does not render the CVE"
+    for name in ("ioc_card.j2", "telegram_ioc.j2"):
+        text = open(os.path.join(TDIR, name), encoding="utf-8").read()
+        out = Template(text).render(title="Emotet — 203.0.113.9:443", events=[],
+                                    emoji="🦠", source="abuse.ch",
+                                    summary="Emotet C2.", url="", raw=RAW)
+        assert "203.0.113.9:443" in out, f"{name} does not render the IOC"
+
+
+def test_new_cards_tolerate_empty_raw():
+    """A KEV/IOC card with an empty raw dict must not crash — optional lines are
+    simply omitted, the title still renders."""
+    for name in ("vuln_card.j2", "telegram_vuln.j2", "ioc_card.j2", "telegram_ioc.j2"):
+        text = open(os.path.join(TDIR, name), encoding="utf-8").read()
+        out = Template(text).render(title="Fallback title", events=[], emoji="",
+                                    source="x", summary="", url="", raw={})
+        assert out.strip(), f"{name} rendered empty with empty raw"
 
 
 def test_default_templates_surface_article_title():

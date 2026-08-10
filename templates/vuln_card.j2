@@ -1,0 +1,16 @@
+{#- CISA KEV / vulnerability card (Markdown — Discord & Teams). The card title
+    is the source name; the "<CVE> — <name>" article title is rendered here.
+    Optional fields are omitted when empty. -#}
+{%- set NA = ['', 'N/A', 'n/a', 'None', 'none', '-', 'null', 'Unknown'] -%}
+**{{ title }}**
+
+{% if raw.cve and raw.cve not in NA %}- **CVE:** {{ raw.cve }}{% if raw.ransomware_use %} · ⚠️ known ransomware use{% endif %}
+{% endif %}{% if (raw.vendor and raw.vendor not in NA) or (raw.product and raw.product not in NA) %}- **Affected:** {{ raw.vendor }}{% if raw.vendor and raw.product %} {% endif %}{{ raw.product }}
+{% endif %}{% if raw.date_added and raw.date_added not in NA %}- **Added to KEV:** {{ raw.date_added }}
+{% endif %}{% if raw.due_date and raw.due_date not in NA %}- **Remediation due:** {{ raw.due_date }}
+{% endif %}{% if summary and summary not in NA %}
+> {{ summary }}
+{% endif %}{% if raw.required_action and raw.required_action not in NA %}
+**Action:** {{ raw.required_action }}
+{% endif %}{% if url and url.strip() %}
+🛡️ [NVD detail]({{ url }}){% endif %}
