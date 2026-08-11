@@ -153,6 +153,36 @@ def test_add_source_abusech_feeds_and_key(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
+# list
+# --------------------------------------------------------------------------- #
+def test_list_surfaces_all_sources_without_leaking_keys(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    cx = tmp_path / "connectors.yaml"
+    _write_yaml(cfg, {
+        "schema_version": 1,
+        "sources": {
+            "rss": {"enabled": True, "feeds": [{"name": "Krebs", "url": "https://k/f", "tags": ["news"]}]},
+            "cisa_kev": {"enabled": True, "lookback_days": 365},
+            "abusech": {"enabled": True, "feeds": ["feodo"], "api_key": "SUPERSECRET"},
+            "ransomware_live": {"enabled": False},
+        },
+        "routes": [],
+    })
+    _write_yaml(cx, {"connectors": [{"id": "d1", "type": "discord", "params": {}}]})
+
+    r = runner.invoke(app, ["list", "--config", str(cfg), "--connectors", str(cx)])
+    assert r.exit_code == 0, r.output
+    # every source kind is surfaced, with on/off state
+    assert "rss (1 feeds)" in r.output
+    assert "cisa_kev" in r.output and "abusech" in r.output
+    assert "[on ] cisa_kev" in r.output
+    assert "[off] ransomware_live" in r.output
+    # a literal api_key is reported as set but NEVER printed
+    assert "api_key=set" in r.output
+    assert "SUPERSECRET" not in r.output
+
+
+# --------------------------------------------------------------------------- #
 # add-connector (all transport types)
 # --------------------------------------------------------------------------- #
 def test_add_connector_types_and_validation(tmp_path):

@@ -151,23 +151,43 @@ def quickstart(web: bool = typer.Option(True, "--web/--no-web", help="Open the l
 
 @app.command("list")
 def list_items(config: Path = typer.Option(None), connectors: Path = typer.Option(None)):
-    """Show configured RSS feeds, routes and connectors."""
+    """Show configured sources (all kinds), routes and connectors."""
     base = default_dir()
     cfg = yload(config or (base / "config.yaml"))
     cx = yload(connectors or (base / "connectors.yaml"))
 
-    typer.echo("Sources RSS:")
-    feeds = cfg.get("sources", {}).get("rss", {}).get("feeds", [])
-    for f in feeds:
-        typer.echo(f" - {f.get('name')} :: {f.get('url')} :: tags={f.get('tags')}")
+    sources = cfg.get("sources", {}) or {}
+    typer.echo("Sources:")
+    if not sources:
+        typer.echo("  (none)")
+    for name, s in sources.items():
+        s = s or {}
+        # A source is active only when `enabled` is truthy — mirror build_sources.
+        flag = "on " if s.get("enabled") else "off"
+        if name == "rss":
+            feeds = s.get("feeds", []) or []
+            typer.echo(f"  [{flag}] rss ({len(feeds)} feeds)")
+            for f in feeds:
+                typer.echo(f"         - {f.get('name')} :: {f.get('url')} :: tags={f.get('tags')}")
+        else:
+            bits = []
+            for k in ("lookback_days", "max_items", "feeds", "country"):
+                if s.get(k) not in (None, "", []):
+                    bits.append(f"{k}={s.get(k)}")
+            ak = s.get("api_key")
+            if ak:
+                # Never print the value: 'env' = ${VAR} placeholder, 'set' = literal.
+                bits.append("api_key=" + ("env" if str(ak).startswith("${") else "set"))
+            extra = ("  " + ", ".join(bits)) if bits else ""
+            typer.echo(f"  [{flag}] {name}{extra}")
 
     typer.echo("Routes:")
     for r in cfg.get("routes", []):
-        typer.echo(f" - {r.get('name')} -> {r.get('transports')} via src={r.get('include_sources')} tags={r.get('include_tags')} regex={r.get('include_regex')}")
+        typer.echo(f"  - {r.get('name')} -> {r.get('transports')} via src={r.get('include_sources')} tags={r.get('include_tags')} regex={r.get('include_regex')}")
 
     typer.echo("Connectors:")
     for c in cx.get("connectors", []):
-        typer.echo(f" - {c.get('id')} [{c.get('type')}]")
+        typer.echo(f"  - {c.get('id')} [{c.get('type')}]")
 
 
 @app.command()
@@ -359,6 +379,8 @@ def doctor(kind: str = typer.Argument(..., help="connector|config"),
            id: Optional[str] = typer.Option(None),
            config: Path = typer.Option(None),
            connectors: Path = typer.Option(None)):
+    """Validate the config ('doctor config') or send a live test message
+    through a connector ('doctor connector --id <id>')."""
     base = default_dir()
     if kind == "config":
         try:
@@ -493,7 +515,7 @@ def run(config: Path = typer.Option(None), connectors: Path = typer.Option(None)
 def backfill(to: str = typer.Option(..., help="transport id"),
              since: str = typer.Option(..., help="YYYY-MM-DD or ISO"),
              config: Path = typer.Option(None), connectors: Path = typer.Option(None)):
-
+    """Replay stored events not yet delivered to a transport (since a date)."""
     base = default_dir()
     cfg_path = str(config or (base / "config.yaml"))
     settings = load_settings(cfg_path, str(connectors or (base / "connectors.yaml")))
@@ -573,6 +595,7 @@ def db_reset(config: Path = typer.Option(None), force: bool = typer.Option(False
 def seen_clear(source_prefix: Optional[str] = typer.Option(None), before: Optional[str] = typer.Option(None),
                since: Optional[str] = typer.Option(None, help="Clear items seen AFTER this date"),
                config: Path = typer.Option(None)):
+    """Selectively clear dedup history (by source prefix and/or date)."""
     base = default_dir()
     cfg_path = str(config or (base / "config.yaml"))
     settings = load_settings(cfg_path)
