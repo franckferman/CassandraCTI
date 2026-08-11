@@ -267,6 +267,62 @@ def test_routes_add_populates_and_replaces(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
+# briefings
+# --------------------------------------------------------------------------- #
+def test_briefing_add(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    r = runner.invoke(app, ["briefing-add", "--name", "vuln-daily", "--transports", "d1",
+                            "--include", "cisa.kev", "--schedule", "12h", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    b = _read_yaml(cfg)["briefings"][0]
+    assert b["name"] == "vuln-daily"
+    assert b["transports"] == ["d1"]
+    assert b["include_sources"] == ["cisa.kev"]
+    assert b["schedule"] == "12h"
+
+
+def test_list_shows_briefings(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    cx = tmp_path / "connectors.yaml"
+    _write_yaml(cfg, {"schema_version": 1, "sources": {}, "routes": [],
+                      "briefings": [{"name": "b1", "transports": ["d1"], "schedule": "24h",
+                                     "include_sources": ["cisa.kev"]}]})
+    _write_yaml(cx, {"connectors": []})
+    r = runner.invoke(app, ["list", "--config", str(cfg), "--connectors", str(cx)])
+    assert r.exit_code == 0, r.output
+    assert "Briefings:" in r.output and "b1" in r.output
+
+
+def test_briefing_run_dry_run(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    cx = tmp_path / "connectors.yaml"
+    _write_yaml(cfg, {"schema_version": 1, "store": {"sqlite_path": "b.db"},
+                      "sources": {"cisa_kev": {"enabled": True}},
+                      "transports": {"use": ["d1"]},
+                      "briefings": [{"name": "vuln", "transports": ["d1"],
+                                     "include_sources": ["cisa.kev"], "min_items": 1}]})
+    _write_yaml(cx, {"connectors": [{"id": "d1", "type": "discord",
+                                     "params": {"webhook_url": "http://x/h"}}]})
+    db = resolve_db_path("b.db", str(cfg))
+    st = Store(db)
+    st.upsert_event(make_event_id("cisa.kev", "https://n/1", "c1"), "cisa.kev",
+                    "https://n/1", "c1", "s", None, tags=["vulnerability"], meta={"cve": "CVE-1"})
+
+    r = runner.invoke(app, ["briefing-run", "--all", "--dry-run",
+                            "--config", str(cfg), "--connectors", str(cx)])
+    assert r.exit_code == 0, r.output
+    assert "[DRYRUN:BRIEFING]" in r.output
+    assert "Briefings sent: 1" in r.output
+
+
+def test_briefing_run_unknown_name_errors(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    _write_yaml(cfg, {"schema_version": 1, "briefings": [{"name": "a", "transports": ["d1"]}]})
+    r = runner.invoke(app, ["briefing-run", "--name", "nope", "--config", str(cfg)])
+    assert r.exit_code != 0
+
+
+# --------------------------------------------------------------------------- #
 # doctor config
 # --------------------------------------------------------------------------- #
 def test_doctor_config_ok(tmp_path):

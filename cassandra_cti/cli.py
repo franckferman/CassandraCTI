@@ -185,6 +185,13 @@ def list_items(config: Path = typer.Option(None), connectors: Path = typer.Optio
     for r in cfg.get("routes", []):
         typer.echo(f"  - {r.get('name')} -> {r.get('transports')} via src={r.get('include_sources')} tags={r.get('include_tags')} regex={r.get('include_regex')}")
 
+    briefings = cfg.get("briefings", []) or []
+    if briefings:
+        typer.echo("Briefings:")
+        for b in briefings:
+            typer.echo(f"  - {b.get('name')} every {b.get('schedule', '24h')} -> {b.get('transports')} "
+                       f"src={b.get('include_sources')} tags={b.get('include_tags')}")
+
     typer.echo("Connectors:")
     for c in cx.get("connectors", []):
         typer.echo(f"  - {c.get('id')} [{c.get('type')}]")
@@ -372,6 +379,95 @@ def routes_add(name: str = typer.Option(...),
     cfg["routes"] = routes
     ysave(cfg_path, cfg)
     typer.echo(f"Route {name} added")
+
+
+@app.command("briefing-add")
+def briefing_add(name: str = typer.Option(..., help="Unique briefing name"),
+                 transports: str = typer.Option(..., help="comma-separated connector IDs"),
+                 include: Optional[str] = typer.Option(None, help="source, e.g. 'cisa.kev' or 'rss:'"),
+                 include_tag: Optional[str] = typer.Option(None, help="single tag, e.g. 'cert'"),
+                 include_regex: Optional[str] = typer.Option(None, help="regex on title/source"),
+                 schedule: str = typer.Option("24h", help="cadence: 24h | 6h | 30m | 2d"),
+                 min_items: int = typer.Option(1, help="skip if fewer than N new items"),
+                 max_items: int = typer.Option(40, help="cap items fed to the LLM"),
+                 title: Optional[str] = typer.Option(None, help="fixed message title (optional)"),
+                 template: Optional[str] = typer.Option(None, help="path to a briefing template"),
+                 config: Path = typer.Option(None)):
+    """Add (or replace) a periodic LLM briefing in config.yaml."""
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    briefings = [b for b in cfg.get("briefings", []) or [] if b.get("name") != name]
+
+    B = {"name": name, "transports": transports.split(","), "schedule": schedule,
+         "min_items": min_items, "max_items": max_items}
+    if include:
+        B["include_sources"] = [include]
+    if include_tag:
+        B["include_tags"] = [include_tag]
+    if include_regex:
+        B["include_regex"] = include_regex
+    if title:
+        B["title"] = title
+    if template:
+        B["template"] = template
+
+    briefings.append(B)
+    cfg["briefings"] = briefings
+    ysave(cfg_path, cfg)
+    typer.echo(f"Briefing {name} added (every {schedule})")
+
+
+@app.command("briefing-run")
+def briefing_run(name: Optional[str] = typer.Option(None, help="Only this briefing (forces it)"),
+                 all: bool = typer.Option(False, "--all", help="Force all briefings now"),
+                 dry_run: bool = typer.Option(False, "--dry-run", help="Print [DRYRUN:BRIEFING], call nothing"),
+                 config: Path = typer.Option(None), connectors: Path = typer.Option(None)):
+    """Send LLM briefings now. No flag = the ones that are due; --name/--all force."""
+    base = default_dir()
+    cfg = str(config or (base / "config.yaml"))
+    cx = str(connectors or (base / "connectors.yaml"))
+    if dry_run:
+        os.environ["CTI_DRY_RUN"] = "1"
+
+    settings = load_settings(cfg, cx)
+    if name:
+        settings.briefings = [b for b in settings.briefings if b.name == name]
+        if not settings.briefings:
+            raise typer.BadParameter(f"No briefing named {name}")
+    if not settings.briefings:
+        typer.echo("No briefings configured.")
+        return
+
+    from .util import resolve_db_path
+    from .transports import build_transport
+    from .briefings import run_briefings
+
+    store = Store(resolve_db_path(settings.store.get("sqlite_path", ".cassandra_cti.db"), cfg))
+    transports_by_id = {}
+    for tdef in settings.transports:
+        try:
+            transports_by_id[tdef.id] = build_transport(tdef.type, tdef.params)
+        except Exception as e:
+            typer.echo(f"transport {tdef.id}: {e}", err=True)
+
+    force_all = bool(name) or all      # targeting one or --all forces; else due-only
+    dry = os.environ.get("CTI_DRY_RUN") == "1"
+    import logging
+    log = logging.getLogger("cassandra-cti.briefing")
+
+    async def _go():
+        n = await run_briefings(settings, store, transports_by_id, dry=dry, log=log,
+                                force_all=force_all)
+        for tr in transports_by_id.values():
+            try:
+                await tr.aclose()
+            except Exception:
+                pass
+        return n
+
+    n = asyncio.run(_go())
+    typer.echo(f"Briefings sent: {n}")
 
 
 @app.command()
