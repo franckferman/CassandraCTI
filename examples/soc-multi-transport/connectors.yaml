@@ -1,0 +1,41 @@
+connectors:
+  # Advisories + a copy of every critical alert.
+  - id: teams-soc
+    type: teams
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_SOC}
+      theme_color: "C0392B"      # red — this is the alert channel
+      throttle_ms: 1000
+      emojis: true
+
+  # Critical alerts, loud channel.
+  - id: discord-critical
+    type: discord
+    params:
+      webhook_url: ${DISCORD_WEBHOOK_CRITICAL}
+      username: "CTI Critical"
+      emojis: true
+
+  # Critical alerts to an on-call Telegram channel.
+  - id: telegram-critical
+    type: telegram
+    params:
+      bot_token: ${TELEGRAM_BOT_TOKEN}
+      chat_id: ${TELEGRAM_CHAT_ID}
+      parse_mode: "HTML"
+      throttle_ms: 1000
+      emojis: true
+
+  # Low-priority news, grouped into a digest email.
+  - id: email-news
+    type: smtp
+    params:
+      host: ${SMTP_HOST}
+      port: 587
+      security: starttls
+      username: ${SMTP_USERNAME}
+      password: ${SMTP_PASSWORD}
+      from_addr: ${SMTP_FROM}
+      to_addrs: ${SMTP_TO}
+      subject_prefix: "[CTI News]"
+      batching: { enabled: true, max_items: 30 }

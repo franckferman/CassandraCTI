@@ -1,0 +1,52 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Discord + Telegram fan-out — the SAME sources to BOTH platforms.
+# Key idea: a route sends its one template to all of its transports, and
+# templates are transport-flavoured (Discord = Markdown, Telegram = HTML). So to
+# hit both, add ONE route per platform, each with the matching template.
+#
+# Run:
+#   export DISCORD_WEBHOOK_URL=...  TELEGRAM_BOT_TOKEN=...  TELEGRAM_CHAT_ID="@my_channel"
+#   cassandra run --loop --interval 300 \
+#     --config examples/discord-telegram-fanout/config.yaml \
+#     --connectors examples/discord-telegram-fanout/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  rss:
+    enabled: true
+    feeds:
+      - { name: "The Hacker News", url: "https://feeds.feedburner.com/TheHackersNews", tags: ["news"] }
+      - { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+
+  ransomware_live:
+    enabled: true
+    lookback_days: 7
+
+transports:
+  use: ["discord", "telegram"]
+
+routes:
+  # RSS → Discord (Markdown) AND → Telegram (HTML): two routes, same source.
+  - name: rss-discord
+    include_sources: ["rss:"]
+    transports: ["discord"]
+    template: "templates/discord_default.j2"
+  - name: rss-telegram
+    include_sources: ["rss:"]
+    transports: ["telegram"]
+    template: "templates/telegram_default.j2"
+
+  # ransomware.live → both, each with its transport's card.
+  - name: ransomware-discord
+    include_sources: ["ransomware.live"]
+    transports: ["discord"]
+    template: "templates/ransomware_card.j2"
+  - name: ransomware-telegram
+    include_sources: ["ransomware.live"]
+    transports: ["telegram"]
+    template: "templates/telegram_ransomware.j2"
+
+store:
+  sqlite_path: ".cassandra_cti.db"

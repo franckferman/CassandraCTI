@@ -1,0 +1,74 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: SOC multi-transport — severity-driven fan-out across 4 transports.
+# Critical (ransomware victims + actively-exploited CVEs) is loud: Teams +
+# Discord + Telegram. Advisories (CERT/vendor) go to Teams only. General news is
+# batched into a periodic email digest. Note the Markdown/HTML split for the
+# critical fan-out (Teams/Discord get Markdown cards, Telegram gets HTML).
+#
+# Run:
+#   export MSTEAMS_WEBHOOK_SOC=...  DISCORD_WEBHOOK_CRITICAL=...
+#   export TELEGRAM_BOT_TOKEN=...   TELEGRAM_CHAT_ID="@soc_critical"
+#   export SMTP_HOST=...  SMTP_USERNAME=...  SMTP_PASSWORD=...  SMTP_FROM=...  SMTP_TO=...
+#   cassandra run --loop --interval 300 \
+#     --config examples/soc-multi-transport/config.yaml \
+#     --connectors examples/soc-multi-transport/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  rss:
+    enabled: true
+    feeds:
+      - { name: "CERT-FR Alertes", url: "https://cert.ssi.gouv.fr/alerte/feed/", tags: ["cert"] }
+      - { name: "US-CERT CISA", url: "https://www.cisa.gov/cybersecurity-advisories/all.xml", tags: ["cert"] }
+      - { name: "Microsoft Security", url: "https://www.microsoft.com/en-us/security/blog/feed/", tags: ["vendor"] }
+      - { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+
+  ransomware_live:
+    enabled: true
+    lookback_days: 7
+
+  cisa_kev:
+    enabled: true
+    lookback_days: 180
+
+transports:
+  use: ["teams-soc", "discord-critical", "telegram-critical", "email-news"]
+
+routes:
+  # --- CRITICAL: ransomware victims -> Teams + Discord (Markdown) and Telegram (HTML)
+  - name: ransomware-md
+    include_sources: ["ransomware.live"]
+    transports: ["teams-soc", "discord-critical"]
+    template: "templates/ransomware_card.j2"
+  - name: ransomware-tg
+    include_sources: ["ransomware.live"]
+    transports: ["telegram-critical"]
+    template: "templates/telegram_ransomware.j2"
+
+  # --- CRITICAL: actively-exploited CVEs (CISA KEV) -> same fan-out
+  - name: kev-md
+    include_sources: ["cisa.kev"]
+    transports: ["teams-soc", "discord-critical"]
+    template: "templates/vuln_card.j2"
+  - name: kev-tg
+    include_sources: ["cisa.kev"]
+    transports: ["telegram-critical"]
+    template: "templates/telegram_vuln.j2"
+
+  # --- ADVISORIES: CERT + vendor -> Teams
+  - name: advisories
+    include_tags: ["cert", "vendor"]
+    transports: ["teams-soc"]
+    template: "templates/rss_default.j2"
+
+  # --- NEWS: batched email digest
+  - name: news-digest
+    include_tags: ["news"]
+    transports: ["email-news"]
+    template: "templates/smtp_default.j2"
+
+store:
+  sqlite_path: ".cassandra_cti.db"
+  seen_ttl_days: 90

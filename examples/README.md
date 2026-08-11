@@ -26,6 +26,11 @@ cassandra run --loop --interval 300 \
 | [`email-digest`](email-digest/) | Batched roundup email instead of one message per item. | SMTP | `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_TO` |
 | [`vuln-ioc-watch`](vuln-ioc-watch/) | CISA KEV + abuse.ch only → Discord, with the `vuln_card` / `ioc_card` layouts. | Discord | `DISCORD_WEBHOOK_URL` (opt. `ABUSECH_API_KEY`) |
 | [`web-dashboard-only`](web-dashboard-only/) | Collect a broad set, send nothing out — just the local live dashboard. | Web | *(none)* |
+| [`discord-telegram-fanout`](discord-telegram-fanout/) | The **same** sources to Discord **and** Telegram (one route per flavour). | Discord + Telegram | `DISCORD_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` |
+| [`soc-multi-transport`](soc-multi-transport/) | Severity-driven fan-out: critical → Teams+Discord+Telegram, advisories → Teams, news → email digest. | Teams + Discord + Telegram + SMTP | `MSTEAMS_WEBHOOK_SOC`, `DISCORD_WEBHOOK_CRITICAL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `SMTP_*` |
+| [`threat-intel`](threat-intel/) | IOCs + KEV + ransomware + research feeds → Discord, mirrored in the dashboard. | Discord + Web | `DISCORD_WEBHOOK_URL` (opt. `ABUSECH_API_KEY`) |
+| [`cve-watch`](cve-watch/) | Exploited CVEs (CISA KEV) → a KEV channel; vuln advisories → a news channel. | Discord ×2 | `DISCORD_WEBHOOK_KEV`, `DISCORD_WEBHOOK_VULNNEWS` |
+| [`ransomware-landscape`](ransomware-landscape/) | The state of the ransomware threat — ransomware.live victims (PRO feeds optional). | Discord | `DISCORD_WEBHOOK_RANSOMWARE` (opt. `RANSOMWARE_API_KEY`) |
 
 ## How the two files relate
 

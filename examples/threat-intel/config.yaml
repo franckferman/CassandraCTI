@@ -1,0 +1,66 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Threat Intelligence console — IOCs + adversary intel, low on news.
+# abuse.ch IOCs, actively-exploited CVEs, ransomware victims and a few research
+# feeds, pushed to Discord AND mirrored in the local web dashboard for triage.
+#
+# Run, then open http://127.0.0.1:8080 :
+#   export DISCORD_WEBHOOK_URL=...
+#   # optional (unlocks ThreatFox + MalwareBazaar): export ABUSECH_API_KEY=...
+#   cassandra run --loop --interval 600 \
+#     --config examples/threat-intel/config.yaml \
+#     --connectors examples/threat-intel/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  abusech:
+    enabled: true
+    feeds: ["feodo", "urlhaus", "threatfox", "malwarebazaar"]
+    api_key: ${ABUSECH_API_KEY}     # optional; feodo + urlhaus work without it
+    max_items: 60
+
+  cisa_kev:
+    enabled: true
+    lookback_days: 365
+    max_items: 80
+
+  ransomware_live:
+    enabled: true
+    lookback_days: 14
+
+  rss:
+    enabled: true
+    feeds:
+      - { name: "Unit 42", url: "https://unit42.paloaltonetworks.com/feed/", tags: ["intel"] }
+      - { name: "Cisco Talos", url: "https://blog.talosintelligence.com/rss/", tags: ["intel"] }
+      - { name: "Google TAG", url: "https://blog.google/threat-analysis-group/rss/", tags: ["intel"] }
+
+transports:
+  use: ["discord", "web"]
+
+routes:
+  - name: iocs
+    include_sources: ["abuse.ch"]
+    transports: ["discord"]
+    template: "templates/ioc_card.j2"
+  - name: vulns
+    include_sources: ["cisa.kev"]
+    transports: ["discord"]
+    template: "templates/vuln_card.j2"
+  - name: ransomware
+    include_sources: ["ransomware.live"]
+    transports: ["discord"]
+    template: "templates/ransomware_card.j2"
+  - name: research
+    include_tags: ["intel"]
+    transports: ["discord"]
+    template: "templates/discord_default.j2"
+
+  # Everything also feeds the local triage dashboard.
+  - name: console
+    include_regex: "."
+    transports: ["web"]
+
+store:
+  sqlite_path: ".cassandra_cti.db"

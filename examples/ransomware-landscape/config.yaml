@@ -1,0 +1,53 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Ransomware landscape — the state of the ransomware threat.
+# Centered on ransomware.live victims (who's getting hit, by which group, where).
+# The source is resilient by design: API PRO (if a key is set) → API v2 → the
+# public posts.json dump, so it works with or without a subscription.
+#
+# Run:
+#   export DISCORD_WEBHOOK_RANSOMWARE=...
+#   # optional, richer picture (PRO tier): export RANSOMWARE_API_KEY=...
+#   cassandra run --loop --interval 600 \
+#     --config examples/ransomware-landscape/config.yaml \
+#     --connectors examples/ransomware-landscape/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  ransomware_live:
+    enabled: true
+    lookback_days: 30                 # last month of disclosed victims
+    # api_key: ${RANSOMWARE_API_KEY}  # optional — enables the API PRO backend
+
+  # --- Optional PRO feeds (same provider, need RANSOMWARE_API_KEY) ---------
+  # Uncomment to enrich the picture. Without a key they are skipped with a
+  # warning (run `cassandra doctor config` to check).
+  # ransomware_press:                 # cyber-press coverage of incidents
+  #   enabled: true
+  #   api_key: ${RANSOMWARE_API_KEY}
+  # ransomware_8k:                    # SEC 8-K breach filings (US public cos.)
+  #   enabled: true
+  #   api_key: ${RANSOMWARE_API_KEY}
+  # ransomware_stats:                 # one daily tracker digest
+  #   enabled: true
+  #   api_key: ${RANSOMWARE_API_KEY}
+
+transports:
+  use: ["discord"]
+
+routes:
+  # Every disclosed victim -> the ransomware channel (structured card with
+  # group, country, sector, data size, leak-site link when available).
+  - name: victims
+    include_sources: ["ransomware.live"]
+    transports: ["discord"]
+    template: "templates/ransomware_card.j2"
+
+  # If you enable the PRO feeds above, route them too (Discord = Markdown):
+  # - { name: press, include_sources: ["ransomware.press"], transports: ["discord"], template: "templates/discord_default.j2" }
+  # - { name: filings, include_sources: ["ransomware.8k"],   transports: ["discord"], template: "templates/discord_default.j2" }
+  # - { name: digest, include_sources: ["ransomware.stats"], transports: ["discord"], template: "templates/discord_default.j2" }
+
+store:
+  sqlite_path: ".cassandra_cti.db"
