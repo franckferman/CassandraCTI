@@ -243,6 +243,17 @@ async def run_once(settings_path: str, connectors_path: str | None = None, only_
 
     log.info(f"Done. Sent {sent_total} events across routes: {len(to_send)}")
 
+    # Post-delivery: periodic LLM briefings recap what was just ingested,
+    # prioritised, with links. No-op unless `briefings:` is configured.
+    if getattr(settings, "briefings", None):
+        try:
+            from .briefings import run_briefings
+            n = await run_briefings(settings, store, transports_by_id, dry=dry, log=log)
+            if n:
+                log.info(f"Briefings sent: {n}")
+        except Exception as e:
+            log.error(f"Briefings step failed: {e}", exc_info=True)
+
     for tr in transports_by_id.values():
         try:
             await tr.aclose()

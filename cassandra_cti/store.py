@@ -35,6 +35,11 @@ CREATE TABLE IF NOT EXISTS deliveries (
 );
 
 CREATE INDEX IF NOT EXISTS ix_deliveries_transport ON deliveries(transport_id);
+
+CREATE TABLE IF NOT EXISTS briefings (
+  name TEXT PRIMARY KEY,
+  last_sent_at TEXT NOT NULL
+);
 """
 
 
@@ -169,6 +174,37 @@ class Store:
                 d["meta"] = json.loads(d["meta"]) if d.get("meta") else {}
                 out.append(d)
             return out
+
+    def events_between(self, lo_iso: str, hi_iso: str, limit: int = 500) -> List[Dict[str, Any]]:
+        """Events first seen in [lo, hi), newest first — the window a briefing
+        summarizes. Keyed on first_seen_at (when WE ingested it) so a briefing
+        reflects 'what came in since last time', not original publish dates."""
+        with closing(self._connect()) as db:
+            cur = db.execute(
+                "SELECT id, source, url, title, summary, published_at, first_seen_at, tags, meta "
+                "FROM events WHERE first_seen_at >= ? AND first_seen_at < ? "
+                "ORDER BY first_seen_at DESC LIMIT ?",
+                (lo_iso, hi_iso, int(limit)))
+            cols = [c[0] for c in cur.description]
+            out = []
+            for row in cur.fetchall():
+                d = dict(zip(cols, row))
+                d["tags"] = json.loads(d["tags"]) if d.get("tags") else []
+                d["meta"] = json.loads(d["meta"]) if d.get("meta") else {}
+                out.append(d)
+            return out
+
+    def briefing_last_sent(self, name: str) -> str | None:
+        with closing(self._connect()) as db:
+            row = db.execute("SELECT last_sent_at FROM briefings WHERE name=?", (name,)).fetchone()
+            return row[0] if row else None
+
+    def mark_briefing_sent(self, name: str, when_iso: str):
+        with closing(self._connect()) as db, db:
+            db.execute(
+                "INSERT INTO briefings(name, last_sent_at) VALUES(?, ?) "
+                "ON CONFLICT(name) DO UPDATE SET last_sent_at=excluded.last_sent_at",
+                (name, when_iso))
 
     def stats(self) -> Dict[str, Any]:
         """Aggregate counters for the web dashboard — read-only.

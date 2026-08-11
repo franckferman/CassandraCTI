@@ -28,6 +28,20 @@ class RouteDef:
 
 
 @dataclass
+class BriefingDef:
+    name: str
+    transports: List[str]
+    schedule: str = "24h"
+    include_sources: Optional[List[str]] = None
+    include_tags: Optional[List[str]] = None
+    include_regex: Optional[str] = None
+    min_items: int = 1
+    max_items: int = 40
+    title: Optional[str] = None
+    template: Optional[str] = None
+
+
+@dataclass
 class Settings:
     scheduler: Dict[str, Any]
     sources: Dict[str, Any]
@@ -39,6 +53,7 @@ class Settings:
     filters: Dict[str, Any]
     inventory: Dict[str, Any] = field(default_factory=dict)
     llm: Dict[str, Any] = field(default_factory=dict)
+    briefings: List[BriefingDef] = field(default_factory=list)
 
 
 def _flatten_transports_inline(raw: Dict[str, Any]) -> List[TransportDef]:
@@ -108,6 +123,21 @@ def load_settings(path: str, connectors_path: str | None = None) -> Settings:
             template=r.get("template"),
         ))
 
+    briefings = []
+    for b in raw.get("briefings", []) or []:
+        briefings.append(BriefingDef(
+            name=b.get("name"),
+            transports=b.get("transports", []) or [],
+            schedule=b.get("schedule", "24h"),
+            include_sources=b.get("include_sources"),
+            include_tags=b.get("include_tags"),
+            include_regex=b.get("include_regex"),
+            min_items=int(b.get("min_items", 1)),
+            max_items=int(b.get("max_items", 40)),
+            title=b.get("title"),
+            template=b.get("template"),
+        ))
+
     transports = _flatten_transports_inline(raw)
 
     use_ids = raw.get("transports", {}).get("use", [])
@@ -128,4 +158,5 @@ def load_settings(path: str, connectors_path: str | None = None) -> Settings:
         filters=raw.get("filters", {}),
         inventory=raw.get("inventory", {}),
         llm=raw.get("llm", {}),
+        briefings=briefings,
     )

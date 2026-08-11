@@ -24,6 +24,19 @@ class Route(BaseModel):
     template: Optional[str] = None
 
 
+class Briefing(BaseModel):
+    name: str
+    transports: List[str] = Field(default_factory=list)
+    schedule: str = "24h"
+    include_sources: Optional[List[str]] = None
+    include_tags: Optional[List[str]] = None
+    include_regex: Optional[str] = None
+    min_items: int = 1
+    max_items: int = 40
+    title: Optional[str] = None
+    template: Optional[str] = None
+
+
 class SettingsModel(BaseModel):
     schema_version: int = 1
     scheduler: Dict[str, Any] = Field(default_factory=dict)
@@ -31,6 +44,7 @@ class SettingsModel(BaseModel):
     filters: Dict[str, Any] = Field(default_factory=dict)
     transports: Dict[str, Any] = Field(default_factory=dict)
     routes: List[Route] = Field(default_factory=list)
+    briefings: List[Briefing] = Field(default_factory=list)
     store: Dict[str, Any] = Field(default_factory=dict)
     logging: Dict[str, Any] = Field(default_factory=dict)
     metrics: Dict[str, Any] = Field(default_factory=dict)
