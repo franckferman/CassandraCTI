@@ -26,6 +26,7 @@
   <a href="#configuration">Configuration</a> ·
   <a href="#sources">Sources</a> ·
   <a href="#transports">Transports</a> ·
+  <a href="#briefings">Briefings</a> ·
   <a href="#cli-reference">CLI Reference</a> ·
   <a href="#docker">Docker</a> ·
   <a href="#templates">Templates</a> ·
@@ -59,6 +60,7 @@ Originally built as a private internal tool, it is now open-source, designed to 
 |---|---|
 | **Modular sources** | RSS/Atom feeds · the **ransomware.live** family (victims — free; plus Cyber Press, SEC 8-K & Stats on its PRO tier) · Red Flag Domains · **CISA KEV** vulnerabilities · **abuse.ch** IOCs (Feodo/ThreatFox/URLhaus/MalwareBazaar) |
 | **Live web dashboard** | Dependency-free SOC command center — real-time SSE feed, per-category tabs, filters, export, optional AI briefs |
+| **LLM briefings** | Optional periodic recap per category — prioritised, with links, sent after the alerts (local Ollama or a cloud key) |
 | **Resilient ransomware feed** | Multi-backend fallback chain: API PRO → API v2 → legacy `posts.json` |
 | **Modular transports** | Microsoft Teams, Discord, Telegram, Email (SMTP) — extensible |
 | **Smart deduplication** | SHA1 event fingerprint + SQLite delivery tracking |
@@ -759,6 +761,58 @@ routes:
 
 ---
 
+## Briefings
+
+Routes deliver **each** event. A **briefing** does the opposite: it periodically
+recaps a *batch* of events — an LLM writes a short, **prioritised** summary with
+links, sent through a normal transport **after** the individual alerts. Think of
+it as a shift hand-over: "here's what came in since last time, and what matters."
+
+It reuses the optional [LLM layer](#inventory--ai-briefs-optional) (local Ollama
+or a cloud key) and is **off unless you configure `briefings:`**.
+
+```yaml
+briefings:
+  - name: vuln-daily
+    include_sources: ["cisa.kev"]     # same selectors as routes (source / tag / regex)
+    include_tags: ["cert"]            #   — OR across them; omit all = recap everything
+    transports: ["discord-brief"]     # a connector id (its own #briefings channel is nice)
+    schedule: "24h"                   # cadence: 24h | 6h | 30m | 2d
+    min_items: 1                      # skip the brief if fewer than N new items
+    max_items: 40                     # cap how many items the LLM sees
+    template: "templates/briefing_default.j2"   # Markdown; Telegram -> briefing_telegram.j2
+```
+
+| Key | Default | Meaning |
+|---|---|---|
+| `include_sources` / `include_tags` / `include_regex` | — | select events, exactly like a route (OR across them; none = all) |
+| `transports` | — | connector id(s) that receive the brief (must be in `transports.use`) |
+| `schedule` | `24h` | how often it may fire (`24h`, `6h`, `30m`, `2d`) |
+| `min_items` | `1` | don't send a brief with fewer than N new items (accumulates instead) |
+| `max_items` | `40` | cap on items fed to the LLM |
+| `template` | `briefing_default.j2` | Markdown for Discord/Teams; `briefing_telegram.j2` for Telegram |
+
+**How it works** — every collection cycle, after delivery, each briefing checks
+whether its `schedule` has elapsed. If so it gathers the events **ingested since
+its last run** that match its selectors, asks the LLM to prioritise them (KEV /
+ransomware-linked / high-confidence IOCs first) and narrate them with links, then
+sends one message and records the timestamp. In `--loop` mode this happens on its
+own; the window is keyed on *when CassandraCTI saw* each item, so a brief reflects
+"what's new," not original publish dates.
+
+**Trigger it manually** (testing, or an on-demand recap):
+
+```bash
+cassandra briefing-run --all            # force every briefing now
+cassandra briefing-run --name vuln-daily
+cassandra briefing-run --all --dry-run  # prints [DRYRUN:BRIEFING], calls no LLM
+```
+
+> Briefings need the `llm:` layer to resolve a provider. With no Ollama and no
+> cloud key they're skipped silently (a warning is logged) — everything else runs.
+
+---
+
 ## CLI Reference
 
 ### `cassandra quickstart`
@@ -897,6 +951,32 @@ cassandra routes-add \
 
 ---
 
+### `cassandra briefing-add`
+
+Add or update a periodic LLM briefing (see [Briefings](#briefings)).
+
+```bash
+cassandra briefing-add \
+  --name "vuln-daily" \
+  --include "cisa.kev" \
+  --transports "discord-brief" \
+  --schedule "24h" --min-items 1
+```
+
+---
+
+### `cassandra briefing-run`
+
+Send briefings now — no flag runs the ones that are due; `--name`/`--all` force.
+
+```bash
+cassandra briefing-run --all              # force every briefing
+cassandra briefing-run --name vuln-daily  # force just this one
+cassandra briefing-run --all --dry-run    # [DRYRUN:BRIEFING], no LLM call
+```
+
+---
+
 ### `cassandra doctor`
 
 Validate configuration and test connectivity.
@@ -995,6 +1075,8 @@ Messages are rendered with Jinja2. Custom templates can be assigned per route.
 | `templates/telegram_8k.j2` | Telegram layout for `ransomware.8k` filings |
 | `templates/telegram_stats.j2` | Telegram layout for `ransomware.stats` digest |
 | `templates/smtp_default.j2` | HTML email body (assign to SMTP routes) |
+| `templates/briefing_default.j2` | LLM briefing body (Markdown — Discord/Teams) |
+| `templates/briefing_telegram.j2` | LLM briefing body (Telegram HTML) |
 
 > Telegram and SMTP render as HTML — assign a matching `telegram_*` / `smtp_*` template to those routes; Discord/Teams Markdown templates won't render as rich text there.
 >
