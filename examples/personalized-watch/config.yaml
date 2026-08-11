@@ -1,0 +1,75 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Personalized watch — a dashboard focused on YOUR stack.
+# Collect broadly, then use two OPTIONAL dashboard features:
+#   • inventory — the dashboard's INV toggle keeps/highlights only events that
+#     mention your vendors/products (great to cut through the noise).
+#   • AI briefs — a per-event SOC summary, generated on demand.
+# Both are dashboard-only; nothing is sent to Teams/Discord/etc.
+#
+# Run, then open http://127.0.0.1:8080 and click "INV":
+#   cassandra run --loop --interval 300 \
+#     --config examples/personalized-watch/config.yaml \
+#     --connectors examples/personalized-watch/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  rss:
+    enabled: true
+    feeds:
+      - { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+      - { name: "MSRC Update Guide", url: "https://api.msrc.microsoft.com/update-guide/rss", tags: ["vuln"] }
+      - { name: "Cisco Talos", url: "https://blog.talosintelligence.com/rss/", tags: ["intel"] }
+
+  ransomware_live:
+    enabled: true
+    lookback_days: 14
+
+  cisa_kev:
+    enabled: true
+    lookback_days: 365
+
+  abusech:
+    enabled: true
+    feeds: ["feodo", "urlhaus"]
+
+transports:
+  use: ["web"]
+
+routes:
+  - name: dashboard
+    include_regex: "."
+    transports: ["web"]
+
+# --- Inventory: only surface what touches YOUR stack ------------------------
+# In the dashboard, the "INV" button then filters the feed to events mentioning
+# any of these terms (matches are highlighted). Edit to match your estate.
+inventory:
+  enabled: true
+  match_mode: highlight
+  terms:
+    - "Fortinet"
+    - "Cisco"
+    - "VMware"
+    - "Microsoft"
+    - "Ivanti"
+    - "Citrix"
+    - "Palo Alto"
+
+# --- AI briefs: an on-demand summary per event (optional) -------------------
+# provider "auto" prefers a reachable local Ollama (free, offline); otherwise the
+# first cloud key found in the environment (ANTHROPIC_API_KEY / OPENAI_API_KEY /
+# DEEPSEEK_API_KEY). With neither, the AI-brief button simply stays hidden — every
+# other feature works unchanged. Run Ollama locally to try it, e.g.:
+#   ollama serve && ollama pull qwen2.5:1.5b
+llm:
+  enabled: true
+  provider: auto
+  model: ""                    # optional override (else a per-provider default)
+  ollama_base_url: http://localhost:11434
+  ollama_model: ""             # optional; else the first pulled model
+  max_tokens: 300
+
+store:
+  sqlite_path: ".cassandra_cti.db"
