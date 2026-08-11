@@ -57,6 +57,31 @@ def test_init_creates_then_reports_exists(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
+# quickstart
+# --------------------------------------------------------------------------- #
+def test_quickstart_no_web_scaffolds(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    cx = tmp_path / "connectors.yaml"
+    r = runner.invoke(app, ["quickstart", "--no-web", "--config", str(cfg), "--connectors", str(cx)])
+    assert r.exit_code == 0, r.output
+    assert cfg.exists() and cx.exists()
+    assert "Config ready" in r.output
+
+
+def test_config_roundtrip_stays_strict_parseable(tmp_path):
+    """init copies the shipped example (flow-style feeds with '?' in URLs); a
+    subsequent edit must not emit YAML that a strict parser (PyYAML) rejects."""
+    cfg = tmp_path / "config.yaml"
+    cx = tmp_path / "connectors.yaml"
+    assert runner.invoke(app, ["init", "--config", str(cfg), "--connectors", str(cx)]).exit_code == 0
+    edit = runner.invoke(app, ["add-source", "kev", "--config", str(cfg)])
+    assert edit.exit_code == 0, edit.output
+    # _read_yaml uses PyYAML safe_load -> raises if the round-trip broke quoting.
+    data = _read_yaml(cfg)
+    assert data["sources"]["cisa_kev"]["enabled"] is True
+
+
+# --------------------------------------------------------------------------- #
 # add-source
 # --------------------------------------------------------------------------- #
 def test_add_source_rss_requires_name_and_url(tmp_path):
@@ -107,6 +132,53 @@ def test_add_source_unknown_kind_errors(tmp_path):
     r = runner.invoke(app, ["add-source", "bogus", "--config", str(cfg)])
     assert r.exit_code != 0
     assert not cfg.exists()
+
+
+def test_add_source_kev_sets_enabled(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    r = runner.invoke(app, ["add-source", "kev", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    assert _read_yaml(cfg)["sources"]["cisa_kev"]["enabled"] is True
+
+
+def test_add_source_abusech_feeds_and_key(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    r = runner.invoke(app, ["add-source", "abusech", "--feeds", "feodo,threatfox",
+                            "--api-key", "SECRET", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    s = _read_yaml(cfg)["sources"]["abusech"]
+    assert s["enabled"] is True
+    assert s["feeds"] == ["feodo", "threatfox"]
+    assert s["api_key"] == "SECRET"
+
+
+# --------------------------------------------------------------------------- #
+# add-connector (all transport types)
+# --------------------------------------------------------------------------- #
+def test_add_connector_types_and_validation(tmp_path):
+    cx = tmp_path / "connectors.yaml"
+
+    runner.invoke(app, ["add-connector", "--id", "tm", "--type", "teams",
+                        "--webhook-url", "https://x/teams", "--connectors", str(cx)])
+    runner.invoke(app, ["add-connector", "--id", "dc", "--type", "discord",
+                        "--webhook-url", "https://x/dc", "--username", "Bot", "--connectors", str(cx)])
+    runner.invoke(app, ["add-connector", "--id", "tg", "--type", "telegram",
+                        "--bot-token", "1:AA", "--chat-id", "@c", "--connectors", str(cx)])
+    runner.invoke(app, ["add-connector", "--id", "mail", "--type", "smtp", "--host", "localhost",
+                        "--from-addr", "a@b.c", "--to-addrs", "x@y.z", "--connectors", str(cx)])
+
+    conns = {c["id"]: c for c in _read_yaml(cx)["connectors"]}
+    assert conns["tm"]["type"] == "teams"
+    assert conns["tm"]["params"]["webhook_url"] == "https://x/teams"
+    assert conns["dc"]["type"] == "discord" and conns["dc"]["params"]["username"] == "Bot"
+    assert conns["tg"]["type"] == "telegram" and conns["tg"]["params"]["chat_id"] == "@c"
+    assert conns["mail"]["type"] == "smtp" and conns["mail"]["params"]["to_addrs"] == "x@y.z"
+
+    # missing required params -> non-zero exit, nothing added
+    bad = runner.invoke(app, ["add-connector", "--id", "tg2", "--type", "telegram",
+                              "--bot-token", "1:AA", "--connectors", str(cx)])
+    assert bad.exit_code != 0
+    assert "tg2" not in {c["id"] for c in _read_yaml(cx)["connectors"]}
 
 
 # --------------------------------------------------------------------------- #

@@ -16,9 +16,25 @@ from .config import load_settings
 from .main import run_once
 from .store import Store
 
-app = typer.Typer(add_completion=False, help="CassandraCTI CLI")
+app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    help=(
+        "CassandraCTI — modular Cyber Threat Intelligence aggregator.\n\n"
+        "Quick start:\n"
+        "  cassandra quickstart            set up config + open the dashboard\n"
+        "  cassandra run --web             collect and serve the live dashboard\n\n"
+        "Config lives in your OS config dir by default; override with --config / "
+        "--connectors on any command."
+    ),
+)
 yaml = YAML()
 yaml.indent(mapping=2, sequence=4, offset=2)
+# Keep original quoting on round-trip: several feed URLs contain '?', which is
+# only valid unquoted in block context — dropping the quotes would emit a config
+# that stricter YAML parsers reject (the app's own ruamel loader tolerates it,
+# but external tooling should not choke on a file we wrote).
+yaml.preserve_quotes = True
 colorama_init()
 
 
@@ -45,68 +61,97 @@ def ysave(path: Path, data: dict):
         yaml.dump(data, f)
 
 
-@app.command()
-def init(config: Path = typer.Option(None, help="config.yaml"),
-         connectors: Path = typer.Option(None, help="connectors.yaml")):
-    base = default_dir()
-    cfg_path = config or (base / "config.yaml")
-    cx_path = connectors or (base / "connectors.yaml")
-    tpl_dir = base / "templates"
+def _scaffold(cfg_path: Path, cx_path: Path, tpl_dir: Path) -> None:
+    """Create config.yaml, connectors.yaml and templates/ if they are missing.
 
-    # Determine source paths (assuming running from source or package structure)
-    # cli.py is in cassandra_cti/, so project root is one level up
+    Shared by `init` and `quickstart`. Copies the shipped examples when present,
+    otherwise writes minimal defaults. Existing files are left untouched.
+    """
+    # cli.py is in cassandra_cti/, so the project root is one level up.
     root = Path(__file__).parent.parent
     src_cfg = root / "config.example.yaml"
     src_cx = root / "connectors.example.yaml"
     src_tpl = root / "templates"
 
-    # Ensure base directory exists
-    if not base.exists():
-        base.mkdir(parents=True, exist_ok=True)
+    cfg_path.parent.mkdir(parents=True, exist_ok=True)
+    cx_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if not src_cfg.exists():
-        typer.echo(f"WARNING: Source examples not found at {root}. Using internal defaults.")
-        # Fallback to internal defaults if files are missing
-        pass
-
-    # Config
     if not cfg_path.exists():
         if src_cfg.exists():
             shutil.copy(src_cfg, cfg_path)
             typer.echo(f"Created {cfg_path} (copied from example)")
         else:
-            # Fallback minimal config
-            sample = {"schema_version": 1, "scheduler": {"mode": "oneshot"}, "sources": {}, "transports": {}, "routes": [], "store": {"sqlite_path": ".cassandra_cti.db"}}
-            ysave(cfg_path, sample)
+            ysave(cfg_path, {"schema_version": 1, "scheduler": {"mode": "oneshot"},
+                             "sources": {}, "transports": {}, "routes": [],
+                             "store": {"sqlite_path": ".cassandra_cti.db"}})
             typer.echo(f"Created {cfg_path} (minimal default)")
     else:
         typer.echo(f"Exists: {cfg_path}")
 
-    # Connectors
     if not cx_path.exists():
         if src_cx.exists():
             shutil.copy(src_cx, cx_path)
             typer.echo(f"Created {cx_path} (copied from example)")
         else:
-            sample = {"connectors": []}
-            ysave(cx_path, sample)
+            ysave(cx_path, {"connectors": []})
             typer.echo(f"Created {cx_path} (minimal default)")
     else:
         typer.echo(f"Exists: {cx_path}")
 
-    # Templates
     if not tpl_dir.exists():
         if src_tpl.exists() and src_tpl.is_dir():
             shutil.copytree(src_tpl, tpl_dir)
             typer.echo(f"Created {tpl_dir} (copied from templates/)")
         else:
-            typer.echo("WARNING: Source templates directory not found. You may need to create 'templates/' manually.")
+            typer.echo("WARNING: templates/ not found; create it manually.")
     else:
         typer.echo(f"Exists: {tpl_dir}")
 
 
+@app.command()
+def init(config: Path = typer.Option(None, help="Path to config.yaml (default: your config dir)"),
+         connectors: Path = typer.Option(None, help="Path to connectors.yaml (default: your config dir)")):
+    """Create starter config.yaml, connectors.yaml and templates/ (idempotent)."""
+    base = default_dir()
+    _scaffold(config or (base / "config.yaml"),
+              connectors or (base / "connectors.yaml"),
+              base / "templates")
+
+
+@app.command()
+def quickstart(web: bool = typer.Option(True, "--web/--no-web", help="Open the live dashboard after setup"),
+               web_host: str = typer.Option("127.0.0.1", "--web-host", help="Dashboard bind address"),
+               web_port: int = typer.Option(8080, "--web-port", help="Dashboard port"),
+               config: Path = typer.Option(None, help="Path to config.yaml"),
+               connectors: Path = typer.Option(None, help="Path to connectors.yaml")):
+    """Get running in one command: scaffold config, then open the dashboard.
+
+    Creates the config files if missing, then starts the collector with the web
+    dashboard. Use --no-web to only scaffold.
+
+    Examples:
+      cassandra quickstart              set up + open http://127.0.0.1:8080
+      cassandra quickstart --no-web     just create the config files
+    """
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cx_path = connectors or (base / "connectors.yaml")
+    _scaffold(cfg_path, cx_path, base / "templates")
+    typer.echo("")
+    typer.echo(f"Config ready: {cfg_path}")
+    typer.echo(f"Connectors:   {cx_path}")
+    if not web:
+        typer.echo("Next: edit the config to enable sources/routes, then run "
+                   "`cassandra run` (add --web for the dashboard).")
+        return
+    typer.echo("Starting the collector with the live dashboard...")
+    _do_run(str(cfg_path), str(cx_path), None, loop=True, interval=300,
+            web=True, web_host=web_host, web_port=web_port)
+
+
 @app.command("list")
 def list_items(config: Path = typer.Option(None), connectors: Path = typer.Option(None)):
+    """Show configured RSS feeds, routes and connectors."""
     base = default_dir()
     cfg = yload(config or (base / "config.yaml"))
     cx = yload(connectors or (base / "connectors.yaml"))
@@ -126,11 +171,15 @@ def list_items(config: Path = typer.Option(None), connectors: Path = typer.Optio
 
 
 @app.command()
-def add_source(kind: str = typer.Argument(..., help="rss|ransomware_live|redflag"),
-               name: str = typer.Option(None),
-               url: str = typer.Option(None),
-               tags: Optional[str] = typer.Option(None, help="comma-separated list"),
+def add_source(kind: str = typer.Argument(..., help="rss|ransomware_live|redflag|kev|abusech"),
+               name: str = typer.Option(None, help="Feed name (rss)"),
+               url: str = typer.Option(None, help="Feed URL (rss)"),
+               tags: Optional[str] = typer.Option(None, help="comma-separated tags (rss)"),
+               api_key: Optional[str] = typer.Option(None, help="Auth-Key (abusech, optional)"),
+               feeds: Optional[str] = typer.Option(
+                   None, help="abuse.ch feeds, comma-separated: feodo,threatfox,urlhaus,malwarebazaar"),
                config: Path = typer.Option(None)):
+    """Enable a data source: rss, ransomware.live, red-flag-domains, CISA KEV or abuse.ch."""
     base = default_dir()
     cfg_path = config or (base / "config.yaml")
     cfg = yload(cfg_path)
@@ -151,6 +200,16 @@ def add_source(kind: str = typer.Argument(..., help="rss|ransomware_live|redflag
     elif kind == "redflag":
         s = cfg["sources"].setdefault("red_flag_domains", {"enabled": True})
         s["enabled"] = True
+    elif kind in ("kev", "cisa_kev"):
+        s = cfg["sources"].setdefault("cisa_kev", {"enabled": True})
+        s["enabled"] = True
+    elif kind in ("abusech", "abuse_ch"):
+        s = cfg["sources"].setdefault("abusech", {"enabled": True, "feeds": ["feodo", "urlhaus"]})
+        s["enabled"] = True
+        if feeds:
+            s["feeds"] = [f.strip() for f in feeds.split(",") if f.strip()]
+        if api_key:
+            s["api_key"] = api_key
     else:
         raise typer.BadParameter("Unknown type")
 
@@ -197,13 +256,24 @@ def import_feeds(file: Path = typer.Argument(..., help="Path to CSV file (Name,U
 
 
 @app.command()
-def add_connector(id: str = typer.Option(..., "--id"),
-                  webhook_url: str = typer.Option(..., help="Teams incoming webhook URL"),
-                  theme_color: str = typer.Option("000000"),
+def add_connector(id: str = typer.Option(..., "--id", help="Unique connector id"),
+                  type: str = typer.Option("teams", "--type", help="teams|discord|telegram|smtp"),
+                  webhook_url: Optional[str] = typer.Option(None, help="Incoming webhook URL (teams, discord)"),
+                  bot_token: Optional[str] = typer.Option(None, help="Bot token (telegram)"),
+                  chat_id: Optional[str] = typer.Option(None, help="Chat id (telegram)"),
+                  host: Optional[str] = typer.Option(None, help="SMTP host (smtp)"),
+                  port: int = typer.Option(587, help="SMTP port (smtp)"),
+                  security: str = typer.Option("starttls", help="SMTP security: starttls|ssl|none (smtp)"),
+                  from_addr: Optional[str] = typer.Option(None, help="From address (smtp)"),
+                  to_addrs: Optional[str] = typer.Option(None, help="Recipient(s), comma-separated (smtp)"),
+                  subject_prefix: str = typer.Option("[CTI]", help="Subject prefix (smtp)"),
+                  username: Optional[str] = typer.Option(None, help="Display name (discord)"),
+                  theme_color: str = typer.Option("000000", help="Card color (teams)"),
                   emojis: bool = typer.Option(True, help="Prefix titles with emojis"),
                   emoji_map: Optional[str] = typer.Option(None, help="inline JSON or path to a JSON file"),
                   batching: Optional[str] = typer.Option(None, help="JSON ex: '{\"enabled\":true,\"max_items\":5}'"),
                   connectors: Path = typer.Option(None)):
+    """Add a messaging connector (teams, discord, telegram or smtp)."""
     base = default_dir()
     cx_path = connectors or (base / "connectors.yaml")
     cx = yload(cx_path)
@@ -213,11 +283,31 @@ def add_connector(id: str = typer.Option(..., "--id"),
         typer.echo("ID already present")
         return
 
-    params = {"webhook_url": webhook_url, "theme_color": theme_color, "emojis": emojis}
+    t = type.lower()
+    if t in ("teams", "discord"):
+        if not webhook_url:
+            raise typer.BadParameter(f"{t} requires --webhook-url")
+        params = {"webhook_url": webhook_url, "emojis": emojis}
+        if t == "teams":
+            params["theme_color"] = theme_color
+        if t == "discord" and username:
+            params["username"] = username
+    elif t == "telegram":
+        if not bot_token or not chat_id:
+            raise typer.BadParameter("telegram requires --bot-token and --chat-id")
+        params = {"bot_token": bot_token, "chat_id": chat_id, "emojis": emojis}
+    elif t == "smtp":
+        if not host or not from_addr or not to_addrs:
+            raise typer.BadParameter("smtp requires --host, --from-addr and --to-addrs")
+        params = {"host": host, "port": port, "security": security,
+                  "from_addr": from_addr, "to_addrs": to_addrs,
+                  "subject_prefix": subject_prefix, "emojis": emojis}
+    else:
+        raise typer.BadParameter(f"Unknown connector type: {type}")
+
     if emoji_map:
         import json as _json
-        import os as _os
-        if _os.path.isfile(emoji_map):
+        if os.path.isfile(emoji_map):
             with open(emoji_map, "r", encoding="utf-8") as _fp:
                 params["emoji_map"] = _json.load(_fp)
         else:
@@ -226,9 +316,9 @@ def add_connector(id: str = typer.Option(..., "--id"),
         import json as _json
         params["batching"] = _json.loads(batching)
 
-    lst.append({"id": id, "type": "teams", "params": params})
+    lst.append({"id": id, "type": t, "params": params})
     ysave(cx_path, cx)
-    typer.echo(f"Connector {id} added")
+    typer.echo(f"Connector {id} ({t}) added")
 
 
 @app.command()
@@ -239,6 +329,7 @@ def routes_add(name: str = typer.Option(...),
                transports: str = typer.Option(..., help="comma-separated IDs"),
                template: Optional[Path] = typer.Option(None, help="path to template.j2"),
                config: Path = typer.Option(None)):
+    """Add (or replace) a route mapping matched events to transports."""
     base = default_dir()
     cfg_path = config or (base / "config.yaml")
     cfg = yload(cfg_path)
@@ -323,23 +414,16 @@ def doctor(kind: str = typer.Argument(..., help="connector|config"),
             raise typer.Exit(1)
 
 
-@app.command()
-def run(config: Path = typer.Option(None), connectors: Path = typer.Option(None), loop: bool = typer.Option(False),
-        sources: Optional[str] = typer.Option(None, help="e.g. 'rss:' or 'ransomware.live'"),
-        dry_run: bool = typer.Option(False),
-        verbose: bool = typer.Option(False),
-        since: Optional[str] = typer.Option(None, help="ISO8601 or YYYY-MM-DD"),
-        no_dedupe: bool = typer.Option(False),
-        interval: int = typer.Option(300, help="Interval in seconds for loop mode"),
-        web: bool = typer.Option(False, "--web", help="Serve the live web dashboard (implies --loop)"),
-        web_host: str = typer.Option("127.0.0.1", "--web-host", help="Dashboard bind address"),
-        web_port: int = typer.Option(8080, "--web-port", help="Dashboard port")):
+def _do_run(cfg: str, cx: str, only, loop: bool, interval: int,
+            web: bool, web_host: str, web_port: int,
+            dry_run: bool = False, verbose: bool = False,
+            since: Optional[str] = None, no_dedupe: bool = False) -> None:
+    """Core collect/serve loop, shared by `run` and `quickstart`.
 
-    base = default_dir()
-    cfg = str(config or (base / "config.yaml"))
-    cx = str(connectors or (base / "connectors.yaml"))
-    only = sources.split(",") if sources else None
-
+    Kept separate from the Typer command so it can be called with plain Python
+    values (calling a Typer command function directly would pass OptionInfo
+    objects for any argument left unspecified).
+    """
     if dry_run:
         os.environ["CTI_DRY_RUN"] = "1"
     if verbose:
@@ -374,6 +458,35 @@ def run(config: Path = typer.Option(None), connectors: Path = typer.Option(None)
         asyncio.run(_once())
         from time import sleep
         sleep(interval)
+
+
+@app.command()
+def run(config: Path = typer.Option(None), connectors: Path = typer.Option(None),
+        loop: bool = typer.Option(False, help="Keep running, re-collecting every --interval seconds"),
+        sources: Optional[str] = typer.Option(None, help="Only these sources, e.g. 'rss:' or 'ransomware.live'"),
+        dry_run: bool = typer.Option(False, help="Print what would be sent; deliver nothing"),
+        verbose: bool = typer.Option(False, help="Debug logging"),
+        since: Optional[str] = typer.Option(None, help="ISO8601 or YYYY-MM-DD"),
+        no_dedupe: bool = typer.Option(False, help="Re-send events already delivered"),
+        interval: int = typer.Option(300, help="Seconds between collections in loop mode"),
+        web: bool = typer.Option(False, "--web", help="Serve the live web dashboard (implies --loop)"),
+        web_host: str = typer.Option("127.0.0.1", "--web-host", help="Dashboard bind address"),
+        web_port: int = typer.Option(8080, "--web-port", help="Dashboard port")):
+    """Collect from enabled sources and deliver to routed transports.
+
+    Examples:
+      cassandra run                     one collection pass, then exit
+      cassandra run --web               collect and serve the dashboard
+      cassandra run --dry-run           preview deliveries without sending
+      cassandra run --loop --interval 600   re-collect every 10 minutes
+    """
+    base = default_dir()
+    cfg = str(config or (base / "config.yaml"))
+    cx = str(connectors or (base / "connectors.yaml"))
+    only = sources.split(",") if sources else None
+    _do_run(cfg, cx, only, loop=loop, interval=interval, web=web,
+            web_host=web_host, web_port=web_port, dry_run=dry_run,
+            verbose=verbose, since=since, no_dedupe=no_dedupe)
 
 
 @app.command("backfill")
