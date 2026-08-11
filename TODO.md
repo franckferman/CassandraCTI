@@ -1,5 +1,16 @@
 # TODO
 
+## Transports
+
+- [ ] **SMS connector** — deliver critical alerts by SMS (on-call / paging). Provider-based
+      (e.g. Twilio, Vonage, OVH, AWS SNS); ideally provider-agnostic behind one `send()` like
+      the LLM layer. Must honour the transport contract: `send(events, title, template_text)`,
+      `aclose()`, `batch_cfg`, and `CTI_DRY_RUN` → `[DRYRUN:SMS]`. Secrets via `${ENV}`.
+      Notes: SMS is costly and ~160 chars, so it should be reserved for critical routes —
+      ship a terse `templates/sms_default.j2` (title + short link only) and keep batching off.
+      Register it in `transports/__init__.py` and add an `add-connector --type sms` path + a
+      `critical-sms` example.
+
 ## Web
 
 - [ ] **Web management UI** — extend the read-only dashboard (`cassandra run --web`) with
