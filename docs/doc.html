@@ -447,6 +447,8 @@
       <a class="sb-link" href="#src-rss">RSS / Atom</a>
       <a class="sb-link" href="#src-ransomware">Ransomware Live</a>
       <a class="sb-link" href="#src-redflag">Red Flag Domains</a>
+      <a class="sb-link" href="#src-kev">CISA KEV</a>
+      <a class="sb-link" href="#src-abusech">abuse.ch IOCs</a>
       <a class="sb-link" href="#src-ransomware-press">Ransomware Press (PRO)</a>
       <a class="sb-link" href="#src-ransomware-8k">Ransomware 8-K (PRO)</a>
       <a class="sb-link" href="#src-ransomware-stats">Ransomware Stats (PRO)</a>
@@ -457,18 +459,27 @@
       <a class="sb-link" href="#tr-discord">Discord</a>
       <a class="sb-link" href="#tr-telegram">Telegram</a>
       <a class="sb-link" href="#tr-smtp">Email (SMTP)</a>
+      <a class="sb-link" href="#tr-web">Web Dashboard</a>
     </div>
     <div class="sb-section">
       <span class="sb-label">Routing</span>
       <a class="sb-link" href="#routing">Routing Rules</a>
     </div>
     <div class="sb-section">
+      <span class="sb-label">AI &amp; Automation</span>
+      <a class="sb-link" href="#llm">LLM Layer</a>
+      <a class="sb-link" href="#inventory">Inventory</a>
+      <a class="sb-link" href="#briefings">Briefings</a>
+    </div>
+    <div class="sb-section">
       <span class="sb-label">CLI</span>
+      <a class="sb-link" href="#cli-quickstart">cassandra quickstart</a>
       <a class="sb-link" href="#cli-run">cassandra run</a>
       <a class="sb-link" href="#cli-init">cassandra init</a>
       <a class="sb-link" href="#cli-add-source">add-source</a>
       <a class="sb-link" href="#cli-add-connector">add-connector</a>
       <a class="sb-link" href="#cli-routes-add">routes-add</a>
+      <a class="sb-link" href="#cli-briefing">briefing-add / run</a>
       <a class="sb-link" href="#cli-doctor">doctor</a>
       <a class="sb-link" href="#cli-backfill">backfill</a>
       <a class="sb-link" href="#cli-other">db-reset / seen-clear / list</a>
@@ -865,6 +876,9 @@
         <tr><td>CTI_NO_DEDUPE</td><td>Set to any non-empty value to skip deduplication entirely.</td></tr>
         <tr><td>CTI_DRY_RUN</td><td>Set to any non-empty value to log delivery actions without sending anything.</td></tr>
         <tr><td>CTI_TLS_NO_VERIFY</td><td>Set to <code>1</code> to disable TLS certificate verification on all fetches (for intercepting corporate proxies). TLS is verified by default.</td></tr>
+        <tr><td>ABUSECH_API_KEY</td><td>abuse.ch Auth-Key — unlocks the ThreatFox &amp; MalwareBazaar feeds (Feodo/URLhaus work without it).</td></tr>
+        <tr><td>ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY</td><td>Optional cloud keys for the LLM layer (AI briefs &amp; briefings). Not needed with a local Ollama.</td></tr>
+        <tr><td>CTI_WEB_TOKEN</td><td>Optional Bearer / <code>?token=</code> auth for the web dashboard when exposed beyond localhost.</td></tr>
       </table>
 
       <p>Config files also support <code>${VAR_NAME}</code> substitution, which is resolved at load time. Use this to inject webhook URLs, bot tokens, API keys, and other secrets without committing them to disk:</p>
@@ -1019,6 +1033,62 @@ sources:
       </table>
 
       <p>The <code>domains_list.j2</code> template formats this event with a 50-domain preview and a direct link to the full list.</p>
+    </div>
+
+    <div class="doc-section" id="src-kev">
+      <div class="section-tag">Sources</div>
+      <h2>CISA KEV</h2>
+      <p>The <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noopener noreferrer">CISA Known Exploited Vulnerabilities</a> catalog — CVEs confirmed exploited in the wild. A single public JSON feed, <strong>no API key</strong>. Source id <code>cisa.kev</code>; feeds the dashboard's <em>Vulnerabilities</em> tab.</p>
+
+      <h3>Configuration</h3>
+      <pre><code>sources:
+  cisa_kev:
+    enabled: true
+    lookback_days: 365    # keep CVEs added within this window
+    max_items: 80</code></pre>
+
+      <h3>Event fields</h3>
+      <table class="doc-table">
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>source</td><td><code>cisa.kev</code></td></tr>
+        <tr><td>title</td><td><code>CVE-YYYY-NNNN — &lt;name&gt;</code></td></tr>
+        <tr><td>url</td><td>NVD detail page for the CVE</td></tr>
+        <tr><td>tags</td><td><code>["vulnerability", "kev"]</code> (plus <code>"ransomware"</code> when used in ransomware campaigns)</td></tr>
+        <tr><td>raw</td><td><code>cve, vendor, product, due_date, ransomware_use, required_action, date_added</code></td></tr>
+      </table>
+      <p>Render with <code>vuln_card.j2</code> (Discord/Teams) or <code>telegram_vuln.j2</code> (Telegram).</p>
+    </div>
+
+    <div class="doc-section" id="src-abusech">
+      <div class="section-tag">Sources</div>
+      <h2>abuse.ch IOCs</h2>
+      <p>One source (<code>abuse.ch</code>) aggregating several <a href="https://abuse.ch" target="_blank" rel="noopener noreferrer">abuse.ch</a> feeds into the dashboard's <em>IOCs</em> tab. A single free <a href="https://auth.abuse.ch" target="_blank" rel="noopener noreferrer">Auth-Key</a> unlocks the key-gated feeds; the public ones run without it.</p>
+
+      <h3>Feeds</h3>
+      <table class="doc-table">
+        <tr><th>Feed</th><th>IOC type</th><th>API key</th></tr>
+        <tr><td><code>feodo</code></td><td>botnet C2 IPs</td><td>none (public)</td></tr>
+        <tr><td><code>urlhaus</code></td><td>malware distribution URLs</td><td>none (public CSV)</td></tr>
+        <tr><td><code>threatfox</code></td><td>IP / domain / URL / hash + family</td><td>free Auth-Key</td></tr>
+        <tr><td><code>malwarebazaar</code></td><td>sample hashes (SHA-256) + family</td><td>free Auth-Key</td></tr>
+      </table>
+
+      <h3>Configuration</h3>
+      <pre><code>sources:
+  abusech:
+    enabled: true
+    feeds: ["feodo", "threatfox", "urlhaus", "malwarebazaar"]
+    api_key: <span class="hl">${ABUSECH_API_KEY}</span>   # optional; unlocks threatfox + malwarebazaar
+    max_items: 60</code></pre>
+
+      <h3>Event fields</h3>
+      <table class="doc-table">
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>source</td><td><code>abuse.ch</code></td></tr>
+        <tr><td>tags</td><td><code>["ioc", …]</code></td></tr>
+        <tr><td>raw</td><td><code>ioc, ioc_type, malware, status, confidence, feed</code></td></tr>
+      </table>
+      <p>Render with <code>ioc_card.j2</code> (Discord/Teams) or <code>telegram_ioc.j2</code> (Telegram).</p>
     </div>
 
     <div class="doc-section" id="src-ransomware-press">
@@ -1249,6 +1319,38 @@ sources:
       </div>
     </div>
 
+    <div class="doc-section" id="tr-web">
+      <div class="section-tag">Transports</div>
+      <h2>Web Dashboard</h2>
+      <p>A live, read-only console for a CTI/Blue team — events stream in real time (SSE) as they are routed, with history served from the local SQLite store. Zero extra dependency, self-contained page (no CDN), so it runs on isolated networks.</p>
+
+      <h3>Fastest way — no config</h3>
+      <pre><code>cassandra run --loop --web                 # http://127.0.0.1:8080
+cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
+      <p><code>--web</code> injects a temporary catch-all route to a built-in <code>web</code> connector (nothing is written to your YAML) and implies <code>--loop</code>.</p>
+
+      <h3>As a declared connector</h3>
+      <pre><code>connectors:
+  - id: "web-soc"
+    type: "web"
+    params:
+      host: "127.0.0.1"          # keep localhost unless you set a token
+      port: 8080
+      # token: <span class="hl">${CTI_WEB_TOKEN}</span>   # require Bearer / ?token=</code></pre>
+
+      <h3>The UI</h3>
+      <ul>
+        <li><strong>Tabbed</strong> — Overview, Live feed, and one tab per category: Ransomware, RSS, Red flags, Vulnerabilities (CISA KEV), IOCs (abuse.ch).</li>
+        <li><strong>Overview</strong> — live clock, a stat strip (totals, 24h/7d/30d deltas, critical count, active sources, alerts sent), an activity chart, top sources, by-category and top ransomware groups, source health and a latest-critical list.</li>
+        <li><strong>Feed tabs</strong> — a log-style table with per-category filters, date range, sort, result count, and per-row actions: copy the IOC/CVE, an <strong>AI brief</strong>, and a details modal.</li>
+        <li><strong>Actionable</strong> — export the current view to CSV/JSON, deep-link tab + filters + search in the URL, keyboard shortcuts, optional sound on critical events.</li>
+        <li><strong>Inventory</strong> (opt-in) and <strong>AI briefs</strong> (opt-in) — see below.</li>
+      </ul>
+      <div class="callout">
+        <p>The server binds <code>127.0.0.1</code> by default — set a <code>token</code> before exposing it on the network.</p>
+      </div>
+    </div>
+
     <!-- ROUTING -->
     <div class="doc-section" id="routing">
       <div class="section-tag">Routing</div>
@@ -1297,6 +1399,76 @@ sources:
     template: "templates/ransomware_card.j2"</code></pre>
     </div>
 
+    <!-- AI & AUTOMATION -->
+    <div class="doc-section" id="llm">
+      <div class="section-tag">AI &amp; Automation</div>
+      <h2>LLM Layer</h2>
+      <p>An optional, provider-agnostic layer behind one <code>complete()</code> call, powering the dashboard's <em>AI brief</em> and the <a href="#briefings">briefings</a>. <strong>Off by default</strong> — nothing leaves the network unless a feature invokes it. Privacy-first: <code>auto</code> prefers a reachable local Ollama, else the first cloud key set.</p>
+
+      <table class="doc-table">
+        <tr><th>Provider</th><th>Type</th><th>Key (env)</th><th>Default model</th></tr>
+        <tr><td><code>ollama</code></td><td>local, free, private</td><td>— (<code>http://localhost:11434</code>)</td><td>first installed model</td></tr>
+        <tr><td><code>anthropic</code></td><td>cloud</td><td><code>ANTHROPIC_API_KEY</code></td><td><code>claude-opus-5</code></td></tr>
+        <tr><td><code>openai</code></td><td>cloud</td><td><code>OPENAI_API_KEY</code></td><td><code>gpt-4o-mini</code></td></tr>
+        <tr><td><code>deepseek</code></td><td>cloud</td><td><code>DEEPSEEK_API_KEY</code></td><td><code>deepseek-chat</code></td></tr>
+      </table>
+
+      <pre><code>llm:
+  enabled: true
+  provider: auto          # auto | ollama | anthropic | openai | deepseek
+  model: ""               # optional override
+  ollama_base_url: http://localhost:11434
+  ollama_model: ""        # optional; else the first pulled model
+  max_tokens: 300</code></pre>
+      <div class="callout">
+        <p>With no Ollama and no cloud key, AI features are simply hidden/skipped — everything else runs unchanged.</p>
+      </div>
+    </div>
+
+    <div class="doc-section" id="inventory">
+      <div class="section-tag">AI &amp; Automation</div>
+      <h2>Inventory</h2>
+      <p>Tell CassandraCTI which vendors/products/OS make up your stack; the dashboard's <strong>INV</strong> toggle then filters the feed to only events that mention them (matches are highlighted). Opt-in, dashboard-only.</p>
+      <pre><code>inventory:
+  enabled: true
+  match_mode: highlight
+  terms: ["Fortinet", "Cisco", "VMware", "Microsoft", "Ivanti", "Citrix"]</code></pre>
+    </div>
+
+    <div class="doc-section" id="briefings">
+      <div class="section-tag">AI &amp; Automation</div>
+      <h2>Briefings</h2>
+      <p>Routes deliver <strong>each</strong> event. A <strong>briefing</strong> does the opposite: periodically it recaps a <em>batch</em> — the LLM writes a short, <strong>prioritised</strong> summary with links, sent through a normal transport <strong>after</strong> the individual alerts. A shift hand-over: "here's what came in, and what matters."</p>
+
+      <pre><code>briefings:
+  - name: vuln-daily
+    include_sources: ["cisa.kev"]   # same selectors as routes (OR; omit all = everything)
+    include_tags: ["cert"]
+    transports: ["discord-brief"]   # a connector id (must be in transports.use)
+    schedule: "24h"                 # 24h | 6h | 30m | 2d
+    min_items: 1                    # skip if fewer than N new items
+    max_items: 40                   # cap what the LLM sees
+    template: "templates/briefing_default.j2"   # telegram -> briefing_telegram.j2</code></pre>
+
+      <table class="doc-table">
+        <tr><th>Key</th><th>Default</th><th>Meaning</th></tr>
+        <tr><td>include_sources / include_tags / include_regex</td><td>—</td><td>select events like a route (OR across them; none = all)</td></tr>
+        <tr><td>transports</td><td>—</td><td>connector id(s) that receive the brief</td></tr>
+        <tr><td>schedule</td><td><code>24h</code></td><td>how often it may fire</td></tr>
+        <tr><td>min_items</td><td><code>1</code></td><td>don't send with fewer than N new items</td></tr>
+        <tr><td>max_items</td><td><code>40</code></td><td>cap on items fed to the LLM</td></tr>
+        <tr><td>template</td><td><code>briefing_default.j2</code></td><td>Markdown for Discord/Teams; <code>briefing_telegram.j2</code> for Telegram</td></tr>
+      </table>
+
+      <p>Each cycle, after delivery, a briefing checks whether its <code>schedule</code> elapsed; if so it gathers the events <strong>ingested since its last run</strong> that match its selectors, has the LLM prioritise them (KEV / ransomware-linked / high-confidence IOCs first) and narrate them with links, sends one message and records the timestamp. Trigger manually with <code>briefing-run</code>:</p>
+      <pre><code>cassandra briefing-run --all            # force every briefing now
+cassandra briefing-run --name vuln-daily
+cassandra briefing-run --all --dry-run  # [DRYRUN:BRIEFING], no LLM call</code></pre>
+      <div class="callout">
+        <p>Briefings need the <a href="#llm">LLM layer</a> to resolve a provider. With none available they're skipped (a warning is logged) — everything else runs.</p>
+      </div>
+    </div>
+
     <!-- CLI -->
     <div class="doc-section" id="cli-run">
       <div class="section-tag">CLI Reference</div>
@@ -1334,6 +1506,14 @@ sources:
 <span class="hl">cassandra run --dry-run --verbose</span></code></pre>
     </div>
 
+    <div class="doc-section" id="cli-quickstart">
+      <div class="section-tag">CLI Reference</div>
+      <h2>cassandra quickstart</h2>
+      <p>The fastest path to a running instance: scaffold the config files (if missing) and open the live dashboard.</p>
+      <pre><code><span class="hl">cassandra quickstart</span>              <span class="hl-dim"># set up + open http://127.0.0.1:8080</span>
+<span class="hl">cassandra quickstart --no-web</span>     <span class="hl-dim"># just create the config files</span></code></pre>
+    </div>
+
     <div class="doc-section" id="cli-init">
       <div class="section-tag">CLI Reference</div>
       <h2>cassandra init</h2>
@@ -1355,10 +1535,12 @@ sources:
 <span class="hl-dim"># Enable ransomware.live</span>
 <span class="hl">cassandra add-source ransomware_live</span>
 
-<span class="hl-dim"># Enable Red Flag Domains</span>
-<span class="hl">cassandra add-source redflag</span></code></pre>
+<span class="hl-dim"># Enable Red Flag Domains, CISA KEV, abuse.ch</span>
+<span class="hl">cassandra add-source redflag</span>
+<span class="hl">cassandra add-source kev</span>
+<span class="hl">cassandra add-source abusech --feeds "feodo,urlhaus" --api-key "$ABUSECH_API_KEY"</span></code></pre>
 
-      <p><code>add-source</code> accepts <code>rss</code>, <code>ransomware_live</code>, and <code>redflag</code>. The PRO-only feeds (<code>ransomware_press</code>, <code>ransomware_8k</code>, <code>ransomware_stats</code>) are enabled by editing <code>config.yaml</code> directly and adding an <code>api_key</code>.</p>
+      <p><code>add-source</code> accepts <code>rss</code>, <code>ransomware_live</code>, <code>redflag</code>, <code>kev</code> (CISA KEV) and <code>abusech</code>. The PRO-only feeds (<code>ransomware_press</code>, <code>ransomware_8k</code>, <code>ransomware_stats</code>) are enabled by editing <code>config.yaml</code> directly and adding an <code>api_key</code>.</p>
 
       <h3>Bulk import from CSV</h3>
       <pre><code><span class="hl-dim"># CSV format: Name,URL,Tags  (tags are pipe-separated)</span>
@@ -1368,12 +1550,16 @@ sources:
     <div class="doc-section" id="cli-add-connector">
       <div class="section-tag">CLI Reference</div>
       <h2>cassandra add-connector</h2>
-      <p>Add a Teams connector to <code>connectors.yaml</code>.</p>
-      <pre><code><span class="hl">cassandra add-connector \
-  --id "teams-soc" \
-  --webhook-url "https://..." \
-  --theme-color "0078D7" \
-  --emojis</span></code></pre>
+      <p>Add a messaging connector to <code>connectors.yaml</code>. <code>--type</code> selects the transport (<code>teams</code> default, <code>discord</code>, <code>telegram</code>, <code>smtp</code>); required params are validated per type.</p>
+      <pre><code><span class="hl-dim"># Teams / Discord — incoming webhook</span>
+<span class="hl">cassandra add-connector --id "teams-soc" --type teams   --webhook-url "https://..."
+cassandra add-connector --id "discord"   --type discord --webhook-url "https://..." --username "CassandraCTI"</span>
+
+<span class="hl-dim"># Telegram — bot token + chat id</span>
+<span class="hl">cassandra add-connector --id "tg-soc" --type telegram --bot-token "$TELEGRAM_BOT_TOKEN" --chat-id "@my_channel"</span>
+
+<span class="hl-dim"># Email — SMTP</span>
+<span class="hl">cassandra add-connector --id "mail" --type smtp --host smtp.gmail.com --from-addr you@example.com --to-addrs "soc@example.com"</span></code></pre>
     </div>
 
     <div class="doc-section" id="cli-routes-add">
@@ -1384,6 +1570,22 @@ sources:
   --name "cert-alerts" \
   --include-tag "cert" \
   --transports "teams-cert,discord-alert"</span></code></pre>
+    </div>
+
+    <div class="doc-section" id="cli-briefing">
+      <div class="section-tag">CLI Reference</div>
+      <h2>cassandra briefing-add / briefing-run</h2>
+      <p>Manage periodic LLM <a href="#briefings">briefings</a>. <code>briefing-add</code> scaffolds one into <code>config.yaml</code>; <code>briefing-run</code> sends now.</p>
+      <pre><code><span class="hl">cassandra briefing-add \
+  --name "vuln-daily" \
+  --include "cisa.kev" \
+  --transports "discord-brief" \
+  --schedule "24h" --min-items 1</span>
+
+<span class="hl-dim"># no flag = the ones that are due; --name/--all force</span>
+<span class="hl">cassandra briefing-run --all</span>
+<span class="hl">cassandra briefing-run --name vuln-daily</span>
+<span class="hl">cassandra briefing-run --all --dry-run</span>   <span class="hl-dim"># [DRYRUN:BRIEFING], no LLM call</span></code></pre>
     </div>
 
     <div class="doc-section" id="cli-doctor">
@@ -1446,9 +1648,12 @@ sources:
         <tr><td>templates/rss_default.j2</td><td>Standard single RSS event (source, summary, link)</td></tr>
         <tr><td>templates/discord_default.j2</td><td>Discord-optimized layout with <code>&gt;&gt;&gt;</code> quote blocks</td></tr>
         <tr><td>templates/ransomware_card.j2</td><td>Rich ransomware alert (group, country, activity, dates)</td></tr>
+        <tr><td>templates/vuln_card.j2</td><td>CISA KEV vulnerability card (CVE, vendor/product, due date, ransomware flag)</td></tr>
+        <tr><td>templates/ioc_card.j2</td><td>abuse.ch IOC card (malware, IOC value, confidence, feed)</td></tr>
         <tr><td>templates/domains_list.j2</td><td>Malicious domain list with 50-domain preview and full link</td></tr>
         <tr><td>templates/batch_default.j2</td><td>Batched multi-event summary with emoji per event</td></tr>
         <tr><td>templates/smtp_default.j2</td><td>Default HTML email body for SMTP routes</td></tr>
+        <tr><td>templates/briefing_default.j2</td><td>LLM briefing body (Markdown — Discord/Teams)</td></tr>
       </table>
 
       <h4>Telegram templates (HTML, <code>parse_mode=HTML</code>)</h4>
@@ -1461,6 +1666,9 @@ sources:
         <tr><td>templates/telegram_8k.j2</td><td>SEC 8-K card (form, item 1.05 / 8.01, CIK, EDGAR link)</td></tr>
         <tr><td>templates/telegram_stats.j2</td><td>Daily tracker digest</td></tr>
         <tr><td>templates/telegram_domains.j2</td><td>Red Flag Domains card (count, sample, full-list link)</td></tr>
+        <tr><td>templates/telegram_vuln.j2</td><td>CISA KEV vulnerability card</td></tr>
+        <tr><td>templates/telegram_ioc.j2</td><td>abuse.ch IOC card</td></tr>
+        <tr><td>templates/briefing_telegram.j2</td><td>LLM briefing body (Telegram HTML)</td></tr>
       </table>
 
       <h3>Template context variables</h3>
