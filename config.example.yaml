@@ -155,6 +155,18 @@ routes:
     transports: ["discord-alert"]
     template: "templates/discord_default.j2"
 
+# Periodic LLM briefings (optional). After the individual alerts go out, a
+# briefing recaps what came in — prioritised, with links. Needs the llm: layer
+# below to resolve a provider (local Ollama or a cloud key). Uncomment to enable.
+# briefings:
+#   - name: vuln-daily
+#     include_sources: ["cisa.kev"]
+#     transports: ["discord-alert"]
+#     schedule: "24h"          # 24h | 6h | 30m | 2d
+#     min_items: 1             # skip if fewer than N new items
+#     max_items: 40            # cap what the LLM sees
+#     template: "templates/briefing_default.j2"   # Markdown; telegram -> briefing_telegram.j2
+
 store:
   sqlite_path: .cassandra_cti.db
   seen_ttl_days: 90

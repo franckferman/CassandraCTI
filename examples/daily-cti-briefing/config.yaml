@@ -1,0 +1,70 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Daily CTI briefing — live alerts + a periodic LLM recap.
+# Individual alerts go to #cti-alerts as they arrive; once a day an LLM briefing
+# lands in #cti-brief that prioritises what came in and links the priorities.
+# The briefing runs AFTER delivery, so it recaps what was just posted.
+#
+# Needs the llm: layer to resolve a provider — a local Ollama (free/offline) or a
+# cloud key (ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY).
+#
+# Run (the briefing fires on schedule while looping):
+#   export DISCORD_WEBHOOK_ALERTS=...  DISCORD_WEBHOOK_BRIEF=...
+#   cassandra run --loop --interval 600 \
+#     --config examples/daily-cti-briefing/config.yaml \
+#     --connectors examples/daily-cti-briefing/connectors.yaml
+#
+# Test the briefing immediately (ignores schedule):
+#   cassandra briefing-run --all --config examples/daily-cti-briefing/config.yaml \
+#     --connectors examples/daily-cti-briefing/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  cisa_kev:
+    enabled: true
+    lookback_days: 365
+  ransomware_live:
+    enabled: true
+    lookback_days: 7
+  rss:
+    enabled: true
+    feeds:
+      - { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+
+transports:
+  use: ["discord-alerts", "discord-brief"]
+
+routes:
+  # Live alerts (Markdown cards) as events arrive.
+  - name: kev-alerts
+    include_sources: ["cisa.kev"]
+    transports: ["discord-alerts"]
+    template: "templates/vuln_card.j2"
+  - name: ransomware-alerts
+    include_sources: ["ransomware.live"]
+    transports: ["discord-alerts"]
+    template: "templates/ransomware_card.j2"
+  - name: news
+    include_tags: ["news"]
+    transports: ["discord-alerts"]
+    template: "templates/discord_default.j2"
+
+briefings:
+  # Once a day, recap everything that came in — prioritised, with links.
+  - name: daily-brief
+    transports: ["discord-brief"]     # no selector = recap ALL ingested events
+    schedule: "24h"
+    min_items: 1
+    max_items: 40
+    template: "templates/briefing_default.j2"
+
+# The optional LLM layer. provider "auto" tries a local Ollama first, else the
+# first cloud key set in the environment. Without either, briefings are skipped.
+llm:
+  enabled: true
+  provider: auto
+  max_tokens: 400
+
+store:
+  sqlite_path: ".cassandra_cti.db"

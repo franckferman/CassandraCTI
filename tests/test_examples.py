@@ -40,3 +40,10 @@ def test_example_loads_routes_and_templates(d):
         if r.template:
             tpl = os.path.join(ROOT, r.template)
             assert os.path.exists(tpl), f"{d}: route '{r.name}' template missing: {r.template}"
+
+    for b in s.briefings:
+        for tid in (b.transports or []):
+            assert tid in built, f"{d}: briefing '{b.name}' targets unknown connector '{tid}'"
+        if b.template:
+            tpl = os.path.join(ROOT, b.template)
+            assert os.path.exists(tpl), f"{d}: briefing '{b.name}' template missing: {b.template}"

@@ -32,6 +32,7 @@ cassandra run --loop --interval 300 \
 | [`cve-watch`](cve-watch/) | Exploited CVEs (CISA KEV) → a KEV channel; vuln advisories → a news channel. | Discord ×2 | `DISCORD_WEBHOOK_KEV`, `DISCORD_WEBHOOK_VULNNEWS` |
 | [`ransomware-landscape`](ransomware-landscape/) | The state of the ransomware threat — ransomware.live victims (PRO feeds optional). | Discord | `DISCORD_WEBHOOK_RANSOMWARE` (opt. `RANSOMWARE_API_KEY`) |
 | [`personalized-watch`](personalized-watch/) | Dashboard focused on your stack: **inventory** filtering + optional **AI briefs**. | Web | *(none; opt. Ollama or an LLM key)* |
+| [`daily-cti-briefing`](daily-cti-briefing/) | Live alerts + a periodic **LLM briefing** that prioritises + links what came in. | Discord ×2 | `DISCORD_WEBHOOK_ALERTS`, `DISCORD_WEBHOOK_BRIEF` (+ Ollama or LLM key) |
 
 ## How the two files relate
 
