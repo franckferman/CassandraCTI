@@ -115,8 +115,20 @@ routes:
   
   - name: malicious-domains
     include_sources: ["red.flag.domains"]
-    transports: ["cassandra-domains"] 
+    transports: ["cassandra-domains"]
     template: "templates/domains_list.j2"
+
+  # Actively-exploited CVEs (CISA KEV) -> Discord (Markdown card)
+  - name: vulnerabilities
+    include_sources: ["cisa.kev"]
+    transports: ["discord-alert"]
+    template: "templates/vuln_card.j2"
+
+  # Malware-infrastructure IOCs (abuse.ch) -> Discord (Markdown card)
+  - name: iocs
+    include_sources: ["abuse.ch"]
+    transports: ["discord-alert"]
+    template: "templates/ioc_card.j2"
 
   # --- RSS ROUTING ---
   # CERTs -> Dedicated Channel

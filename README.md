@@ -15,8 +15,8 @@
 
 <p align="center">
   <strong>Modular Cyber Threat Intelligence Aggregator.</strong><br>
-  Collect threat intel from RSS feeds, ransomware trackers & malicious domain lists —<br>
-  then route it automatically to Teams, Discord, and beyond.
+  Collect threat intel from RSS feeds, ransomware trackers, malicious domains, CISA KEV & abuse.ch —<br>
+  then route it to Teams, Discord, Telegram, Email, or a live web dashboard.
 </p>
 
 <p align="center">
@@ -43,7 +43,7 @@ Originally built as a private internal tool, it is now open-source, designed to 
 
 **What it does:**
 
-- Polls threat intel sources on a schedule (RSS feeds, ransomware trackers, malicious domain lists)
+- Polls threat intel sources on a schedule (RSS feeds, ransomware trackers, malicious domain lists, CISA KEV vulnerabilities, abuse.ch IOCs)
 - Deduplicates events using SHA1-based fingerprinting with a local SQLite store
 - Routes events through configurable rules (by source, tag, or regex) — every matching route fires
 - Renders messages from Jinja2 templates and pushes them to Teams, Discord, Telegram, or Email (SMTP)
@@ -56,7 +56,8 @@ Originally built as a private internal tool, it is now open-source, designed to 
 
 | Capability | Details |
 |---|---|
-| **Modular sources** | RSS/Atom feeds · the **ransomware.live** family (victims — free; plus Cyber Press, SEC 8-K & Stats on its PRO tier) · Red Flag Domains (separate provider) |
+| **Modular sources** | RSS/Atom feeds · the **ransomware.live** family (victims — free; plus Cyber Press, SEC 8-K & Stats on its PRO tier) · Red Flag Domains · **CISA KEV** vulnerabilities · **abuse.ch** IOCs (Feodo/ThreatFox/URLhaus/MalwareBazaar) |
+| **Live web dashboard** | Dependency-free SOC command center — real-time SSE feed, per-category tabs, filters, export, optional AI briefs |
 | **Resilient ransomware feed** | Multi-backend fallback chain: API PRO → API v2 → legacy `posts.json` |
 | **Modular transports** | Microsoft Teams, Discord, Telegram, Email (SMTP) — extensible |
 | **Smart deduplication** | SHA1 event fingerprint + SQLite delivery tracking |
@@ -109,22 +110,35 @@ This creates:
 ```
 ~/.config/cassandra-cti/
 ├── config.yaml         ← sources, routes, filters, store, logging, metrics
-├── connectors.yaml     ← transport definitions (Teams / Discord webhooks)
+├── connectors.yaml     ← transport definitions (Teams / Discord / Telegram / Email / Web)
 └── templates/          ← custom Jinja2 templates (optional)
 ```
 
-### Quick Start
+### Fastest start
 
-**1. Add a webhook connector:**
+One command scaffolds the config files (if missing) and opens the live dashboard — no editing required to see it working:
 
 ```bash
-# Microsoft Teams
-cassandra add-connector \
-  --id "teams-soc" \
-  --webhook-url "https://your-tenant.webhook.office.com/..."
+cassandra quickstart              # sets up config + opens http://127.0.0.1:8080
+cassandra quickstart --no-web     # just create the config files
+```
 
-# Discord
-# (edit connectors.yaml manually — see Transports section)
+The shipped `config.example.yaml` already enables RSS, ransomware.live, Red Flag Domains, CISA KEV and abuse.ch, so the dashboard fills up on the first pass. To also push alerts to Teams/Discord/Telegram/Email, wire a connector and a route as below.
+
+### Quick Start
+
+**1. Add a connector:**
+
+```bash
+# Microsoft Teams / Discord (incoming webhook)
+cassandra add-connector --id "teams-soc" --type teams   --webhook-url "https://your-tenant.webhook.office.com/..."
+cassandra add-connector --id "discord"   --type discord --webhook-url "https://discord.com/api/webhooks/..."
+
+# Telegram (bot token + chat id)
+cassandra add-connector --id "tg-soc" --type telegram --bot-token "$TELEGRAM_BOT_TOKEN" --chat-id "@my_channel"
+
+# Email (SMTP)
+cassandra add-connector --id "mail" --type smtp --host smtp.gmail.com --from-addr you@example.com --to-addrs soc@example.com
 ```
 
 **2. Add threat intel sources:**
@@ -136,11 +150,10 @@ cassandra add-source rss \
   --url "https://cert.ssi.gouv.fr/alerte/feed/" \
   --tags "cert,fr"
 
-# Ransomware tracker
-cassandra add-source ransomware_live
-
-# Malicious domain list
-cassandra add-source redflag
+cassandra add-source ransomware_live      # ransomware tracker
+cassandra add-source redflag              # malicious domain list
+cassandra add-source kev                  # CISA Known Exploited Vulnerabilities
+cassandra add-source abusech --feeds "feodo,urlhaus"   # abuse.ch IOCs (add --api-key for threatfox/malwarebazaar)
 ```
 
 **3. Validate your setup:**
@@ -632,6 +645,33 @@ routes:
 
 The server binds to `127.0.0.1` by default — set a `token` before exposing it on the network.
 
+### Inventory & AI briefs (optional)
+
+Both features are **off by default** and live in `config.yaml`. They only affect the web dashboard.
+
+**Inventory** — tell CassandraCTI which vendors/products/OS make up your stack; the dashboard's **INV** toggle then filters the feed to only events that mention them (matches are highlighted):
+
+```yaml
+inventory:
+  enabled: true
+  match_mode: highlight        # UI hint; the INV toggle filters + highlights matches
+  terms: ["Fortinet", "Cisco", "VMware", "Microsoft", "Ivanti", "Citrix"]
+```
+
+**AI briefs** — a per-event, SOC-oriented summary generated on demand from the *AI brief* row action. Provider-agnostic and private-first: `auto` prefers a reachable local **Ollama** (free, offline), otherwise the first cloud key found in the environment (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `DEEPSEEK_API_KEY`).
+
+```yaml
+llm:
+  enabled: true
+  provider: auto               # auto | ollama | anthropic | openai | deepseek
+  model: ""                    # optional override (else a sensible per-provider default)
+  ollama_base_url: http://localhost:11434
+  ollama_model: ""             # optional; else the first pulled model
+  max_tokens: 300
+```
+
+No key and no local Ollama ⇒ the AI-brief button simply stays hidden; every other feature works unchanged.
+
 ---
 
 ## Routing
@@ -718,9 +758,24 @@ routes:
 
 ## CLI Reference
 
+### `cassandra quickstart`
+
+Scaffold the config files (if missing) and open the live dashboard — the fastest way to a running instance.
+
+```
+Options:
+  --web / --no-web    Open the dashboard after setup (default: --web)
+  --web-host TEXT     Dashboard bind address (default: 127.0.0.1)
+  --web-port INT      Dashboard port (default: 8080)
+  --config PATH       Path to config.yaml
+  --connectors PATH   Path to connectors.yaml
+```
+
+---
+
 ### `cassandra init`
 
-Initialize default configuration files.
+Initialize default configuration files (`config.yaml`, `connectors.yaml`, `templates/`).
 
 ```
 Options:
@@ -776,7 +831,7 @@ cassandra run --web
 
 ### `cassandra add-source`
 
-Add a source to config.yaml.
+Add a source to config.yaml. Kinds: `rss`, `ransomware_live`, `redflag`, `kev` (CISA KEV), `abusech`.
 
 ```bash
 cassandra add-source rss \
@@ -786,6 +841,8 @@ cassandra add-source rss \
 
 cassandra add-source ransomware_live
 cassandra add-source redflag
+cassandra add-source kev
+cassandra add-source abusech --feeds "feodo,threatfox,urlhaus,malwarebazaar" --api-key "$ABUSECH_API_KEY"
 ```
 
 ---
@@ -807,14 +864,19 @@ cassandra import-feeds feeds.csv
 
 ### `cassandra add-connector`
 
-Add a Teams connector to connectors.yaml.
+Add a messaging connector to connectors.yaml. `--type` selects the transport (`teams` default, `discord`, `telegram`, `smtp`); required parameters are validated per type.
 
 ```bash
-cassandra add-connector \
-  --id "teams-soc" \
-  --webhook-url "https://..." \
-  --theme-color "0078D7" \
-  --emojis
+# Teams / Discord — incoming webhook
+cassandra add-connector --id "teams-soc" --type teams   --webhook-url "https://..." --theme-color "0078D7"
+cassandra add-connector --id "discord"   --type discord --webhook-url "https://..." --username "CassandraCTI"
+
+# Telegram — bot token + chat id
+cassandra add-connector --id "tg-soc" --type telegram --bot-token "$TELEGRAM_BOT_TOKEN" --chat-id "@my_channel"
+
+# Email — SMTP
+cassandra add-connector --id "mail" --type smtp \
+  --host smtp.gmail.com --from-addr you@example.com --to-addrs "soc@example.com" --security starttls
 ```
 
 ---
@@ -917,10 +979,14 @@ Messages are rendered with Jinja2. Custom templates can be assigned per route.
 | `templates/rss_default.j2` | Standard RSS event |
 | `templates/discord_default.j2` | Discord-optimized layout |
 | `templates/ransomware_card.j2` | Ransomware events (group, country, activity) |
+| `templates/vuln_card.j2` | CISA KEV vulnerability card (Discord/Teams) |
+| `templates/ioc_card.j2` | abuse.ch IOC card (Discord/Teams) |
 | `templates/domains_list.j2` | Malicious domain list with preview |
 | `templates/batch_default.j2` | Batched multi-event messages |
 | `templates/telegram_default.j2` | Telegram HTML layout (assign to Telegram routes) |
 | `templates/telegram_ransomware.j2` | Telegram structured card for `ransomware.live` |
+| `templates/telegram_vuln.j2` | Telegram card for CISA KEV (`cisa.kev`) |
+| `templates/telegram_ioc.j2` | Telegram card for abuse.ch IOCs (`abuse.ch`) |
 | `templates/telegram_domains.j2` | Telegram layout for Red Flag Domains |
 | `templates/telegram_press.j2` | Telegram layout for `ransomware.press` |
 | `templates/telegram_8k.j2` | Telegram layout for `ransomware.8k` filings |
@@ -928,6 +994,8 @@ Messages are rendered with Jinja2. Custom templates can be assigned per route.
 | `templates/smtp_default.j2` | HTML email body (assign to SMTP routes) |
 
 > Telegram and SMTP render as HTML — assign a matching `telegram_*` / `smtp_*` template to those routes; Discord/Teams Markdown templates won't render as rich text there.
+>
+> **See [`templates/README.md`](templates/README.md)** for the full pool: which template to pick per source kind × transport flavor, the context variables, and the `raw` fields each source emits.
 
 ### Example: custom template
 
@@ -1137,10 +1205,13 @@ Secrets never live in the config files — they are injected via `${VAR_NAME}` e
 | Secret / env var | Used by |
 |---|---|
 | `RANSOMWARE_API_KEY` | Ransomware Live API PRO backend and all PRO-only feeds (`ransomware_press`, `ransomware_8k`, `ransomware_stats`) |
+| `ABUSECH_API_KEY` | abuse.ch Auth-Key — unlocks the ThreatFox & MalwareBazaar feeds (Feodo/URLhaus work without it) |
 | `MSTEAMS_WEBHOOK_*` / `DISCORD_WEBHOOK_URL` | Teams / Discord webhooks |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Telegram Bot API |
 | `SMTP_HOST` / `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_TO` | Email (SMTP) transport |
+| `CTI_WEB_TOKEN` | Optional Bearer/`?token=` auth for the web dashboard when exposed |
 | `CTI_TLS_NO_VERIFY` | Disable TLS verification (opt-in, `=1`) |
+| Cloud LLM keys — `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `DEEPSEEK_API_KEY` | Optional AI briefs (only if the `llm` layer is enabled with a cloud provider) |
 
 ---
 
@@ -1160,6 +1231,8 @@ Secrets never live in the config files — they are injected via `${VAR_NAME}` e
          │  │ Ransomware PRO feeds │ │
          │  │   (press / 8k / stats)│ │
          │  │ Red Flag Domains     │ │
+         │  │ CISA KEV (vulns)     │ │
+         │  │ abuse.ch (IOCs)      │ │
          │  └──────────────────────┘ │
          └─────────────┬─────────────┘
                        │  Events
@@ -1183,6 +1256,7 @@ Secrets never live in the config files — they are injected via `${VAR_NAME}` e
          │  │ Discord (Embed)      │ │
          │  │ Telegram (Bot API)   │ │
          │  │ Email (SMTP)         │ │
+         │  │ Web dashboard (SSE)  │ │
          │  └──────────────────────┘ │
          │  Jinja2 templates         │
          │  Batching + throttling    │
