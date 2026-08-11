@@ -1,0 +1,45 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Vulnerability & IOC watch — CISA KEV + abuse.ch to Discord.
+# No RSS noise: just actively-exploited CVEs and malware-infrastructure IOCs,
+# each rendered with its purpose-built Markdown card.
+#
+# Run:
+#   export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+#   # optional (unlocks ThreatFox + MalwareBazaar): export ABUSECH_API_KEY="..."
+#   cassandra run --loop --interval 900 \
+#     --config examples/vuln-ioc-watch/config.yaml \
+#     --connectors examples/vuln-ioc-watch/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  cisa_kev:
+    enabled: true
+    lookback_days: 365       # CVEs added to KEV within the last year
+    max_items: 80
+
+  abusech:
+    enabled: true
+    # feodo + urlhaus are public (no key). threatfox + malwarebazaar need a free
+    # Auth-Key from https://auth.abuse.ch (set ABUSECH_API_KEY).
+    feeds: ["feodo", "urlhaus", "threatfox", "malwarebazaar"]
+    api_key: ${ABUSECH_API_KEY}
+    max_items: 60
+
+transports:
+  use: ["discord"]
+
+routes:
+  - name: vulnerabilities
+    include_sources: ["cisa.kev"]
+    transports: ["discord"]
+    template: "templates/vuln_card.j2"
+
+  - name: iocs
+    include_sources: ["abuse.ch"]
+    transports: ["discord"]
+    template: "templates/ioc_card.j2"
+
+store:
+  sqlite_path: ".cassandra_cti.db"

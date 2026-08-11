@@ -1,0 +1,18 @@
+connectors:
+  # SMTP over any server (Gmail, SendGrid, corporate relay...). Uses the Python
+  # standard library — no extra dependency.
+  #   security: starttls (587) | ssl (465) | none (25)
+  #   Gmail: use a Google "App Password", not your login password.
+  # batching groups many events into ONE digest email per cycle.
+  - id: email
+    type: smtp
+    params:
+      host: ${SMTP_HOST}
+      port: 587
+      security: starttls
+      username: ${SMTP_USERNAME}
+      password: ${SMTP_PASSWORD}
+      from_addr: ${SMTP_FROM}          # defaults to username if omitted
+      to_addrs: ${SMTP_TO}             # "a@x.com,b@y.com" or a YAML list
+      subject_prefix: "[CTI Digest]"
+      batching: { enabled: true, max_items: 30 }

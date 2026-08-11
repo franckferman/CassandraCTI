@@ -1,0 +1,43 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Telegram channel — push news + ransomware to a Telegram channel.
+# Telegram renders HTML, so assign the telegram_* templates (Discord/Teams
+# Markdown would show up as raw text).
+#
+# Run:
+#   export TELEGRAM_BOT_TOKEN="123456:ABC..."   TELEGRAM_CHAT_ID="@my_channel"
+#   cassandra run --loop --interval 300 \
+#     --config examples/telegram-channel/config.yaml \
+#     --connectors examples/telegram-channel/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  rss:
+    enabled: true
+    feeds:
+      - { name: "The Hacker News", url: "https://feeds.feedburner.com/TheHackersNews", tags: ["news"] }
+      - { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+
+  ransomware_live:
+    enabled: true
+    lookback_days: 7
+
+transports:
+  use: ["telegram"]
+
+routes:
+  # RSS → Telegram (HTML news layout)
+  - name: news-telegram
+    include_sources: ["rss:"]
+    transports: ["telegram"]
+    template: "templates/telegram_default.j2"
+
+  # ransomware.live → Telegram (structured HTML card)
+  - name: ransomware-telegram
+    include_sources: ["ransomware.live"]
+    transports: ["telegram"]
+    template: "templates/telegram_ransomware.j2"
+
+store:
+  sqlite_path: ".cassandra_cti.db"

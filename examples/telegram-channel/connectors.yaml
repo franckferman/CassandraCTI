@@ -1,0 +1,15 @@
+connectors:
+  # Telegram Bot API (no incoming webhook — you need a bot token + a chat id):
+  #   1. Create a bot with @BotFather -> /newbot -> copy the token
+  #   2. Add the bot to your channel/group AS AN ADMINISTRATOR
+  #   3. chat_id: "@publicchannel"  (public)  OR  -100123456789  (private id)
+  #   Test:  cassandra doctor connector --id telegram \
+  #            --connectors examples/telegram-channel/connectors.yaml
+  - id: telegram
+    type: telegram
+    params:
+      bot_token: ${TELEGRAM_BOT_TOKEN}
+      chat_id: ${TELEGRAM_CHAT_ID}
+      parse_mode: "HTML"          # default; falls back to plain text on parse errors
+      throttle_ms: 1000
+      emojis: true

@@ -22,6 +22,7 @@
 <p align="center">
   <a href="#about">About</a> ·
   <a href="#getting-started">Getting Started</a> ·
+  <a href="examples/">Examples</a> ·
   <a href="#configuration">Configuration</a> ·
   <a href="#sources">Sources</a> ·
   <a href="#transports">Transports</a> ·
@@ -124,6 +125,8 @@ cassandra quickstart --no-web     # just create the config files
 ```
 
 The shipped `config.example.yaml` already enables RSS, ransomware.live, Red Flag Domains, CISA KEV and abuse.ch, so the dashboard fills up on the first pass. To also push alerts to Teams/Discord/Telegram/Email, wire a connector and a route as below.
+
+> **Prefer a worked example?** The [`examples/`](examples/) directory has ready-to-run `config.yaml` + `connectors.yaml` pairs — one per scenario (Discord quickstart, multi-channel Teams SOC, Telegram channel, email digest, vulnerability/IOC watch, dashboard-only). Copy the closest folder, set its env vars, and run. See [`examples/README.md`](examples/README.md).
 
 ### Quick Start
 

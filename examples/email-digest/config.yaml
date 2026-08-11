@@ -1,0 +1,33 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Email digest — one grouped email instead of one per item.
+# Batching on the SMTP connector + a longer interval = a periodic roundup.
+#
+# Run (e.g. an hourly digest):
+#   export SMTP_HOST=smtp.gmail.com SMTP_USERNAME=you@gmail.com \
+#          SMTP_PASSWORD="app-password" SMTP_FROM=you@gmail.com SMTP_TO=soc@example.com
+#   cassandra run --loop --interval 3600 \
+#     --config examples/email-digest/config.yaml \
+#     --connectors examples/email-digest/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  rss:
+    enabled: true
+    feeds:
+      - { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+      - { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml", tags: ["news"] }
+      - { name: "SANS ISC", url: "https://isc.sans.edu/rssfeed_full.xml", tags: ["news"] }
+
+transports:
+  use: ["email"]
+
+routes:
+  - name: news-digest
+    include_sources: ["rss:"]
+    transports: ["email"]
+    template: "templates/smtp_default.j2"   # HTML email body
+
+store:
+  sqlite_path: ".cassandra_cti.db"

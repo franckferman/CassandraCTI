@@ -1,0 +1,37 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Discord quickstart — the simplest useful setup.
+# A few news feeds + ransomware.live, everything into ONE Discord channel.
+#
+# Run:
+#   export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+#   cassandra run --loop --interval 300 \
+#     --config examples/discord-quickstart/config.yaml \
+#     --connectors examples/discord-quickstart/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  rss:
+    enabled: true
+    feeds:
+      - { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+      - { name: "The Hacker News", url: "https://feeds.feedburner.com/TheHackersNews", tags: ["news"] }
+      - { name: "Krebs on Security", url: "https://krebsonsecurity.com/feed/", tags: ["news"] }
+
+  ransomware_live:
+    enabled: true
+    lookback_days: 7          # only victims disclosed in the last week
+
+transports:
+  use: ["discord"]            # activate the connector defined in connectors.yaml
+
+routes:
+  # One catch-all route: '.' matches every event. Discord speaks Markdown, so
+  # the built-in default layout is fine — no template needed to start.
+  - name: all-to-discord
+    include_regex: "."
+    transports: ["discord"]
+
+store:
+  sqlite_path: ".cassandra_cti.db"   # remembers what was already sent (dedup)

@@ -1,0 +1,44 @@
+connectors:
+  # One Teams connector per channel. Each webhook points at a different channel;
+  # the theme_color just tints the card's left border. throttle_ms respects Teams
+  # rate limits (keep >= 1000 for busy channels).
+  - id: teams-cert
+    type: teams
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_CERT}
+      theme_color: "0078D7"      # blue
+      throttle_ms: 1000
+      emojis: true
+
+  - id: teams-vendor
+    type: teams
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_VENDOR}
+      theme_color: "8E44AD"      # purple
+      throttle_ms: 1000
+      emojis: true
+
+  - id: teams-news
+    type: teams
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_NEWS}
+      theme_color: "D83B01"      # orange
+      throttle_ms: 1000
+      emojis: true
+      batching: { enabled: true, max_items: 5 }   # group busy news into fewer cards
+
+  - id: teams-ransomware
+    type: teams
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_RANSOMWARE}
+      theme_color: "107C10"      # green
+      throttle_ms: 1000
+      emojis: true
+
+  - id: teams-domains
+    type: teams
+    params:
+      webhook_url: ${MSTEAMS_WEBHOOK_DOMAINS}
+      theme_color: "C0392B"      # red
+      throttle_ms: 1000
+      emojis: true

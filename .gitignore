@@ -119,6 +119,9 @@ $RECYCLE.BIN/
 # Project secrets & local state
 config.yaml
 connectors.yaml
+# ...but DO ship the example configs (they use ${ENV} placeholders, no secrets)
+!examples/**/config.yaml
+!examples/**/connectors.yaml
 *.cassandra_cti.db
 *.cassandra_cti.db-wal
 *.cassandra_cti.db-shm

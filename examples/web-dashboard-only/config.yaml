@@ -1,0 +1,50 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Web dashboard only — collect everything, send nothing outside.
+# A local read-only console (SSE live feed + history), no Teams/Discord/etc.
+# The 'web' connector + catch-all route below make every event show up in the
+# dashboard. --loop keeps the server alive.
+#
+# Run, then open http://127.0.0.1:8080 :
+#   cassandra run --loop --interval 300 \
+#     --config examples/web-dashboard-only/config.yaml \
+#     --connectors examples/web-dashboard-only/connectors.yaml
+#
+# Shortcut (no connectors file needed): cassandra run --web --config <this file>
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  rss:
+    enabled: true
+    feeds:
+      - { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+      - { name: "Krebs on Security", url: "https://krebsonsecurity.com/feed/", tags: ["news"] }
+      - { name: "CERT-FR Alertes", url: "https://cert.ssi.gouv.fr/alerte/feed/", tags: ["cert"] }
+
+  ransomware_live:
+    enabled: true
+    lookback_days: 14
+
+  red_flag_domains:
+    enabled: true
+
+  cisa_kev:
+    enabled: true
+    lookback_days: 365
+
+  abusech:
+    enabled: true
+    feeds: ["feodo", "urlhaus"]     # public feeds; add a key for threatfox/malwarebazaar
+
+transports:
+  use: ["web"]
+
+routes:
+  # Feed everything into the dashboard.
+  - name: dashboard
+    include_regex: "."
+    transports: ["web"]
+
+store:
+  sqlite_path: ".cassandra_cti.db"

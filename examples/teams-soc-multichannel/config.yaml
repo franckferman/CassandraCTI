@@ -1,0 +1,66 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Teams SOC — route by topic to SEPARATE Teams channels.
+# CERT alerts, vendor advisories and general news each land in their own channel;
+# ransomware and malicious domains get dedicated channels too. This is the
+# "one event → the right channel" pattern, driven by feed tags + source.
+#
+# Run:
+#   export MSTEAMS_WEBHOOK_CERT=...  MSTEAMS_WEBHOOK_VENDOR=...
+#   export MSTEAMS_WEBHOOK_NEWS=...  MSTEAMS_WEBHOOK_RANSOMWARE=...  MSTEAMS_WEBHOOK_DOMAINS=...
+#   cassandra run --loop --interval 300 \
+#     --config examples/teams-soc-multichannel/config.yaml \
+#     --connectors examples/teams-soc-multichannel/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  rss:
+    enabled: true
+    feeds:
+      # tag drives the routing below
+      - { name: "CERT-FR Alertes", url: "https://cert.ssi.gouv.fr/alerte/feed/", tags: ["cert"] }
+      - { name: "US-CERT CISA", url: "https://www.cisa.gov/cybersecurity-advisories/all.xml", tags: ["cert"] }
+      - { name: "Microsoft Security", url: "https://www.microsoft.com/en-us/security/blog/feed/", tags: ["vendor"] }
+      - { name: "Cisco Talos", url: "https://blog.talosintelligence.com/rss/", tags: ["vendor"] }
+      - { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+
+  ransomware_live:
+    enabled: true
+    lookback_days: 7
+
+  red_flag_domains:
+    enabled: true
+
+transports:
+  use: ["teams-cert", "teams-vendor", "teams-news", "teams-ransomware", "teams-domains"]
+
+routes:
+  - name: cert
+    include_tags: ["cert"]
+    transports: ["teams-cert"]
+    template: "templates/rss_default.j2"
+
+  - name: vendor
+    include_tags: ["vendor"]
+    transports: ["teams-vendor"]
+    template: "templates/rss_default.j2"
+
+  - name: news
+    include_tags: ["news"]
+    transports: ["teams-news"]
+    template: "templates/rss_default.j2"
+
+  - name: ransomware
+    include_sources: ["ransomware.live"]
+    transports: ["teams-ransomware"]
+    template: "templates/ransomware_card.j2"
+
+  - name: domains
+    include_sources: ["red.flag.domains"]
+    transports: ["teams-domains"]
+    template: "templates/domains_list.j2"
+
+store:
+  sqlite_path: ".cassandra_cti.db"
+  seen_ttl_days: 90
