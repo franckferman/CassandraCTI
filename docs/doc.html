@@ -1362,11 +1362,20 @@ sources:
         <tr><td>Both at once</td><td><code>["+33611111111", "group.AbCdEf123="]</code></td></tr>
       </table>
 
-      <h3>Setup &amp; test</h3>
-      <pre><code><span class="hl">docker run -d -p 8090:8080 -v signal-cli:/home/.local/share/signal-cli \
-  bbernhard/signal-cli-rest-api</span>
-<span class="hl-dim"># register your number via the bridge (see its README), then:</span>
+      <h3>Setup &amp; test (one-time)</h3>
+      <p><strong>1.</strong> Run the bridge — device linking needs <code>json-rpc</code> mode and outbound network:</p>
+      <pre><code><span class="hl">docker run -d --name signal-api -p 8090:8080 --dns 9.9.9.9 \
+  -v $HOME/.local/share/signal-api:/home/.local/share/signal-cli \
+  -e MODE=json-rpc bbernhard/signal-cli-rest-api</span></code></pre>
+      <p><strong>2.</strong> Link it to your Signal account as a <strong>secondary device</strong> (your phone stays primary — no number takeover):</p>
+      <pre><code><span class="hl">curl -s -o signal-qr.png "http://localhost:8090/v1/qrcodelink?device_name=cassandra-cti"
+xdg-open signal-qr.png</span>   <span class="hl-dim"># phone: Signal -> Settings -> Linked devices -> + -> scan</span></code></pre>
+      <p><strong>3.</strong> Confirm the link, then send a test:</p>
+      <pre><code><span class="hl">curl -s http://localhost:8090/v1/accounts</span>   <span class="hl-dim"># should list your number</span>
 <span class="hl">cassandra doctor connector --id signal-soc</span></code></pre>
+      <div class="callout">
+        <p>If linking fails with <em>"Connection closed"</em>, the container has no internet — check <code>docker exec signal-api getent hosts chat.signal.org</code>. A common cause is a host firewall dropping the Docker bridge's forwarded traffic (allow forwarding for <code>docker0</code>). Alternatively you can register a <strong>dedicated</strong> number as a new primary (<code>POST /v1/register/{number}</code> + SMS/captcha) — never with your personal number.</p>
+      </div>
       <p>Messages are <strong>plain text</strong> (URLs auto-link), so leave Signal routes template-less or use a plain-text template — a Markdown/HTML card would show its markup literally.</p>
 
       <div class="callout">

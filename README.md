@@ -628,7 +628,32 @@ connectors:
 | A group only | `["group.AbCdEf123="]` |
 | Both at once | `["+33611111111", "group.AbCdEf123="]` |
 
-**Setup:** `docker run -d -p 8090:8080 -v signal-cli:/home/.local/share/signal-cli bbernhard/signal-cli-rest-api`, register your number (see the bridge's README), then test it live: `cassandra doctor connector --id signal-soc`. Messages are **plain text** (URLs auto-link), so leave routes template-less or use a plain-text template.
+**Setup (one-time):**
+
+1. **Run the bridge** — device linking needs `json-rpc` mode and outbound network:
+   ```bash
+   docker run -d --name signal-api -p 8090:8080 --dns 9.9.9.9 \
+     -v $HOME/.local/share/signal-api:/home/.local/share/signal-cli \
+     -e MODE=json-rpc bbernhard/signal-cli-rest-api
+   ```
+   If linking later fails with *"Connection closed"*, the container has no internet — check DNS/egress (`docker exec signal-api getent hosts chat.signal.org`). A common cause is a host firewall dropping the Docker bridge's forwarded traffic.
+
+2. **Link it to your Signal account** (as a secondary device — your phone stays primary, no number takeover):
+   ```bash
+   curl -s -o signal-qr.png "http://localhost:8090/v1/qrcodelink?device_name=cassandra-cti"
+   xdg-open signal-qr.png          # then on your phone: Signal → Settings →
+                                   # Linked devices → + → scan (QR expires in minutes)
+   ```
+
+3. **Confirm** the link, then send a test:
+   ```bash
+   curl -s http://localhost:8090/v1/accounts        # should list your number
+   cassandra doctor connector --id signal-soc
+   ```
+
+> Alternatively, register a **dedicated** number as a new primary (`POST /v1/register/{number}` + SMS/captcha verify) — never do this with your personal number, it would deregister Signal on your phone.
+
+Messages are **plain text** (URLs auto-link), so leave Signal routes template-less or use a plain-text template.
 
 > **Supply-chain:** the transport is a thin HTTP client — it imports no Signal library and vendors no bridge code, so there's no code-level dependency on the bridge (it's an external process behind `api_url`). To harden the bridge, pin the image by digest (`…@sha256:…` instead of `:latest`) or self-build from a reviewed fork — the transport works unchanged against any of them.
 
