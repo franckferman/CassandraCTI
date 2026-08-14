@@ -20,6 +20,7 @@ class Route(BaseModel):
     include_sources: Optional[List[str]] = None
     include_tags: Optional[List[str]] = None
     include_regex: Optional[str] = None
+    include_terms: Optional[List[str]] = None
     transports: List[str] = Field(default_factory=list)
     template: Optional[str] = None
 
@@ -31,6 +32,7 @@ class Briefing(BaseModel):
     include_sources: Optional[List[str]] = None
     include_tags: Optional[List[str]] = None
     include_regex: Optional[str] = None
+    include_terms: Optional[List[str]] = None
     min_items: int = 1
     max_items: int = 40
     title: Optional[str] = None

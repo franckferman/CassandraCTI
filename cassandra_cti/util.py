@@ -5,7 +5,30 @@ from __future__ import annotations
 import os
 import re
 import hashlib
+import unicodedata
 from url_normalize import url_normalize
+
+
+def fold_text(s: str | None) -> str:
+    """Lowercase + strip accents, for case/accent-insensitive substring matching
+    (so 'Credit' matches 'Crédit'). Used by entity/term watch selectors."""
+    if not s:
+        return ""
+    n = unicodedata.normalize("NFKD", str(s))
+    return "".join(c for c in n if not unicodedata.combining(c)).lower()
+
+
+def any_term_in(terms, haystack: str) -> bool:
+    """True if any (accent/case-folded) term is a substring of the folded haystack."""
+    hay = fold_text(haystack)
+    if not hay:
+        return False
+    for t in (terms or []):
+        ft = fold_text(t)
+        if ft and ft in hay:
+            return True
+    return False
+
 
 _env_pattern = re.compile(r"\$\{([A-Z0-9_]+)\}")
 TRACKERS = re.compile(r'([?&])(utm_[^=]+|fbclid|gclid|mc_cid|mc_eid)=[^&]+')

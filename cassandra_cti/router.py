@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import re
 from typing import List, Dict
-from .models import Event
+from .models import Event, public_meta
 from .config import RouteDef
+from .util import any_term_in
 
 
 class Router:
@@ -58,6 +59,18 @@ class Router:
                 if rgx and (rgx.search(ev.title or "") or rgx.search(ev.source or "")):
                     ok = True
                     reason = "regex_match"
+
+            # Check plain terms (entity/company watch) — matches title + summary +
+            # source + tags + meta, accent/case-insensitive.
+            if not ok and getattr(r, "include_terms", None):
+                hay = " ".join([
+                    ev.title or "", ev.summary or "", ev.source or "",
+                    " ".join(ev.tags or []),
+                    " ".join(str(v) for v in public_meta(ev.raw).values()),
+                ])
+                if any_term_in(r.include_terms, hay):
+                    ok = True
+                    reason = "term_match"
 
             if ok:
                 logger.debug(f"Route '{r.name}' matched event '{ev.title}' (source={ev.source}) via {reason}. Transports: {r.transports}")

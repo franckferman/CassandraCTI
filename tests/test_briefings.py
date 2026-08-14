@@ -74,6 +74,16 @@ def test_matches_or_semantics_and_catchall():
     assert matches(catchall, {"source": "anything", "tags": [], "title": "x"})
 
 
+def test_matches_include_terms_over_title_summary_meta():
+    b = _brief(include_sources=None, include_tags=None, include_terms=["Credit Agricole"])
+    assert matches(b, {"source": "rss:X", "title": "Crédit Agricole piraté", "tags": [], "meta": {}})
+    assert matches(b, {"source": "rss:X", "title": "breach", "summary": "victim credit agricole", "tags": [], "meta": {}})
+    assert matches(b, {"source": "ransomware.live", "title": "v by g", "tags": [], "meta": {"victim": "Credit Agricole SA"}})
+    assert not matches(b, {"source": "rss:X", "title": "unrelated", "tags": [], "meta": {}})
+    # a briefing with ONLY include_terms must not become a catch-all
+    assert not matches(b, {"source": "x", "title": "nothing", "summary": "", "tags": [], "meta": {}})
+
+
 def test_sends_when_due(tmp_path):
     st = _store(tmp_path, ["cisa.kev", "cisa.kev", "rss:News"])
     llm, rec = FakeLLM(), Rec()

@@ -23,6 +23,7 @@ class RouteDef:
     include_sources: Optional[List[str]] = None
     include_tags: Optional[List[str]] = None
     include_regex: Optional[str] = None
+    include_terms: Optional[List[str]] = None
     transports: List[str] = None
     template: Optional[str] = None
 
@@ -35,6 +36,7 @@ class BriefingDef:
     include_sources: Optional[List[str]] = None
     include_tags: Optional[List[str]] = None
     include_regex: Optional[str] = None
+    include_terms: Optional[List[str]] = None
     min_items: int = 1
     max_items: int = 40
     title: Optional[str] = None
@@ -119,6 +121,7 @@ def load_settings(path: str, connectors_path: str | None = None) -> Settings:
             include_sources=r.get("include_sources"),
             include_tags=r.get("include_tags"),
             include_regex=r.get("include_regex"),
+            include_terms=r.get("include_terms"),
             transports=r.get("transports", []),
             template=r.get("template"),
         ))
@@ -132,6 +135,7 @@ def load_settings(path: str, connectors_path: str | None = None) -> Settings:
             include_sources=b.get("include_sources"),
             include_tags=b.get("include_tags"),
             include_regex=b.get("include_regex"),
+            include_terms=b.get("include_terms"),
             min_items=int(b.get("min_items", 1)),
             max_items=int(b.get("max_items", 40)),
             title=b.get("title"),

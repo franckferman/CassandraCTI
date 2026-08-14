@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 
 from .llm import LLM, LLMError
 from .models import Event
+from .util import any_term_in
 
 _DUR = re.compile(r"^\s*(\d+)\s*([smhd])\s*$")
 _UNIT = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days"}
@@ -48,11 +49,11 @@ def schedule_label(s: str) -> str:
 
 
 def matches(b, row: Dict[str, Any]) -> bool:
-    """OR across include_sources / include_tags / include_regex — mirrors the
-    Router. A briefing with no selector matches everything (a firehose recap)."""
+    """OR across include_sources / include_tags / include_regex / include_terms —
+    mirrors the Router. A briefing with no selector matches everything."""
     src = row.get("source") or ""
     tags = row.get("tags") or []
-    if not (b.include_sources or b.include_tags or b.include_regex):
+    if not (b.include_sources or b.include_tags or b.include_regex or b.include_terms):
         return True
     if b.include_sources:
         for inc in b.include_sources:
@@ -70,6 +71,14 @@ def matches(b, row: Dict[str, Any]) -> bool:
                 return True
         except re.error:
             pass
+    if b.include_terms:
+        hay = " ".join([
+            row.get("title") or "", row.get("summary") or "", src,
+            " ".join(tags),
+            " ".join(str(v) for v in (row.get("meta") or {}).values()),
+        ])
+        if any_term_in(b.include_terms, hay):
+            return True
     return False
 
 
