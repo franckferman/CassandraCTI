@@ -34,6 +34,7 @@ card sent to SMTP would show literal `**` and `[](…)`.
 |-------------|----------------------------|-----------------|
 | RSS / news (`rss:*`)          | `rss_default.j2`, `discord_default.j2` | `telegram_default.j2`, `telegram_press.j2`, `telegram_8k.j2` |
 | Ransomware (`ransomware.live`)| `ransomware_card.j2`       | `telegram_ransomware.j2`, `telegram_stats.j2` (digest) |
+| Ransomware — **plain text** (Signal/SMS) | `ransomware_plain.j2` (normal + .onion links) | — |
 | Red-flag domains (`red.flag.domains`) | `domains_list.j2`  | `telegram_domains.j2` |
 | Vulnerabilities (`cisa.kev`)  | `vuln_card.j2`             | `telegram_vuln.j2` |
 | IOCs (`abuse.ch`)             | `ioc_card.j2`              | `telegram_ioc.j2` |

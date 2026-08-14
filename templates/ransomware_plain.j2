@@ -1,0 +1,13 @@
+{#- Ransomware card in PLAIN TEXT (Signal / SMS-style transports — no Markdown,
+    no HTML). Shows the normal ransomware.live link AND the .onion leak site when
+    the group provides one. Empty fields are skipped. -#}
+{%- set NA = ['', 'N/A', 'n/a', 'None', 'none', 'Not Found', '-', 'null', 'Unknown'] -%}
+{% if raw.group_name and raw.group_name not in NA %}Group: {{ raw.group_name }}
+{% endif %}{% if raw.country_display and raw.country_display not in NA %}Country: {{ raw.country_display }}{% if raw.country_flag %} {{ raw.country_flag }}{% endif %}
+{% endif %}{% if raw.activity and raw.activity not in NA %}Sector: {{ raw.activity }}
+{% endif %}{% if raw.data_size and raw.data_size not in NA %}Data: {{ raw.data_size }}
+{% endif %}{% if summary and summary not in NA %}
+{{ summary | striptags | truncate(400, true) }}
+{% endif %}{% if url %}
+🌐 {{ url }}{% endif %}{% if raw.leak_url and '.onion' in raw.leak_url %}
+🧅 Leak (Tor): {{ raw.leak_url }}{% endif %}

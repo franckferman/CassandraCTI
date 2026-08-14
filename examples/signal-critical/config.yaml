@@ -41,6 +41,7 @@ routes:
   - name: ransomware
     include_sources: ["ransomware.live"]
     transports: ["signal-soc"]
+    template: "templates/ransomware_plain.j2"   # plain text: shows normal + .onion (Tor) links
 
 store:
   sqlite_path: ".cassandra_cti.db"
