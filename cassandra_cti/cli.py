@@ -369,6 +369,7 @@ def routes_add(name: str = typer.Option(...),
                include: Optional[str] = typer.Option(None, help="e.g. 'rss:' or 'ransomware.live'"),
                include_tag: Optional[str] = typer.Option(None, help="single tag"),
                include_regex: Optional[str] = typer.Option(None, help="regex on title/source"),
+               include_terms: Optional[str] = typer.Option(None, help="comma-separated entity/company names to watch (title/summary/meta)"),
                transports: str = typer.Option(..., help="comma-separated IDs"),
                template: Optional[Path] = typer.Option(None, help="path to template.j2"),
                config: Path = typer.Option(None)):
@@ -388,6 +389,8 @@ def routes_add(name: str = typer.Option(...),
         R["include_tags"] = [include_tag]
     if include_regex:
         R["include_regex"] = include_regex
+    if include_terms:
+        R["include_terms"] = [t.strip() for t in include_terms.split(",") if t.strip()]
     if template:
         R["template"] = str(template)
 
@@ -403,6 +406,7 @@ def briefing_add(name: str = typer.Option(..., help="Unique briefing name"),
                  include: Optional[str] = typer.Option(None, help="source, e.g. 'cisa.kev' or 'rss:'"),
                  include_tag: Optional[str] = typer.Option(None, help="single tag, e.g. 'cert'"),
                  include_regex: Optional[str] = typer.Option(None, help="regex on title/source"),
+                 include_terms: Optional[str] = typer.Option(None, help="comma-separated entity/company names to watch"),
                  schedule: str = typer.Option("24h", help="cadence: 24h | 6h | 30m | 2d"),
                  min_items: int = typer.Option(1, help="skip if fewer than N new items"),
                  max_items: int = typer.Option(40, help="cap items fed to the LLM"),
@@ -423,6 +427,8 @@ def briefing_add(name: str = typer.Option(..., help="Unique briefing name"),
         B["include_tags"] = [include_tag]
     if include_regex:
         B["include_regex"] = include_regex
+    if include_terms:
+        B["include_terms"] = [t.strip() for t in include_terms.split(",") if t.strip()]
     if title:
         B["title"] = title
     if template:

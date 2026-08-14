@@ -286,6 +286,23 @@ def test_briefing_add(tmp_path):
     assert b["schedule"] == "12h"
 
 
+def test_routes_add_include_terms(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    r = runner.invoke(app, ["routes-add", "--name", "entity", "--transports", "signal-soc",
+                            "--include-terms", "Credit Agricole, Gouvernement", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    route = _read_yaml(cfg)["routes"][0]
+    assert route["include_terms"] == ["Credit Agricole", "Gouvernement"]
+
+
+def test_briefing_add_include_terms(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    r = runner.invoke(app, ["briefing-add", "--name", "watch", "--transports", "d1",
+                            "--include-terms", "BNP,Credit Agricole", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    assert _read_yaml(cfg)["briefings"][0]["include_terms"] == ["BNP", "Credit Agricole"]
+
+
 def test_list_shows_briefings(tmp_path):
     cfg = tmp_path / "config.yaml"
     cx = tmp_path / "connectors.yaml"
