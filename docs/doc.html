@@ -565,14 +565,20 @@
       <div class="section-tag">Getting Started</div>
       <h2>Quick Start</h2>
 
+      <div class="callout">
+        <p><strong>In a hurry?</strong> <code>cassandra quickstart</code> scaffolds the config files and opens the live dashboard in one command. The steps below wire up alerting to Teams/Discord/Telegram/email.</p>
+      </div>
+
       <h4>1. Initialize config files</h4>
       <pre><code><span class="hl">cassandra init</span></code></pre>
 
-      <h4>2. Add a Teams webhook connector</h4>
-      <pre><code><span class="hl">cassandra add-connector \
-  --id "teams-soc" \
-  --webhook-url "https://your-tenant.webhook.office.com/..." \
-  --theme-color "0078D7"</span></code></pre>
+      <h4>2. Add a connector</h4>
+      <pre><code><span class="hl-dim"># --type: teams (default) | discord | telegram | smtp</span>
+<span class="hl">cassandra add-connector --id "teams-soc" --type teams \
+  --webhook-url "https://your-tenant.webhook.office.com/..." --theme-color "0078D7"</span>
+
+<span class="hl">cassandra add-connector --id "tg-soc" --type telegram \
+  --bot-token "$TELEGRAM_BOT_TOKEN" --chat-id "@my_channel"</span></code></pre>
 
       <h4>3. Add threat intel sources</h4>
       <pre><code><span class="hl-dim"># RSS feed</span>
@@ -581,11 +587,11 @@
   --url "https://cert.ssi.gouv.fr/alerte/feed/" \
   --tags "cert,fr"</span>
 
-<span class="hl-dim"># Ransomware tracker</span>
+<span class="hl-dim"># Ransomware · domains · CVEs (CISA KEV) · IOCs (abuse.ch)</span>
 <span class="hl">cassandra add-source ransomware_live</span>
-
-<span class="hl-dim"># Malicious domain list</span>
-<span class="hl">cassandra add-source redflag</span></code></pre>
+<span class="hl">cassandra add-source redflag</span>
+<span class="hl">cassandra add-source kev</span>
+<span class="hl">cassandra add-source abusech --feeds "feodo,urlhaus"</span></code></pre>
 
       <h4>4. Validate configuration</h4>
       <pre><code><span class="hl">cassandra doctor config</span>
@@ -597,6 +603,9 @@
 
 <span class="hl-dim"># Loop every 5 minutes</span>
 <span class="hl">cassandra run --loop --interval 300</span>
+
+<span class="hl-dim"># Serve the live dashboard (implies --loop)</span>
+<span class="hl">cassandra run --web</span>
 
 <span class="hl-dim"># Dry run (no messages sent)</span>
 <span class="hl">cassandra run --dry-run --verbose</span></code></pre>
@@ -690,6 +699,13 @@
         <tr><td>ransomware_*.api_key</td><td>string</td><td>PRO API key for the PRO-only feeds. Without it these feeds skip and warn (no fallback).</td></tr>
         <tr><td>red_flag_domains.enabled</td><td>bool</td><td>Enable Red Flag Domains source.</td></tr>
         <tr><td>red_flag_domains.base_url</td><td>string</td><td>Optional override for the daily list base URL.</td></tr>
+        <tr><td>cisa_kev.enabled</td><td>bool</td><td>Enable the CISA KEV source (actively-exploited CVEs). No API key.</td></tr>
+        <tr><td>cisa_kev.lookback_days</td><td>int</td><td>Keep CVEs added within this window. Default: 365.</td></tr>
+        <tr><td>cisa_kev.max_items</td><td>int</td><td>Cap on CVEs emitted per fetch. Default: 80.</td></tr>
+        <tr><td>abusech.enabled</td><td>bool</td><td>Enable the abuse.ch IOC source.</td></tr>
+        <tr><td>abusech.feeds</td><td>list</td><td>Which feeds to pull: <code>feodo</code>, <code>urlhaus</code>, <code>threatfox</code>, <code>malwarebazaar</code>.</td></tr>
+        <tr><td>abusech.api_key</td><td>string</td><td>Optional Auth-Key; unlocks ThreatFox + MalwareBazaar. Feodo/URLhaus are public.</td></tr>
+        <tr><td>abusech.max_items</td><td>int</td><td>Cap on IOCs emitted per fetch. Default: 60.</td></tr>
       </table>
 
       <h3 id="cfg-filters">Filters</h3>
