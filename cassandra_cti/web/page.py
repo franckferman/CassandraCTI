@@ -364,7 +364,7 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
   // State
   var S = { tab: "overview", q: "", sort: "new", range: "all", period: "7d", inv: false, sound: false, filters: {} };
   var MAX = 800, store = [], byCid = {}, cidSeq = 0, stats = null, loaded = false;
-  var meta = { inventory: { enabled: false, terms: [] }, llm: { enabled: false } }, invTerms = [], aiOn = false;
+  var meta = { inventory: { enabled: false, terms: [] }, llm: { enabled: false } }, invTerms = [], invMode = "highlight", aiOn = false;
   var paused = false, pending = [];
 
   var TABS = [
@@ -517,7 +517,7 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
       '<span class="lact">' + acts + "</span></div>";
   }
   function currentItems(t) { var fs = S.filters[t.id] || (S.filters[t.id] = {}), q = S.q.trim().toLowerCase();
-    var items = store.filter(function (e) { if (t.kinds && t.kinds.indexOf(kind(e.source)) < 0) return false; if (S.inv && !invMatch(e)) return false; if (!withinRange(e)) return false;
+    var items = store.filter(function (e) { if (t.kinds && t.kinds.indexOf(kind(e.source)) < 0) return false; if (S.inv && invMode === "filter" && !invMatch(e)) return false; if (!withinRange(e)) return false;
       var ok = true; (t.filters || []).forEach(function (f) { var v = fs[f.id]; if (!v) return; if (f.getMulti) { if ((f.getMulti(e) || []).indexOf(v) < 0) ok = false; } else if (f.get(e) !== v) ok = false; });
       (t.toggles || []).forEach(function (tg) { if (fs[tg.id] && !tg.test(e)) ok = false; });
       if (ok && q) { if ((((e.title || "") + " " + (e.summary || "") + " " + JSON.stringify(e.meta || {})).toLowerCase()).indexOf(q) < 0) ok = false; } return ok; });
@@ -534,7 +534,7 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
     html += '<select class="f" id="range">' + [["all", "any time"], ["24h", "24h"], ["7d", "7d"], ["30d", "30d"]].map(function (o) { return '<option value="' + o[0] + '"' + (S.range === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select>";
     html += '<select class="f" id="sort">' + [["new", "newest"], ["old", "oldest"], ["crit", "criticality"]].map(function (o) { return '<option value="' + o[0] + '"' + (S.sort === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select>";
     html += '<span class="spacer"></span><span class="rescount">' + fmt(items.length) + " rows</span>";
-    if (meta.inventory && meta.inventory.enabled) html += '<button class="b' + (S.inv ? " on" : "") + '" id="inv" title="Match only my inventory">' + svg("vuln") + "INV</button>";
+    if (meta.inventory && meta.inventory.enabled) html += '<button class="b' + (S.inv ? " on" : "") + '" id="inv" title="' + (invMode === "filter" ? "Show only my inventory" : "Highlight my inventory") + '">' + svg("vuln") + "INV</button>";
     html += '<button class="b" id="csv" title="Export CSV">' + svg("down") + 'CSV</button>';
     html += '<button class="b" id="json" title="Export JSON">JSON</button>';
     html += '<button class="b" id="pause">' + (paused ? "resume" : "pause") + "</button></div>";
@@ -616,7 +616,7 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
   var qs = new URLSearchParams(location.search), token = qs.get("token"), tokenQ = token ? "?token=" + encodeURIComponent(token) : "";
   function withToken(p) { return p + (token ? (p.indexOf("?") === -1 ? "?" : "&") + "token=" + encodeURIComponent(token) : ""); }
   function pollStats() { fetch(withToken("/api/stats")).then(function (r) { return r.ok ? r.json() : null; }).then(function (s) { if (s) { stats = s; if (S.tab === "overview" && loaded) renderOverview(); } }).catch(function () {}); }
-  function loadMeta() { fetch(withToken("/api/meta")).then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { if (!m) return; meta = m; invTerms = (m.inventory && m.inventory.terms) || []; aiOn = !!(m.llm && m.llm.enabled && (m.llm.available !== false)); render(); }).catch(function () {}); }
+  function loadMeta() { fetch(withToken("/api/meta")).then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { if (!m) return; meta = m; invTerms = (m.inventory && m.inventory.terms) || []; invMode = (m.inventory && m.inventory.mode) || "highlight"; aiOn = !!(m.llm && m.llm.enabled && (m.llm.available !== false)); render(); }).catch(function () {}); }
 
   readURL(); soundBtn.classList.toggle("on", S.sound); render();
   fetch(withToken("/api/events?limit=1000")).then(function (r) { return r.ok ? r.json() : { events: [] }; })

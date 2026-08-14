@@ -196,8 +196,13 @@ def test_add_connector_types_and_validation(tmp_path):
                         "--bot-token", "1:AA", "--chat-id", "@c", "--connectors", str(cx)])
     runner.invoke(app, ["add-connector", "--id", "mail", "--type", "smtp", "--host", "localhost",
                         "--from-addr", "a@b.c", "--to-addrs", "x@y.z", "--connectors", str(cx)])
+    runner.invoke(app, ["add-connector", "--id", "web", "--type", "web",
+                        "--dashboard-port", "9000", "--token", "sek", "--connectors", str(cx)])
 
     conns = {c["id"]: c for c in _read_yaml(cx)["connectors"]}
+    assert conns["web"]["type"] == "web"
+    assert conns["web"]["params"]["port"] == 9000 and conns["web"]["params"]["host"] == "127.0.0.1"
+    assert conns["web"]["params"]["token"] == "sek"
     assert conns["tm"]["type"] == "teams"
     assert conns["tm"]["params"]["webhook_url"] == "https://x/teams"
     assert conns["dc"]["type"] == "discord" and conns["dc"]["params"]["username"] == "Bot"

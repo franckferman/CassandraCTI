@@ -659,9 +659,11 @@ Both features are **off by default** and live in `config.yaml`. They only affect
 ```yaml
 inventory:
   enabled: true
-  match_mode: highlight        # UI hint; the INV toggle filters + highlights matches
+  match_mode: highlight        # highlight = show all, emphasize matches · filter = show only matches
   terms: ["Fortinet", "Cisco", "VMware", "Microsoft", "Ivanti", "Citrix"]
 ```
+
+The dashboard's **INV** toggle then applies `match_mode`: `highlight` keeps every event but emphasizes the ones touching your stack; `filter` shows only those.
 
 **AI briefs** — a per-event, SOC-oriented summary generated on demand from the *AI brief* row action. Provider-agnostic and private-first: `auto` prefers a reachable local **Ollama** (free, offline), otherwise the first cloud key found in the environment (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `DEEPSEEK_API_KEY`).
 
@@ -921,7 +923,7 @@ cassandra import-feeds feeds.csv
 
 ### `cassandra add-connector`
 
-Add a messaging connector to connectors.yaml. `--type` selects the transport (`teams` default, `discord`, `telegram`, `smtp`); required parameters are validated per type.
+Add a connector to connectors.yaml. `--type` selects the transport (`teams` default, `discord`, `telegram`, `smtp`, `web`); required parameters are validated per type.
 
 ```bash
 # Teams / Discord — incoming webhook

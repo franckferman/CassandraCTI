@@ -115,6 +115,27 @@ def test_force_bypasses_schedule_and_min(tmp_path):
     assert n == 1 and llm.calls == 1 and len(rec.sent) == 1
 
 
+def test_briefing_renders_through_real_transport_template(tmp_path):
+    """End-to-end (minus the LLM network call): the LLM text must survive
+    rendering through a real transport's briefing template into the message body."""
+    from cassandra_cti.transports.discord import DiscordTransport
+    from cassandra_cti.transports.telegram import TelegramTransport
+    from cassandra_cti.models import Event
+    brief = "Overview: two exploited CVEs.\nPriorities:\nAcme VPN RCE - https://nvd.nist.gov/vuln/detail/CVE-2026-1"
+    ev = Event(source="daily-brief", title="Briefing: daily (2 items)", summary=brief, tags=["briefing"])
+
+    md = open("templates/briefing_default.j2", encoding="utf-8").read()
+    ttl, body = DiscordTransport(webhook_url="http://x/h")._render(
+        [ev], title=ev.title, template_text=md)
+    assert "Priorities" in body and "nvd.nist.gov" in body
+    assert "Briefing: daily" in ttl
+
+    tg = open("templates/briefing_telegram.j2", encoding="utf-8").read()
+    tbody = TelegramTransport(bot_token="1:AA", chat_id="@c")._render(
+        [ev], title=ev.title, template_text=tg)   # telegram returns the rendered text
+    assert "nvd.nist.gov" in tbody          # URL preserved (Telegram auto-links plain URLs)
+
+
 def test_dry_run_calls_no_llm_and_marks_nothing(tmp_path):
     st = _store(tmp_path, ["cisa.kev", "cisa.kev"])
     llm, rec = FakeLLM(), Rec()

@@ -294,13 +294,15 @@ def add_connector(id: str = typer.Option(..., "--id", help="Unique connector id"
                   from_addr: Optional[str] = typer.Option(None, help="From address (smtp)"),
                   to_addrs: Optional[str] = typer.Option(None, help="Recipient(s), comma-separated (smtp)"),
                   subject_prefix: str = typer.Option("[CTI]", help="Subject prefix (smtp)"),
+                  dashboard_port: int = typer.Option(8080, help="Dashboard port (web)"),
+                  token: Optional[str] = typer.Option(None, help="Bearer / ?token= auth (web)"),
                   username: Optional[str] = typer.Option(None, help="Display name (discord)"),
                   theme_color: str = typer.Option("000000", help="Card color (teams)"),
                   emojis: bool = typer.Option(True, help="Prefix titles with emojis"),
                   emoji_map: Optional[str] = typer.Option(None, help="inline JSON or path to a JSON file"),
                   batching: Optional[str] = typer.Option(None, help="JSON ex: '{\"enabled\":true,\"max_items\":5}'"),
                   connectors: Path = typer.Option(None)):
-    """Add a messaging connector (teams, discord, telegram or smtp)."""
+    """Add a connector (teams, discord, telegram, smtp or web)."""
     base = default_dir()
     cx_path = connectors or (base / "connectors.yaml")
     cx = yload(cx_path)
@@ -329,6 +331,11 @@ def add_connector(id: str = typer.Option(..., "--id", help="Unique connector id"
         params = {"host": host, "port": port, "security": security,
                   "from_addr": from_addr, "to_addrs": to_addrs,
                   "subject_prefix": subject_prefix, "emojis": emojis}
+    elif t == "web":
+        # Dedicated --dashboard-port avoids colliding with the SMTP --port default.
+        params = {"host": host or "127.0.0.1", "port": dashboard_port}
+        if token:
+            params["token"] = token
     else:
         raise typer.BadParameter(f"Unknown connector type: {type}")
 

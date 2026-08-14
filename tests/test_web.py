@@ -143,6 +143,13 @@ def test_dashboard_page_has_tabs_and_categories():
         assert token in DASHBOARD_PAGE
 
 
+def test_dashboard_inventory_match_mode_is_honored():
+    """The INV toggle must respect match_mode: only 'filter' removes non-matches,
+    'highlight' keeps every event and just emphasizes matches."""
+    assert "m.inventory.mode" in DASHBOARD_PAGE           # client reads the mode
+    assert 'invMode === "filter"' in DASHBOARD_PAGE       # filter-only removal
+
+
 def test_serialize_event_includes_meta():
     ev = _ev(raw={"group_name": "qilin", "country": "US", "activity": "Manufacturing"})
     d = serialize_event(ev)

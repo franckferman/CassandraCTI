@@ -1444,10 +1444,10 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
     <div class="doc-section" id="inventory">
       <div class="section-tag">AI &amp; Automation</div>
       <h2>Inventory</h2>
-      <p>Tell CassandraCTI which vendors/products/OS make up your stack; the dashboard's <strong>INV</strong> toggle then filters the feed to only events that mention them (matches are highlighted). Opt-in, dashboard-only.</p>
+      <p>Tell CassandraCTI which vendors/products/OS make up your stack; the dashboard's <strong>INV</strong> toggle then applies <code>match_mode</code> — <code>highlight</code> keeps every event but emphasizes the ones touching your stack, <code>filter</code> shows only those. Opt-in, dashboard-only.</p>
       <pre><code>inventory:
   enabled: true
-  match_mode: highlight
+  match_mode: highlight    # highlight (show all, emphasize) | filter (show only matches)
   terms: ["Fortinet", "Cisco", "VMware", "Microsoft", "Ivanti", "Citrix"]</code></pre>
     </div>
 
@@ -1566,7 +1566,7 @@ cassandra briefing-run --all --dry-run  # [DRYRUN:BRIEFING], no LLM call</code><
     <div class="doc-section" id="cli-add-connector">
       <div class="section-tag">CLI Reference</div>
       <h2>cassandra add-connector</h2>
-      <p>Add a messaging connector to <code>connectors.yaml</code>. <code>--type</code> selects the transport (<code>teams</code> default, <code>discord</code>, <code>telegram</code>, <code>smtp</code>); required params are validated per type.</p>
+      <p>Add a connector to <code>connectors.yaml</code>. <code>--type</code> selects the transport (<code>teams</code> default, <code>discord</code>, <code>telegram</code>, <code>smtp</code>, <code>web</code>); required params are validated per type.</p>
       <pre><code><span class="hl-dim"># Teams / Discord — incoming webhook</span>
 <span class="hl">cassandra add-connector --id "teams-soc" --type teams   --webhook-url "https://..."
 cassandra add-connector --id "discord"   --type discord --webhook-url "https://..." --username "CassandraCTI"</span>
