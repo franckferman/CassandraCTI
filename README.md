@@ -62,7 +62,7 @@ Originally built as a private internal tool, it is now open-source, designed to 
 | **Live web dashboard** | Dependency-free SOC command center — real-time SSE feed, per-category tabs, filters, export, optional AI briefs |
 | **LLM briefings** | Optional periodic recap per category — prioritised, with links, sent after the alerts (local Ollama or a cloud key) |
 | **Resilient ransomware feed** | Multi-backend fallback chain: API PRO → API v2 → legacy `posts.json` |
-| **Modular transports** | Microsoft Teams, Discord, Telegram, Email (SMTP) — extensible |
+| **Modular transports** | Microsoft Teams, Discord, Telegram, Email (SMTP), Signal, live web dashboard — extensible |
 | **Smart deduplication** | SHA1 event fingerprint + SQLite delivery tracking |
 | **Flexible routing** | Match by source prefix, tag, or regex — every matching route fires |
 | **Jinja2 templates** | Full control over message formatting |
@@ -604,6 +604,34 @@ The event/source name becomes the **Subject** (`subject_prefix` + title); the bo
 
 **Gmail example:** host `smtp.gmail.com`, port `587`, security `starttls`, username = your address, password = a [Google App Password](https://support.google.com/accounts/answer/185833) (not your login password).
 
+### Signal
+
+Sends to Signal via a **self-hosted bridge** — Signal has no hosted webhook/bot API. Run [`bbernhard/signal-cli-rest-api`](https://github.com/bbernhard/signal-cli-rest-api) and register a dedicated number once; CassandraCTI then `POST`s to its `/v2/send`.
+
+```yaml
+connectors:
+  - id: "signal-soc"
+    type: "signal"
+    params:
+      api_url: "http://localhost:8090"     # your signal-cli-rest-api endpoint
+      number: ${SIGNAL_NUMBER}             # the registered sender, e.g. +33600000000
+      recipients: ["+33611111111", "group.AbCdEf123="]
+      throttle_ms: 500
+      # text_mode: styled                  # optional: basic *bold* / _italic_
+```
+
+**`recipients` is a plain list — send to a number, a group, or both:**
+
+| Target | `recipients` |
+|---|---|
+| A number only | `["+33611111111"]` |
+| A group only | `["group.AbCdEf123="]` |
+| Both at once | `["+33611111111", "group.AbCdEf123="]` |
+
+**Setup:** `docker run -d -p 8090:8080 -v signal-cli:/home/.local/share/signal-cli bbernhard/signal-cli-rest-api`, register your number (see the bridge's README), then test it live: `cassandra doctor connector --id signal-soc`. Messages are **plain text** (URLs auto-link), so leave routes template-less or use a plain-text template.
+
+> **Supply-chain:** the transport is a thin HTTP client — it imports no Signal library and vendors no bridge code, so there's no code-level dependency on the bridge (it's an external process behind `api_url`). To harden the bridge, pin the image by digest (`…@sha256:…` instead of `:latest`) or self-build from a reviewed fork — the transport works unchanged against any of them.
+
 ### Web Dashboard
 
 A live, read-only dashboard for a CTI/Blue team: think RSS reader meets alerting console. Events appear in real time (SSE) as they are routed, with history served from the local SQLite store. Zero extra dependency (aiohttp is already required), self-contained page (no CDN — works on isolated networks).
@@ -923,7 +951,7 @@ cassandra import-feeds feeds.csv
 
 ### `cassandra add-connector`
 
-Add a connector to connectors.yaml. `--type` selects the transport (`teams` default, `discord`, `telegram`, `smtp`, `web`); required parameters are validated per type.
+Add a connector to connectors.yaml. `--type` selects the transport (`teams` default, `discord`, `telegram`, `smtp`, `web`, `signal`); required parameters are validated per type.
 
 ```bash
 # Teams / Discord — incoming webhook
@@ -936,6 +964,11 @@ cassandra add-connector --id "tg-soc" --type telegram --bot-token "$TELEGRAM_BOT
 # Email — SMTP
 cassandra add-connector --id "mail" --type smtp \
   --host smtp.gmail.com --from-addr you@example.com --to-addrs "soc@example.com" --security starttls
+
+# Signal — via a self-hosted signal-cli-rest-api bridge (number and/or group)
+cassandra add-connector --id "signal-soc" --type signal \
+  --api-url "http://localhost:8090" --number "$SIGNAL_NUMBER" \
+  --recipients "+33611111111,group.AbCdEf123="
 ```
 
 ---
@@ -1296,6 +1329,7 @@ Secrets never live in the config files — they are injected via `${VAR_NAME}` e
 | `MSTEAMS_WEBHOOK_*` / `DISCORD_WEBHOOK_URL` | Teams / Discord webhooks |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Telegram Bot API |
 | `SMTP_HOST` / `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_TO` | Email (SMTP) transport |
+| `SIGNAL_NUMBER` | Signal sender number registered on your signal-cli-rest-api bridge |
 | `CTI_WEB_TOKEN` | Optional Bearer/`?token=` auth for the web dashboard when exposed |
 | `CTI_TLS_NO_VERIFY` | Disable TLS verification (opt-in, `=1`) |
 | Cloud LLM keys — `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `DEEPSEEK_API_KEY` | Optional AI briefs (only if the `llm` layer is enabled with a cloud provider) |

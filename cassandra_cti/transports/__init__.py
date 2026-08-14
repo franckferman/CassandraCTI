@@ -7,6 +7,7 @@ from .discord import DiscordTransport
 from .telegram import TelegramTransport
 from .smtp import SMTPTransport
 from .web import WebTransport
+from .signal import SignalTransport
 
 REGISTRY = {
     "teams": TeamsTransport,
@@ -14,6 +15,7 @@ REGISTRY = {
     "telegram": TelegramTransport,
     "smtp": SMTPTransport,
     "web": WebTransport,
+    "signal": SignalTransport,
 }
 
 

@@ -96,3 +96,18 @@ connectors:
       host: 127.0.0.1
       port: 8080
       # token: ${CTI_WEB_TOKEN}   # optional Bearer / ?token= authentication
+
+  # --- SIGNAL CONNECTOR ---
+  # Signal has no hosted API — run a self-hosted bridge (bbernhard/signal-cli-rest-api)
+  # and register a dedicated number once. recipients can mix numbers AND group ids.
+  #   docker run -d -p 8090:8080 -v signal-cli:/home/.local/share/signal-cli bbernhard/signal-cli-rest-api
+  - id: signal-soc
+    type: signal
+    params:
+      api_url: "http://localhost:8090"      # your signal-cli-rest-api endpoint
+      number: ${SIGNAL_NUMBER}              # the registered sender, e.g. +33600000000
+      # recipients is a plain list — number only / group only / both:
+      #   ["+33611111111"]  |  ["group.AbCdEf123="]  |  ["+33611111111", "group.AbCdEf123="]
+      recipients: ["+33611111111", "group.AbCdEf123="]
+      throttle_ms: 500
+      # text_mode: styled                   # optional: basic *bold* / _italic_ formatting

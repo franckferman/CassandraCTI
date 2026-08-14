@@ -296,13 +296,16 @@ def add_connector(id: str = typer.Option(..., "--id", help="Unique connector id"
                   subject_prefix: str = typer.Option("[CTI]", help="Subject prefix (smtp)"),
                   dashboard_port: int = typer.Option(8080, help="Dashboard port (web)"),
                   token: Optional[str] = typer.Option(None, help="Bearer / ?token= auth (web)"),
+                  api_url: Optional[str] = typer.Option(None, help="signal-cli-rest-api endpoint (signal)"),
+                  number: Optional[str] = typer.Option(None, help="Registered sender number (signal)"),
+                  recipients: Optional[str] = typer.Option(None, help="Comma-separated numbers and/or group ids (signal)"),
                   username: Optional[str] = typer.Option(None, help="Display name (discord)"),
                   theme_color: str = typer.Option("000000", help="Card color (teams)"),
                   emojis: bool = typer.Option(True, help="Prefix titles with emojis"),
                   emoji_map: Optional[str] = typer.Option(None, help="inline JSON or path to a JSON file"),
                   batching: Optional[str] = typer.Option(None, help="JSON ex: '{\"enabled\":true,\"max_items\":5}'"),
                   connectors: Path = typer.Option(None)):
-    """Add a connector (teams, discord, telegram, smtp or web)."""
+    """Add a connector (teams, discord, telegram, smtp, web or signal)."""
     base = default_dir()
     cx_path = connectors or (base / "connectors.yaml")
     cx = yload(cx_path)
@@ -336,6 +339,12 @@ def add_connector(id: str = typer.Option(..., "--id", help="Unique connector id"
         params = {"host": host or "127.0.0.1", "port": dashboard_port}
         if token:
             params["token"] = token
+    elif t == "signal":
+        if not api_url or not number or not recipients:
+            raise typer.BadParameter("signal requires --api-url, --number and --recipients")
+        params = {"api_url": api_url, "number": number,
+                  "recipients": [r.strip() for r in recipients.split(",") if r.strip()],
+                  "emojis": emojis}
     else:
         raise typer.BadParameter(f"Unknown connector type: {type}")
 

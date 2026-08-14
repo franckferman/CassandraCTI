@@ -1,0 +1,46 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Signal critical alerts — exploited CVEs + ransomware victims to a
+# Signal number AND a group at once (on-call paging over an encrypted channel).
+#
+# Signal has no hosted API: run a self-hosted bridge and register a number once.
+#   docker run -d -p 8090:8080 -v signal-cli:/home/.local/share/signal-cli \
+#     bbernhard/signal-cli-rest-api
+#   # then register the number via the bridge (see its README), and:
+#   export SIGNAL_NUMBER="+33600000000"
+#
+# Signal messages are plain text, so no template is set (the built-in layout
+# renders title + summary + link cleanly; URLs auto-link).
+#
+# Test one message immediately:
+#   cassandra doctor connector --id signal-soc \
+#     --connectors examples/signal-critical/connectors.yaml
+#
+# Run:
+#   cassandra run --loop --interval 600 \
+#     --config examples/signal-critical/config.yaml \
+#     --connectors examples/signal-critical/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  cisa_kev:
+    enabled: true
+    lookback_days: 30
+  ransomware_live:
+    enabled: true
+    lookback_days: 7
+
+transports:
+  use: ["signal-soc"]
+
+routes:
+  - name: kev
+    include_sources: ["cisa.kev"]
+    transports: ["signal-soc"]
+  - name: ransomware
+    include_sources: ["ransomware.live"]
+    transports: ["signal-soc"]
+
+store:
+  sqlite_path: ".cassandra_cti.db"

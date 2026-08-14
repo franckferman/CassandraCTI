@@ -459,6 +459,7 @@
       <a class="sb-link" href="#tr-discord">Discord</a>
       <a class="sb-link" href="#tr-telegram">Telegram</a>
       <a class="sb-link" href="#tr-smtp">Email (SMTP)</a>
+      <a class="sb-link" href="#tr-signal">Signal</a>
       <a class="sb-link" href="#tr-web">Web Dashboard</a>
     </div>
     <div class="sb-section">
@@ -895,6 +896,7 @@
         <tr><td>ABUSECH_API_KEY</td><td>abuse.ch Auth-Key — unlocks the ThreatFox &amp; MalwareBazaar feeds (Feodo/URLhaus work without it).</td></tr>
         <tr><td>ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY</td><td>Optional cloud keys for the LLM layer (AI briefs &amp; briefings). Not needed with a local Ollama.</td></tr>
         <tr><td>CTI_WEB_TOKEN</td><td>Optional Bearer / <code>?token=</code> auth for the web dashboard when exposed beyond localhost.</td></tr>
+        <tr><td>SIGNAL_NUMBER</td><td>Signal sender number registered on your signal-cli-rest-api bridge.</td></tr>
       </table>
 
       <p>Config files also support <code>${VAR_NAME}</code> substitution, which is resolved at load time. Use this to inject webhook URLs, bot tokens, API keys, and other secrets without committing them to disk:</p>
@@ -1335,6 +1337,43 @@ sources:
       </div>
     </div>
 
+    <div class="doc-section" id="tr-signal">
+      <div class="section-tag">Transports</div>
+      <h2>Signal</h2>
+      <p>Signal has <strong>no hosted webhook or bot API</strong>, so this posts to a <strong>self-hosted bridge</strong> — <a href="https://github.com/bbernhard/signal-cli-rest-api" target="_blank" rel="noopener noreferrer">signal-cli-rest-api</a> — via <code>POST {api_url}/v2/send</code>. Run the bridge and register a dedicated number once.</p>
+
+      <h3>Example connector</h3>
+      <pre><code>connectors:
+  - id: "signal-soc"
+    type: "signal"
+    params:
+      api_url: "http://localhost:8090"       <span class="hl-dim"># your signal-cli-rest-api</span>
+      number: <span class="hl">${SIGNAL_NUMBER}</span>               <span class="hl-dim"># registered sender, e.g. +33600000000</span>
+      recipients: ["+33611111111", "group.AbCdEf123="]
+      throttle_ms: 500
+      # text_mode: styled                    <span class="hl-dim"># optional: basic *bold* / _italic_</span></code></pre>
+
+      <h3>Number, group, or both</h3>
+      <p><code>recipients</code> is a plain list — mix phone numbers and group ids freely:</p>
+      <table class="doc-table">
+        <tr><th>Target</th><th><code>recipients</code></th></tr>
+        <tr><td>A number only</td><td><code>["+33611111111"]</code></td></tr>
+        <tr><td>A group only</td><td><code>["group.AbCdEf123="]</code></td></tr>
+        <tr><td>Both at once</td><td><code>["+33611111111", "group.AbCdEf123="]</code></td></tr>
+      </table>
+
+      <h3>Setup &amp; test</h3>
+      <pre><code><span class="hl">docker run -d -p 8090:8080 -v signal-cli:/home/.local/share/signal-cli \
+  bbernhard/signal-cli-rest-api</span>
+<span class="hl-dim"># register your number via the bridge (see its README), then:</span>
+<span class="hl">cassandra doctor connector --id signal-soc</span></code></pre>
+      <p>Messages are <strong>plain text</strong> (URLs auto-link), so leave Signal routes template-less or use a plain-text template — a Markdown/HTML card would show its markup literally.</p>
+
+      <div class="callout">
+        <p><strong>Supply-chain note.</strong> CassandraCTI's Signal transport is a thin HTTP client — it imports no Signal library and vendors no bridge code, so there is <em>no code-level dependency</em> on the bridge (it's an external process behind <code>api_url</code>). To harden the bridge itself: pin the image by digest (<code>…@sha256:…</code> instead of <code>:latest</code>), or self-build from a reviewed fork. The transport works unchanged against any of them.</p>
+      </div>
+    </div>
+
     <div class="doc-section" id="tr-web">
       <div class="section-tag">Transports</div>
       <h2>Web Dashboard</h2>
@@ -1566,7 +1605,7 @@ cassandra briefing-run --all --dry-run  # [DRYRUN:BRIEFING], no LLM call</code><
     <div class="doc-section" id="cli-add-connector">
       <div class="section-tag">CLI Reference</div>
       <h2>cassandra add-connector</h2>
-      <p>Add a connector to <code>connectors.yaml</code>. <code>--type</code> selects the transport (<code>teams</code> default, <code>discord</code>, <code>telegram</code>, <code>smtp</code>, <code>web</code>); required params are validated per type.</p>
+      <p>Add a connector to <code>connectors.yaml</code>. <code>--type</code> selects the transport (<code>teams</code> default, <code>discord</code>, <code>telegram</code>, <code>smtp</code>, <code>web</code>, <code>signal</code>); required params are validated per type.</p>
       <pre><code><span class="hl-dim"># Teams / Discord — incoming webhook</span>
 <span class="hl">cassandra add-connector --id "teams-soc" --type teams   --webhook-url "https://..."
 cassandra add-connector --id "discord"   --type discord --webhook-url "https://..." --username "CassandraCTI"</span>

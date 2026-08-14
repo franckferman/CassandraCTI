@@ -1,0 +1,13 @@
+connectors:
+  # Posts to your self-hosted signal-cli-rest-api bridge.
+  # `recipients` is a plain list — pick whichever you need:
+  #   number only : ["+33611111111"]
+  #   group only  : ["group.AbCdEf123="]
+  #   both        : ["+33611111111", "group.AbCdEf123="]   <- same alert reaches both
+  - id: signal-soc
+    type: signal
+    params:
+      api_url: "http://localhost:8090"       # your signal-cli-rest-api endpoint
+      number: ${SIGNAL_NUMBER}               # registered sender, e.g. +33600000000
+      recipients: ["+33611111111", "group.AbCdEf123="]
+      throttle_ms: 500
