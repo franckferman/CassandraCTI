@@ -33,6 +33,8 @@ cassandra run --loop --interval 300 \
 | [`ransomware-landscape`](ransomware-landscape/) | The state of the ransomware threat — ransomware.live victims (PRO feeds optional). | Discord | `DISCORD_WEBHOOK_RANSOMWARE` (opt. `RANSOMWARE_API_KEY`) |
 | [`personalized-watch`](personalized-watch/) | Dashboard focused on your stack: **inventory** filtering + optional **AI briefs**. | Web | *(none; opt. Ollama or an LLM key)* |
 | [`daily-cti-briefing`](daily-cti-briefing/) | Live alerts + a periodic **LLM briefing** that prioritises + links what came in. | Discord ×2 | `DISCORD_WEBHOOK_ALERTS`, `DISCORD_WEBHOOK_BRIEF` (+ Ollama or LLM key) |
+| [`entity-watch`](entity-watch/) | **Alert** when a company/entity name hits any feed (`include_terms`) + **highlight** it on the dashboard (`inventory`). | Discord + Web | `DISCORD_WEBHOOK_URL` |
+| [`signal-critical`](signal-critical/) | Exploited CVEs + ransomware → **Signal** (number and/or group) via a self-hosted bridge. | Signal | `SIGNAL_NUMBER` |
 
 ## How the two files relate
 

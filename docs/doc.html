@@ -731,6 +731,7 @@
         <tr><td>include_sources</td><td>list[str]</td><td>Match by source ID prefix or exact name. e.g. <code>rss:</code> matches all RSS feeds.</td></tr>
         <tr><td>include_tags</td><td>list[str]</td><td>Match if any event tag is in this list.</td></tr>
         <tr><td>include_regex</td><td>string</td><td>Python regex tested against <code>title</code> and <code>source</code>.</td></tr>
+        <tr><td>include_terms</td><td>list</td><td>Entity/company names (accent+case-insensitive) matched over title/summary/source/tags/meta.</td></tr>
         <tr><td>transports</td><td>list[str]</td><td>Connector IDs to deliver matched events to.</td></tr>
         <tr><td>template</td><td>string</td><td>Path to a Jinja2 template file. Optional — falls back to transport default.</td></tr>
       </table>
@@ -1449,6 +1450,14 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
         <p><strong>Regex</strong> is tested against both <code>title</code> and <code>source</code>. You can combine matchers: a route matches if <em>any</em> of its configured criteria match the event.</p>
       </div>
 
+      <h3>Match by entity / company name (include_terms)</h3>
+      <p>A plain list of names — <strong>accent- and case-insensitive</strong> — matched against the <code>title</code>, <code>summary</code>, <code>source</code>, <code>tags</code> AND <code>meta</code> of every event. Unlike <code>include_regex</code> (title/source only), it catches a company named only in the body or in a ransomware victim field. This is the "alert me when <em>X</em> appears anywhere" selector — pure config, CLI-portable, and it works on <a href="#briefings">briefings</a> too.</p>
+      <pre><code>routes:
+  - name: "entity-watch"
+    include_terms: ["Credit Agricole", "BNP Paribas", "Gouvernement", "Airbus"]
+    transports: ["signal-soc", "discord-alert"]</code></pre>
+      <p>To visually filter/highlight the same names in the dashboard instead, put them in <a href="#inventory"><code>inventory.terms</code></a>. The <code>entity-watch</code> example drives both from one list.</p>
+
       <h3>Fan-out to multiple transports</h3>
       <pre><code>routes:
   - name: "cert-alerts"
@@ -1516,7 +1525,7 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
 
       <table class="doc-table">
         <tr><th>Key</th><th>Default</th><th>Meaning</th></tr>
-        <tr><td>include_sources / include_tags / include_regex</td><td>—</td><td>select events like a route (OR across them; none = all)</td></tr>
+        <tr><td>include_sources / include_tags / include_regex / include_terms</td><td>—</td><td>select events like a route (OR across them; none = all)</td></tr>
         <tr><td>transports</td><td>—</td><td>connector id(s) that receive the brief</td></tr>
         <tr><td>schedule</td><td><code>24h</code></td><td>how often it may fire</td></tr>
         <tr><td>min_items</td><td><code>1</code></td><td>don't send with fewer than N new items</td></tr>

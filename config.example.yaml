@@ -155,6 +155,12 @@ routes:
     transports: ["discord-alert"]
     template: "templates/discord_default.j2"
 
+  # Entity/company watch: alert when a name shows up in ANY feed (title/summary/
+  # meta), accent+case-insensitive. Uncomment and set your names + transport.
+  # - name: entity-watch
+  #   include_terms: ["Credit Agricole", "Gouvernement", "Airbus"]
+  #   transports: ["discord-alert"]
+
 # Periodic LLM briefings (optional). After the individual alerts go out, a
 # briefing recaps what came in — prioritised, with links. Needs the llm: layer
 # below to resolve a provider (local Ollama or a cloud key). Uncomment to enable.

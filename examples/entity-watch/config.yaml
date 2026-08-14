@@ -1,0 +1,50 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Entity / company watch — alert when a name you care about appears in
+# ANY feed (RSS, ransomware.live, CISA KEV, abuse.ch), and highlight it on the
+# dashboard. Two independent mechanisms, one list of names:
+#   • ALERT  (CLI-portable): a route with `include_terms` -> pushes to a transport
+#             when a term matches (title / summary / meta), accent+case-insensitive.
+#   • FILTER (dashboard):    `inventory.terms` + the INV toggle highlights/filters
+#             the same names in the web UI.
+#
+# Run — sends entity alerts to Discord AND opens the highlighting dashboard:
+#   export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+#   cassandra run --loop --web --interval 300 \
+#     --config examples/entity-watch/config.yaml \
+#     --connectors examples/entity-watch/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  rss:
+    enabled: true
+    feeds:
+      - { name: "The Hacker News", url: "https://feeds.feedburner.com/TheHackersNews", tags: ["news"] }
+      - { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml", tags: ["news"] }
+  ransomware_live:
+    enabled: true
+    lookback_days: 7
+  cisa_kev:
+    enabled: true
+    lookback_days: 90
+
+transports:
+  use: ["discord"]
+
+routes:
+  # ALERT: any of these names in any feed -> Discord. include_terms matches the
+  # title, summary AND meta (e.g. a ransomware victim field), so a company named
+  # only in the body is still caught — unlike a title-only regex.
+  - name: entity-alert
+    include_terms: ["Credit Agricole", "BNP Paribas", "Gouvernement", "Airbus", "Thales"]
+    transports: ["discord"]
+
+# FILTER (dashboard only): the INV button highlights / shows only these names.
+inventory:
+  enabled: true
+  match_mode: highlight        # highlight (show all, emphasize) | filter (only matches)
+  terms: ["Credit Agricole", "BNP Paribas", "Gouvernement", "Airbus", "Thales"]
+
+store:
+  sqlite_path: ".cassandra_cti.db"

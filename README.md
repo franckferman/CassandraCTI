@@ -707,7 +707,7 @@ The server binds to `127.0.0.1` by default — set a `token` before exposing it 
 
 Both features are **off by default** and live in `config.yaml`. They only affect the web dashboard.
 
-**Inventory** — tell CassandraCTI which vendors/products/OS make up your stack; the dashboard's **INV** toggle then filters the feed to only events that mention them (matches are highlighted):
+**Inventory** — a list of names you care about: vendors/products/OS in your stack, **or company/entity names you watch** (e.g. `Credit Agricole`, `Gouvernement`). The dashboard's **INV** toggle then applies `match_mode` to those terms. (For *alerting* on the same names rather than dashboard filtering, use a route's [`include_terms`](#match-by-entity--company-name-include_terms).)
 
 ```yaml
 inventory:
@@ -813,6 +813,26 @@ routes:
     include_regex: "(?i)(critical|zero.day|0-day|CVE)"
     transports: ["teams-soc", "discord-alert"]
 ```
+
+### Match by entity / company name (`include_terms`)
+
+A plain list of names — **accent- and case-insensitive** — matched against the
+**title, summary, source, tags and meta** of every event. Unlike `include_regex`
+(title/source only), it catches a company named only in the body or in a
+ransomware victim field. This is how you get "alert me when *X* shows up anywhere":
+
+```yaml
+routes:
+  - name: "entity-watch"
+    include_terms: ["Credit Agricole", "BNP Paribas", "Gouvernement", "Airbus"]
+    transports: ["signal-soc", "discord-alert"]
+```
+
+`include_terms` also works on **[briefings](#briefings)**. It's pure config, so
+entity alerting is fully CLI-portable — not tied to the dashboard. To *visually*
+filter/highlight the same names in the web UI, put them in
+[`inventory.terms`](#inventory--ai-briefs-optional) (the INV toggle). The
+[`entity-watch`](examples/entity-watch/) example wires both from one list.
 
 ---
 
