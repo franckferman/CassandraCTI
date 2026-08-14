@@ -3,6 +3,7 @@
 # sources/rss.py
 from __future__ import annotations
 import logging
+import re
 import socket
 from datetime import datetime, timezone
 from typing import Any, Dict, List
@@ -26,6 +27,33 @@ def clean_html(html_txt) -> str:
     if not html_txt:
         return ""
     return BeautifulSoup(html_txt, "html.parser").get_text(separator=" ", strip=True)
+
+
+_TERM = ('.', '!', '?', '…', '"', "'", ')', '»', ':')
+
+
+def tidy_summary(text: str, max_len: int = 1500) -> str:
+    """Normalize a feed excerpt for messaging. Feeds often cut the description
+    mid-sentence (e.g. it ends on a dangling '"The authentication'); drop that
+    short trailing incomplete paragraph, collapse blank runs, and cap the length
+    at a word boundary. Appends ' […]' when anything was dropped. Conservative:
+    a complete single paragraph (even without a final period) is left untouched."""
+    if not text:
+        return ""
+    t = re.sub(r'[ \t]+', ' ', text).strip()
+    t = re.sub(r'\n{3,}', '\n\n', t)
+    cut = False
+    paras = [p.strip() for p in t.split('\n\n') if p.strip()]
+    if len(paras) > 1 and paras[-1] and paras[-1][-1] not in _TERM and len(paras[-1]) < 80:
+        paras = paras[:-1]
+        cut = True
+    t = '\n\n'.join(paras).rstrip()
+    if max_len and len(t) > max_len:
+        t = t[:max_len].rsplit(' ', 1)[0].rstrip(' ,;:')
+        cut = True
+    if cut:
+        t = t.rstrip() + ' […]'
+    return t
 
 
 class RSS:
@@ -59,7 +87,7 @@ class RSS:
                 summary = content[0].value
         if not summary:
             summary = getattr(e, "description", "")
-        summary = clean_html(summary)
+        summary = tidy_summary(clean_html(summary))
 
         dt = None
         for attr in ("published_parsed", "updated_parsed"):

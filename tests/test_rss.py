@@ -2,7 +2,34 @@ import asyncio
 
 import feedparser
 
-from cassandra_cti.sources.rss import RSS, clean_html
+from cassandra_cti.sources.rss import RSS, clean_html, tidy_summary
+
+
+def test_tidy_summary_drops_dangling_excerpt():
+    # feeds cut the description mid-sentence -> drop the trailing fragment
+    s = ('Full first sentence about the bug.\n\n'
+         'A complete second paragraph that ends properly here.\n\n'
+         '"The authentication')
+    out = tidy_summary(s)
+    assert '"The authentication' not in out
+    assert out.endswith('ends properly here. […]')
+
+
+def test_tidy_summary_keeps_complete_text_untouched():
+    # a complete single paragraph (even without a final period) must survive
+    s = "Victim by group. Stolen: 300 GB 63,434 Files"
+    assert tidy_summary(s) == s
+
+
+def test_tidy_summary_caps_length_at_word_boundary():
+    s = "word " * 500          # very long, single paragraph
+    out = tidy_summary(s, max_len=100)
+    assert len(out) <= 110 and out.endswith('[…]') and 'word' in out
+
+
+def test_tidy_summary_empty():
+    assert tidy_summary("") == "" and tidy_summary(None) == ""
+
 
 RSS_XML = b"""<?xml version="1.0"?>
 <rss version="2.0"><channel><title>c</title>
