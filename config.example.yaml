@@ -161,17 +161,24 @@ routes:
   #   include_terms: ["Credit Agricole", "Gouvernement", "Airbus"]
   #   transports: ["discord-alert"]
 
-# Periodic LLM briefings (optional). After the individual alerts go out, a
-# briefing recaps what came in — prioritised, with links. Needs the llm: layer
-# below to resolve a provider (local Ollama or a cloud key). Uncomment to enable.
+# Periodic LLM briefings / debriefs (optional). After the individual alerts go
+# out, a briefing recaps what came in — prioritised, with links. Needs the llm:
+# layer below (local Ollama or a cloud key). Full multi-channel setup in
+# examples/category-digests. Uncomment to enable.
 # briefings:
-#   - name: vuln-daily
+#   # A per-category digest: Top 10 exploited CVEs of the day, to its own channel.
+#   - name: cve-daily
 #     include_sources: ["cisa.kev"]
+#     include_tags: ["vuln"]
 #     transports: ["discord-alert"]
 #     schedule: "24h"          # 24h | 6h | 30m | 2d
+#     top_n: 10                # ranked Top-N (0 = short 2-4 highlight narrative)
 #     min_items: 1             # skip if fewer than N new items
-#     max_items: 40            # cap what the LLM sees
-#     template: "templates/briefing_default.j2"   # Markdown; telegram -> briefing_telegram.j2
+#   # A cross-category GENERAL DEBRIEF: no selector = the whole event pool.
+#   - name: general-debrief
+#     transports: ["discord-alert"]
+#     schedule: "24h"
+#     top_n: 15
 
 store:
   sqlite_path: .cassandra_cti.db
