@@ -244,6 +244,48 @@ def add_source(kind: str = typer.Argument(..., help="rss|ransomware_live|redflag
     typer.echo(f"OK: {kind} added")
 
 
+@app.command("remove-source")
+def remove_source(kind: str = typer.Argument(..., help="rss|ransomware_live|redflag|kev|abusech"),
+                  name: Optional[str] = typer.Option(None, help="Feed name to remove (rss)"),
+                  url: Optional[str] = typer.Option(None, help="Feed URL to remove (rss)"),
+                  config: Path = typer.Option(None)):
+    """Remove an RSS feed (by --name or --url), or disable another source."""
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    sources = cfg.setdefault("sources", {})
+
+    if kind == "rss":
+        rss = sources.get("rss") or {}
+        feeds = rss.get("feeds") or []
+        if not url and not name:
+            raise typer.BadParameter("rss removal requires --name or --url")
+        before = len(feeds)
+        if url:
+            feeds = [f for f in feeds if f.get("url") != url]
+        else:
+            feeds = [f for f in feeds if f.get("name") != name]
+        rss["feeds"] = feeds
+        sources["rss"] = rss
+        removed = before - len(feeds)
+        typer.echo(f"Removed {removed} RSS feed(s)" if removed else "No matching feed found")
+    else:
+        keymap = {"ransomware_live": "ransomware_live", "redflag": "red_flag_domains",
+                  "kev": "cisa_kev", "cisa_kev": "cisa_kev",
+                  "abusech": "abusech", "abuse_ch": "abusech"}
+        key = keymap.get(kind)
+        if not key:
+            raise typer.BadParameter("Unknown type")
+        s = sources.get(key)
+        if not s:
+            typer.echo(f"{key} not present")
+            return
+        s["enabled"] = False
+        typer.echo(f"{key} disabled (enabled: false)")
+
+    ysave(cfg_path, cfg)
+
+
 @app.command("import-feeds")
 def import_feeds(file: Path = typer.Argument(..., help="Path to CSV file (Name,URL,Tags)"),
                  config: Path = typer.Option(None)):

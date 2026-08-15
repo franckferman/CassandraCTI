@@ -1620,6 +1620,12 @@ cassandra briefing-run --all --dry-run  # [DRYRUN:BRIEFING], no LLM call</code><
       <h3>Bulk import from CSV</h3>
       <pre><code><span class="hl-dim"># CSV format: Name,URL,Tags  (tags are pipe-separated)</span>
 <span class="hl">cassandra import-feeds feeds.csv</span></code></pre>
+
+      <h3>Remove a source</h3>
+      <p>Remove an RSS feed (by name or URL), or disable another source. Use <code>cassandra list</code> to see what's configured.</p>
+      <pre><code><span class="hl">cassandra remove-source rss --name "CERT-FR Alertes"</span>
+<span class="hl">cassandra remove-source rss --url "https://cert.ssi.gouv.fr/alerte/feed/"</span>
+<span class="hl">cassandra remove-source kev</span>   <span class="hl-dim"># disables the source (enabled: false)</span></code></pre>
     </div>
 
     <div class="doc-section" id="cli-add-connector">

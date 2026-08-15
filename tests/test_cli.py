@@ -217,6 +217,39 @@ def test_add_connector_types_and_validation(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
+# remove-source
+# --------------------------------------------------------------------------- #
+def test_remove_source_rss_by_name_then_url(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    runner.invoke(app, ["add-source", "rss", "--name", "A", "--url", "https://a/f", "--config", str(cfg)])
+    runner.invoke(app, ["add-source", "rss", "--name", "B", "--url", "https://b/f", "--config", str(cfg)])
+
+    r = runner.invoke(app, ["remove-source", "rss", "--name", "A", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    assert [f["url"] for f in _read_yaml(cfg)["sources"]["rss"]["feeds"]] == ["https://b/f"]
+
+    r2 = runner.invoke(app, ["remove-source", "rss", "--url", "https://b/f", "--config", str(cfg)])
+    assert r2.exit_code == 0, r2.output
+    assert _read_yaml(cfg)["sources"]["rss"]["feeds"] == []
+
+
+def test_remove_source_rss_requires_selector(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    _write_yaml(cfg, {"schema_version": 1, "sources": {"rss": {"enabled": True, "feeds": []}}})
+    r = runner.invoke(app, ["remove-source", "rss", "--config", str(cfg)])
+    assert r.exit_code != 0
+
+
+def test_remove_source_disables_other_source(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    runner.invoke(app, ["add-source", "kev", "--config", str(cfg)])
+    assert _read_yaml(cfg)["sources"]["cisa_kev"]["enabled"] is True
+    r = runner.invoke(app, ["remove-source", "kev", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    assert _read_yaml(cfg)["sources"]["cisa_kev"]["enabled"] is False
+
+
+# --------------------------------------------------------------------------- #
 # import-feeds
 # --------------------------------------------------------------------------- #
 def test_import_feeds(tmp_path):

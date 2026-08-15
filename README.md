@@ -999,6 +999,19 @@ cassandra add-source abusech --feeds "feodo,threatfox,urlhaus,malwarebazaar" --a
 
 ---
 
+### `cassandra remove-source`
+
+Remove an RSS feed (by `--name` or `--url`), or disable another source. Pair with
+`cassandra list` to see what's configured.
+
+```bash
+cassandra remove-source rss --name "CERT-FR Alertes"
+cassandra remove-source rss --url "https://cert.ssi.gouv.fr/alerte/feed/"
+cassandra remove-source kev            # disables the source (enabled: false)
+```
+
+---
+
 ### `cassandra import-feeds`
 
 Bulk import RSS feeds from a CSV file.
