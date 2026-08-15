@@ -1250,18 +1250,16 @@ In `--loop` mode the process reloads `config.yaml` **at the start of every cycle
 
 ### First run: avoid the backlog flood
 
-On a **fresh** database the first pass sees every item currently in your feeds as "new" and would send the whole backlog at once. Seed with a date floor, then let dedup take over:
+On a **fresh** database the first pass sees every item currently in your feeds as "new" and would send the whole backlog at once. Put a date floor **on the loop command itself** so it applies to every cycle:
 
 ```bash
-# 1) Seed: only the last 2 days, sent once
-cassandra run --config config.yaml --connectors connectors.yaml --since 2026-07-05
-
-# 2) Then run continuously, dedup prevents any repeats
-cassandra run --config config.yaml --connectors connectors.yaml --loop --interval 300
+# Take the last 2 days as the starting backlog, then only what's newer
+cassandra run --config config.yaml --connectors connectors.yaml --loop --interval 300 --since 2026-08-14
 ```
 
-- **dedup** (always on): never re-sends a delivered item. Bypass for testing with `--no-dedupe`.
-- **`--since YYYY-MM-DD`**: an optional date floor; most useful on the first run.
+- **`--since` is applied on every pass**, so anything published before that date is never delivered while the loop runs. Keep it on the loop command; do not seed with a one-shot and then drop it. `--since` filters events *before* the dedup step, so items it skips are never marked delivered and would flood back in on the first pass without it.
+- **It is an absolute date, not a rolling window.** `2026-08-14` stays fixed for the life of the process; `--since $(date -d '2 days ago' +%F)` is computed once by your shell at launch (a restart recomputes it). Events with no publication date always pass the floor.
+- **dedup** (always on) then takes over: it never re-sends a delivered item. Bypass for testing with `--no-dedupe`.
 - **`filters.max_items_per_source`** (config): caps how many items each feed emits per cycle.
 
 ### Ransomware & PRO feeds

@@ -1555,8 +1555,8 @@ cassandra briefing-run --all --dry-run  # [DRYRUN:BRIEFING], no LLM call</code><
         <tr><th>Option</th><th>Type</th><th>Description</th></tr>
         <tr><td>--config</td><td>PATH</td><td>Path to config.yaml.</td></tr>
         <tr><td>--connectors</td><td>PATH</td><td>Path to connectors.yaml.</td></tr>
-        <tr><td>--loop</td><td>flag</td><td>Run in loop mode (uses <code>scheduler.interval_seconds</code>).</td></tr>
-        <tr><td>--interval</td><td>INT</td><td>Override loop interval in seconds.</td></tr>
+        <tr><td>--loop</td><td>flag</td><td>Keep running, re-collecting every <code>--interval</code> seconds.</td></tr>
+        <tr><td>--interval</td><td>INT</td><td>Seconds between collections in loop mode (default 300 = 5 min).</td></tr>
         <tr><td>--sources</td><td>TEXT</td><td>Comma-separated source filter. E.g. <code>"rss:,ransomware.live"</code>.</td></tr>
         <tr><td>--dry-run</td><td>flag</td><td>Log delivery actions without sending anything.</td></tr>
         <tr><td>--verbose</td><td>flag</td><td>Set log level to DEBUG.</td></tr>
@@ -1810,15 +1810,13 @@ cassandra add-connector --id "discord"   --type discord --webhook-url "https://.
       <p>In <code>--loop</code> mode the process reloads <code>config.yaml</code> <strong>at the start of every cycle</strong>, so adding a feed or editing a route is picked up on the next pass, no restart needed. RSS and <code>ransomware.live</code> share the exact same fetch → dedup → deliver cycle.</p>
 
       <h3>First run: avoid the backlog flood</h3>
-      <p>On a <strong>fresh</strong> database the first pass sees every item currently in your feeds as "new" and would send the whole backlog at once. Seed with a date floor, then let dedup take over:</p>
-      <pre><code><span class="hl-dim"># 1) Seed: only recent items, sent once</span>
-<span class="hl">cassandra run --config config.yaml --connectors connectors.yaml --since 2026-07-05</span>
-
-<span class="hl-dim"># 2) Then run continuously, dedup prevents any repeats</span>
-<span class="hl">cassandra run --config config.yaml --connectors connectors.yaml --loop --interval 300</span></code></pre>
+      <p>On a <strong>fresh</strong> database the first pass sees every item currently in your feeds as "new" and would send the whole backlog at once. Put a date floor <strong>on the loop command itself</strong> so it applies to every cycle:</p>
+      <pre><code><span class="hl-dim"># Take the last 2 days as the starting backlog, then only what's newer</span>
+<span class="hl">cassandra run --loop --interval 300 --since 2026-08-14</span></code></pre>
       <ul>
-        <li><strong>dedup</strong> (always on): never re-sends a delivered item. Bypass for testing with <code>--no-dedupe</code>.</li>
-        <li><strong><code>--since YYYY-MM-DD</code></strong>: an optional date floor; most useful on the first run.</li>
+        <li><strong><code>--since</code> is applied on every pass</strong>, so anything published before that date is never delivered while the loop runs. Keep it on the loop command; do not seed with a one-shot and then drop it. <code>--since</code> filters events <em>before</em> the dedup step, so items it skips are never marked delivered and would flood back in on the first pass without it.</li>
+        <li><strong>It is an absolute date, not a rolling window.</strong> <code>2026-08-14</code> stays fixed for the life of the process; <code>--since $(date -d '2 days ago' +%F)</code> is computed once by your shell at launch (a restart recomputes it). Events with no publication date always pass the floor.</li>
+        <li><strong>dedup</strong> (always on) then takes over: it never re-sends a delivered item. Bypass for testing with <code>--no-dedupe</code>.</li>
         <li><strong><code>filters.max_items_per_source</code></strong> (config): caps how many items each feed emits per cycle.</li>
       </ul>
 
