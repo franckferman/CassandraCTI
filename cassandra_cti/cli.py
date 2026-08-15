@@ -410,6 +410,7 @@ def briefing_add(name: str = typer.Option(..., help="Unique briefing name"),
                  schedule: str = typer.Option("24h", help="cadence: 24h | 6h | 30m | 2d"),
                  min_items: int = typer.Option(1, help="skip if fewer than N new items"),
                  max_items: int = typer.Option(40, help="cap items fed to the LLM"),
+                 top_n: int = typer.Option(0, "--top-n", help="rank a numbered Top-N (0 = short 2-4 highlight narrative)"),
                  title: Optional[str] = typer.Option(None, help="fixed message title (optional)"),
                  template: Optional[str] = typer.Option(None, help="path to a briefing template"),
                  config: Path = typer.Option(None)):
@@ -421,6 +422,8 @@ def briefing_add(name: str = typer.Option(..., help="Unique briefing name"),
 
     B = {"name": name, "transports": transports.split(","), "schedule": schedule,
          "min_items": min_items, "max_items": max_items}
+    if top_n:
+        B["top_n"] = top_n
     if include:
         B["include_sources"] = [include]
     if include_tag:

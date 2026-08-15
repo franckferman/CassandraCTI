@@ -1,0 +1,11 @@
+connectors:
+  # One channel per topic — each digest lands in its own place.
+  - id: discord-news
+    type: discord
+    params: { webhook_url: "${DISCORD_WEBHOOK_NEWS}", username: "News Digest", emojis: true }
+  - id: discord-ransomware
+    type: discord
+    params: { webhook_url: "${DISCORD_WEBHOOK_RANSOMWARE}", username: "Ransomware Digest", emojis: true }
+  - id: discord-cve
+    type: discord
+    params: { webhook_url: "${DISCORD_WEBHOOK_CVE}", username: "CVE Digest", emojis: true }

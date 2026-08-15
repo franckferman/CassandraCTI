@@ -1530,10 +1530,12 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
         <tr><td>schedule</td><td><code>24h</code></td><td>how often it may fire</td></tr>
         <tr><td>min_items</td><td><code>1</code></td><td>don't send with fewer than N new items</td></tr>
         <tr><td>max_items</td><td><code>40</code></td><td>cap on items fed to the LLM</td></tr>
+        <tr><td>top_n</td><td><code>0</code></td><td><code>0</code> = short 2-4 highlight narrative; <code>N</code> = a ranked, numbered <strong>Top N</strong> digest (e.g. Top 10 CVEs of the week)</td></tr>
         <tr><td>template</td><td><code>briefing_default.j2</code></td><td>Markdown for Discord/Teams; <code>briefing_telegram.j2</code> for Telegram</td></tr>
       </table>
 
-      <p>Each cycle, after delivery, a briefing checks whether its <code>schedule</code> elapsed; if so it gathers the events <strong>ingested since its last run</strong> that match its selectors, has the LLM prioritise them (KEV / ransomware-linked / high-confidence IOCs first) and narrate them with links, sends one message and records the timestamp. Trigger manually with <code>briefing-run</code>:</p>
+      <p>Each cycle, after delivery, a briefing checks whether its <code>schedule</code> elapsed; if so it gathers the events <strong>ingested since its last run</strong> that match its selectors, has the LLM prioritise them (KEV / ransomware-linked / high-confidence IOCs first) and narrate them with links, sends one message and records the timestamp.</p>
+      <p>Briefings <strong>compose into per-category digests</strong>: define one per topic, each scoped to its sources, pointed at its own channel, with its own cadence + <code>top_n</code> — e.g. a 6h Top 10 news recap, a daily Top 10 ransomware recap, and a daily + weekly Top 10 CVE recap. Ranking is the LLM's judgment (exploited/critical first), not CVSS. Trigger manually with <code>briefing-run</code>:</p>
       <pre><code>cassandra briefing-run --all            # force every briefing now
 cassandra briefing-run --name vuln-daily
 cassandra briefing-run --all --dry-run  # [DRYRUN:BRIEFING], no LLM call</code></pre>

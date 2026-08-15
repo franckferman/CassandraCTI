@@ -865,6 +865,7 @@ briefings:
 | `schedule` | `24h` | how often it may fire (`24h`, `6h`, `30m`, `2d`) |
 | `min_items` | `1` | don't send a brief with fewer than N new items (accumulates instead) |
 | `max_items` | `40` | cap on items fed to the LLM |
+| `top_n` | `0` | `0` = a short 2-4 highlight narrative; `N` = a ranked, numbered **Top N** digest (e.g. "Top 10 CVEs of the week") |
 | `template` | `briefing_default.j2` | Markdown for Discord/Teams; `briefing_telegram.j2` for Telegram |
 
 **How it works** — every collection cycle, after delivery, each briefing checks
@@ -874,6 +875,14 @@ ransomware-linked / high-confidence IOCs first) and narrate them with links, the
 sends one message and records the timestamp. In `--loop` mode this happens on its
 own; the window is keyed on *when CassandraCTI saw* each item, so a brief reflects
 "what's new," not original publish dates.
+
+**Per-category digests in separate channels** — briefings compose: define one per
+topic, each scoped to its sources and pointed at its own channel, with its own
+cadence and `top_n`. For example a **6h Top 10 news** recap, a **daily Top 10
+ransomware** victims recap, and a **daily + weekly Top 10 CVE** recap — each in a
+different Discord/Signal channel. The [`category-digests`](examples/category-digests/)
+example wires exactly that. (Ranking is the LLM's judgment — exploited/critical
+first — not CVSS; there's no NVD/CVSS source.)
 
 **Trigger it manually** (testing, or an on-demand recap):
 

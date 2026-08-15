@@ -39,6 +39,7 @@ class BriefingDef:
     include_terms: Optional[List[str]] = None
     min_items: int = 1
     max_items: int = 40
+    top_n: int = 0
     title: Optional[str] = None
     template: Optional[str] = None
 
@@ -138,6 +139,7 @@ def load_settings(path: str, connectors_path: str | None = None) -> Settings:
             include_terms=b.get("include_terms"),
             min_items=int(b.get("min_items", 1)),
             max_items=int(b.get("max_items", 40)),
+            top_n=int(b.get("top_n", 0)),
             title=b.get("title"),
             template=b.get("template"),
         ))

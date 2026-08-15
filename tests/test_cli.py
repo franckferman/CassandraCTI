@@ -303,6 +303,14 @@ def test_briefing_add_include_terms(tmp_path):
     assert _read_yaml(cfg)["briefings"][0]["include_terms"] == ["BNP", "Credit Agricole"]
 
 
+def test_briefing_add_top_n(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    r = runner.invoke(app, ["briefing-add", "--name", "cve-daily", "--transports", "d1",
+                            "--include", "cisa.kev", "--top-n", "10", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    assert _read_yaml(cfg)["briefings"][0]["top_n"] == 10
+
+
 def test_list_shows_briefings(tmp_path):
     cfg = tmp_path / "config.yaml"
     cx = tmp_path / "connectors.yaml"

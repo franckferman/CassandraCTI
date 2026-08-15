@@ -18,6 +18,7 @@ class FakeLLM:
     async def complete(self, prompt, system=None):
         self.calls += 1
         self.last_prompt = prompt
+        self.last_system = system
         return self.text
 
 
@@ -97,6 +98,20 @@ def test_sends_when_due(tmp_path):
     assert "Briefing" in rec.sent[0]["title"]
     # only the 2 cisa.kev events were fed to the LLM, not the rss one
     assert st.briefing_last_sent("vuln-brief") is not None
+
+
+def test_top_n_uses_ranked_system_prompt(tmp_path):
+    st = _store(tmp_path, ["cisa.kev", "cisa.kev"])
+    llm, rec = FakeLLM(), Rec()
+    asyncio.run(run_briefings(_S([_brief(min_items=1, top_n=10)]), st, {"d1": rec}, llm=llm))
+    assert "Top 10" in llm.last_system
+
+
+def test_default_uses_narrative_prompt(tmp_path):
+    st = _store(tmp_path, ["cisa.kev"])
+    llm, rec = FakeLLM(), Rec()
+    asyncio.run(run_briefings(_S([_brief(min_items=1)]), st, {"d1": rec}, llm=llm))
+    assert "2-4 most important" in llm.last_system
 
 
 def test_skips_when_not_due(tmp_path):

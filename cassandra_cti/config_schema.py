@@ -35,6 +35,7 @@ class Briefing(BaseModel):
     include_terms: Optional[List[str]] = None
     min_items: int = 1
     max_items: int = 40
+    top_n: int = 0
     title: Optional[str] = None
     template: Optional[str] = None
 

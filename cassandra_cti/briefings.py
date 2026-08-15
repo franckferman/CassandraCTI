@@ -82,7 +82,7 @@ def matches(b, row: Dict[str, Any]) -> bool:
     return False
 
 
-_SYSTEM = (
+_SYSTEM_NARRATIVE = (
     "You are a SOC shift lead writing a short briefing for a threat-intel channel. "
     "You are given the items that came in since the last briefing. Produce: "
     "(1) one or two sentences of overview; (2) a short 'Priorities' section listing the "
@@ -92,6 +92,22 @@ _SYSTEM = (
     "IOCs over general news. Write plain text only: no Markdown, no bold or asterisks, no headings, "
     "no numbered or bulleted list markers. Be specific and concise."
 )
+
+
+def _system_prompt(top_n: int) -> str:
+    """Ranked Top-N system prompt when top_n > 0, else the short narrative recap."""
+    if top_n and top_n > 0:
+        return (
+            f"You are a SOC shift lead. From the items below (collected since the last briefing), "
+            f"produce a ranked Top {top_n}. Start with one short overview sentence, then list the "
+            f"{top_n} most important items, most critical first, each on its own line as "
+            f"'N. <what it is and why it matters> - <URL>' (numbered 1..{top_n}). Prioritise "
+            f"actively-exploited CVEs, ransomware-linked items and high-confidence IOCs. If there "
+            f"are fewer than {top_n} items, list only what there is. Plain text only: no Markdown, "
+            f"no bold/asterisks, no headings. Keep the raw URL on each line so it stays clickable. "
+            f"Be specific and concise."
+        )
+    return _SYSTEM_NARRATIVE
 
 
 def _event_line(e: Dict[str, Any]) -> str:
@@ -114,7 +130,7 @@ async def _make_brief(llm: LLM, b, events: List[Dict[str, Any]], period_label: s
     body = "\n".join(_event_line(e) for e in items)
     prompt = (f"Channel: {b.name}\nWindow: last {period_label}\n"
               f"Items ({len(items)}):\n{body}")
-    return await llm.complete(prompt, system=_SYSTEM)
+    return await llm.complete(prompt, system=_system_prompt(getattr(b, "top_n", 0)))
 
 
 def _load_template(path: Optional[str]) -> Optional[str]:

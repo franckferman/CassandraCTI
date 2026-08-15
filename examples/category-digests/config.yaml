@@ -1,0 +1,76 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: per-category digests in SEPARATE channels — no live firehose, just
+# curated recaps. Exactly the "one channel per topic, a Top-N recap on a cadence"
+# pattern: high-volume news gets a 6h Top 10; ransomware victims a daily Top 10;
+# CVEs a daily AND a weekly Top 10. Each briefing reads what was ingested since
+# its last run (the DB) and asks the LLM to rank it.
+#
+# Needs the llm: layer (local Ollama or a cloud key). No routes = nothing is sent
+# live; only the digests go out. Run it looping so the schedules fire:
+#   export DISCORD_WEBHOOK_NEWS=...  DISCORD_WEBHOOK_RANSOMWARE=...  DISCORD_WEBHOOK_CVE=...
+#   cassandra run --loop --interval 600 \
+#     --config examples/category-digests/config.yaml \
+#     --connectors examples/category-digests/connectors.yaml
+#
+# Test one now (ignores the schedule):
+#   cassandra briefing-run --name cve-daily --config … --connectors …
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  rss:
+    enabled: true
+    feeds:
+      - { name: "The Hacker News", url: "https://feeds.feedburner.com/TheHackersNews", tags: ["news"] }
+      - { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml", tags: ["news"] }
+      - { name: "CERT-FR Avis", url: "https://cert.ssi.gouv.fr/avis/feed/", tags: ["cert", "vuln"] }
+      - { name: "MSRC Update Guide", url: "https://api.msrc.microsoft.com/update-guide/rss", tags: ["cert", "vuln"] }
+  ransomware_live:
+    enabled: true
+    lookback_days: 7
+  cisa_kev:
+    enabled: true
+    lookback_days: 90
+
+transports:
+  use: ["discord-news", "discord-ransomware", "discord-cve"]
+
+briefings:
+  # High-volume news -> a Top 10 every 6h (skip if fewer than 5 new items)
+  - name: news-digest
+    include_tags: ["news"]
+    transports: ["discord-news"]
+    schedule: "6h"
+    min_items: 5
+    top_n: 10
+
+  # Ransomware -> the day's most notable victims, once a day
+  - name: ransomware-digest
+    include_sources: ["ransomware.live"]
+    transports: ["discord-ransomware"]
+    schedule: "24h"
+    min_items: 1
+    top_n: 10
+
+  # CVEs / CERT -> a Top 10 daily AND a Top 10 weekly, same channel
+  - name: cve-daily
+    include_sources: ["cisa.kev"]
+    include_tags: ["vuln"]
+    transports: ["discord-cve"]
+    schedule: "24h"
+    top_n: 10
+  - name: cve-weekly
+    include_sources: ["cisa.kev"]
+    include_tags: ["vuln"]
+    transports: ["discord-cve"]
+    schedule: "168h"
+    top_n: 10
+
+llm:
+  enabled: true
+  provider: auto
+  max_tokens: 600      # Top-10 recaps are longer than the default
+
+store:
+  sqlite_path: ".cassandra_cti.db"
