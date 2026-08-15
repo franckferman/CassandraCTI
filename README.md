@@ -1053,13 +1053,27 @@ cassandra add-connector --id "signal-soc" --type signal \
 
 ### `cassandra routes-add`
 
-Add or update a route.
+Add or update a route. **Auto-activation:** the referenced `--transports` are
+added to `transports.use` automatically, so a connector goes live as soon as a
+route (or briefing) uses it — no manual `transports.use` editing.
 
 ```bash
 cassandra routes-add \
   --name "cert-alerts" \
   --include-tag "cert" \
   --transports "teams-cert,discord-alert"
+```
+
+---
+
+### Removing things — `remove-connector` / `routes-remove` / `briefing-remove`
+
+Symmetric with the `add-*` commands (pair with `cassandra list`):
+
+```bash
+cassandra remove-connector --id "teams-cert"   # also drops it from transports.use
+cassandra routes-remove --name "cert-alerts"
+cassandra briefing-remove --name "vuln-daily"
 ```
 
 ---

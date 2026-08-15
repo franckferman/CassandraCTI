@@ -61,6 +61,22 @@ def ysave(path: Path, data: dict):
         yaml.dump(data, f)
 
 
+def _ensure_use(cfg: dict, transport_ids) -> None:
+    """Ensure each transport id is in config.yaml's transports.use, so a
+    connector is activated as soon as a route/briefing references it (no manual
+    transports.use editing)."""
+    tcfg = cfg.setdefault("transports", {})
+    if not isinstance(tcfg, dict):
+        return
+    use = tcfg.get("use")
+    if use is None:
+        use = []
+    for tid in transport_ids or []:
+        if tid and tid not in use:
+            use.append(tid)
+    tcfg["use"] = use
+
+
 def _scaffold(cfg_path: Path, cx_path: Path, tpl_dir: Path) -> None:
     """Create config.yaml, connectors.yaml and templates/ if they are missing.
 
@@ -406,6 +422,37 @@ def add_connector(id: str = typer.Option(..., "--id", help="Unique connector id"
     typer.echo(f"Connector {id} ({t}) added")
 
 
+@app.command("remove-connector")
+def remove_connector(id: str = typer.Option(..., "--id", help="Connector id to remove"),
+                     connectors: Path = typer.Option(None),
+                     config: Path = typer.Option(None)):
+    """Remove a connector from connectors.yaml (and deactivate it in config.yaml)."""
+    base = default_dir()
+    cx_path = connectors or (base / "connectors.yaml")
+    cx = yload(cx_path)
+    lst = cx.get("connectors") or []
+    before = len(lst)
+    cx["connectors"] = [c for c in lst if c.get("id") != id]
+    ysave(cx_path, cx)
+
+    # Deactivate: drop from transports.use in config.yaml, and warn about routes.
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    tcfg = cfg.get("transports")
+    if isinstance(tcfg, dict) and id in (tcfg.get("use") or []):
+        tcfg["use"] = [u for u in tcfg["use"] if u != id]
+        ysave(cfg_path, cfg)
+    dangling = [r.get("name") for r in (cfg.get("routes") or []) if id in (r.get("transports") or [])]
+    dangling += [b.get("name") for b in (cfg.get("briefings") or []) if id in (b.get("transports") or [])]
+
+    if before - len(cx["connectors"]):
+        typer.echo(f"Removed connector {id}")
+        if dangling:
+            typer.echo(f"Note: still referenced by: {', '.join(dangling)} — update or remove them.")
+    else:
+        typer.echo("No matching connector found")
+
+
 @app.command()
 def routes_add(name: str = typer.Option(...),
                include: Optional[str] = typer.Option(None, help="e.g. 'rss:' or 'ransomware.live'"),
@@ -438,8 +485,23 @@ def routes_add(name: str = typer.Option(...),
 
     routes.append(R)
     cfg["routes"] = routes
+    _ensure_use(cfg, R["transports"])          # activate referenced connectors
     ysave(cfg_path, cfg)
     typer.echo(f"Route {name} added")
+
+
+@app.command("routes-remove")
+def routes_remove(name: str = typer.Option(..., help="Route name to remove"),
+                  config: Path = typer.Option(None)):
+    """Remove a route from config.yaml by name."""
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    routes = cfg.get("routes") or []
+    before = len(routes)
+    cfg["routes"] = [r for r in routes if r.get("name") != name]
+    ysave(cfg_path, cfg)
+    typer.echo(f"Removed route {name}" if before - len(cfg["routes"]) else "No matching route found")
 
 
 @app.command("briefing-add")
@@ -481,8 +543,23 @@ def briefing_add(name: str = typer.Option(..., help="Unique briefing name"),
 
     briefings.append(B)
     cfg["briefings"] = briefings
+    _ensure_use(cfg, B["transports"])          # activate referenced connectors
     ysave(cfg_path, cfg)
     typer.echo(f"Briefing {name} added (every {schedule})")
+
+
+@app.command("briefing-remove")
+def briefing_remove(name: str = typer.Option(..., help="Briefing name to remove"),
+                    config: Path = typer.Option(None)):
+    """Remove a briefing from config.yaml by name."""
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    briefings = cfg.get("briefings") or []
+    before = len(briefings)
+    cfg["briefings"] = [b for b in briefings if b.get("name") != name]
+    ysave(cfg_path, cfg)
+    typer.echo(f"Removed briefing {name}" if before - len(cfg["briefings"]) else "No matching briefing found")
 
 
 @app.command("briefing-run")

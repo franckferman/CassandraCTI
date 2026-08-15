@@ -1646,11 +1646,17 @@ cassandra add-connector --id "discord"   --type discord --webhook-url "https://.
     <div class="doc-section" id="cli-routes-add">
       <div class="section-tag">CLI Reference</div>
       <h2>cassandra routes-add</h2>
-      <p>Add or update a routing rule in <code>config.yaml</code>.</p>
+      <p>Add or update a routing rule in <code>config.yaml</code>. The referenced <code>--transports</code> are added to <code>transports.use</code> automatically, so a connector goes live as soon as a route (or briefing) uses it.</p>
       <pre><code><span class="hl">cassandra routes-add \
   --name "cert-alerts" \
   --include-tag "cert" \
   --transports "teams-cert,discord-alert"</span></code></pre>
+
+      <h3>Removing things</h3>
+      <p>Symmetric with the <code>add-*</code> commands (pair with <code>cassandra list</code>):</p>
+      <pre><code><span class="hl">cassandra remove-connector --id "teams-cert"</span>   <span class="hl-dim"># also drops it from transports.use</span>
+<span class="hl">cassandra routes-remove --name "cert-alerts"</span>
+<span class="hl">cassandra briefing-remove --name "vuln-daily"</span></code></pre>
     </div>
 
     <div class="doc-section" id="cli-briefing">

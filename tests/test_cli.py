@@ -386,6 +386,56 @@ def test_briefing_run_unknown_name_errors(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
+# CRUD: auto-activation + removes
+# --------------------------------------------------------------------------- #
+def test_routes_add_auto_activates_transports_use(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    r = runner.invoke(app, ["routes-add", "--name", "r1", "--transports", "d1,d2",
+                            "--include", "rss:", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    assert _read_yaml(cfg)["transports"]["use"] == ["d1", "d2"]
+
+
+def test_briefing_add_auto_activates_transports_use(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    runner.invoke(app, ["briefing-add", "--name", "b1", "--transports", "d1", "--config", str(cfg)])
+    assert "d1" in _read_yaml(cfg)["transports"]["use"]
+
+
+def test_routes_remove(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    runner.invoke(app, ["routes-add", "--name", "r1", "--transports", "d1", "--include", "rss:", "--config", str(cfg)])
+    r = runner.invoke(app, ["routes-remove", "--name", "r1", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    assert _read_yaml(cfg)["routes"] == []
+
+
+def test_briefing_remove(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    runner.invoke(app, ["briefing-add", "--name", "b1", "--transports", "d1", "--config", str(cfg)])
+    r = runner.invoke(app, ["briefing-remove", "--name", "b1", "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    assert _read_yaml(cfg)["briefings"] == []
+
+
+def test_remove_connector_drops_and_deactivates(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    cx = tmp_path / "connectors.yaml"
+    runner.invoke(app, ["add-connector", "--id", "d1", "--type", "discord",
+                        "--webhook-url", "https://x/h", "--connectors", str(cx)])
+    runner.invoke(app, ["routes-add", "--name", "r1", "--transports", "d1",
+                        "--include", "rss:", "--config", str(cfg)])
+    assert "d1" in _read_yaml(cfg)["transports"]["use"]
+
+    r = runner.invoke(app, ["remove-connector", "--id", "d1",
+                            "--connectors", str(cx), "--config", str(cfg)])
+    assert r.exit_code == 0, r.output
+    assert _read_yaml(cx)["connectors"] == []
+    assert "d1" not in (_read_yaml(cfg).get("transports", {}).get("use") or [])
+    assert "still referenced by" in r.output          # route r1 still points at it
+
+
+# --------------------------------------------------------------------------- #
 # doctor config
 # --------------------------------------------------------------------------- #
 def test_doctor_config_ok(tmp_path):
