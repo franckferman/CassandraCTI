@@ -1535,7 +1535,7 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
       </table>
 
       <p>Each cycle, after delivery, a briefing checks whether its <code>schedule</code> elapsed; if so it gathers the events <strong>ingested since its last run</strong> that match its selectors, has the LLM prioritise them (KEV / ransomware-linked / high-confidence IOCs first) and narrate them with links, sends one message and records the timestamp.</p>
-      <p>Briefings <strong>compose into per-category digests</strong>: define one per topic, each scoped to its sources, pointed at its own channel, with its own cadence + <code>top_n</code> — e.g. a 6h Top 10 news recap, a daily Top 10 ransomware recap, and a daily + weekly Top 10 CVE recap. Ranking is the LLM's judgment (exploited/critical first), not CVSS. Trigger manually with <code>briefing-run</code>:</p>
+      <p>Briefings <strong>compose into per-category digests</strong>: define one per topic, each scoped to its sources, pointed at its own channel, with its own cadence + <code>top_n</code> — e.g. a 6h Top 10 news recap, a daily Top 10 ransomware recap, and a daily + weekly Top 10 CVE recap. Ranking is the LLM's judgment (exploited/critical first), not CVSS. For a single <strong>cross-category overview</strong>, add a briefing with <strong>no selectors</strong> (a catch-all over the whole event pool) pointed at a dedicated debrief channel. Trigger manually with <code>briefing-run</code>:</p>
       <pre><code>cassandra briefing-run --all            # force every briefing now
 cassandra briefing-run --name vuln-daily
 cassandra briefing-run --all --dry-run  # [DRYRUN:BRIEFING], no LLM call</code></pre>

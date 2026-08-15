@@ -9,3 +9,6 @@ connectors:
   - id: discord-cve
     type: discord
     params: { webhook_url: "${DISCORD_WEBHOOK_CVE}", username: "CVE Digest", emojis: true }
+  - id: discord-debrief
+    type: discord
+    params: { webhook_url: "${DISCORD_WEBHOOK_DEBRIEF}", username: "General Debrief", emojis: true }

@@ -884,6 +884,17 @@ different Discord/Signal channel. The [`category-digests`](examples/category-dig
 example wires exactly that. (Ranking is the LLM's judgment — exploited/critical
 first — not CVSS; there's no NVD/CVSS source.)
 
+For a single **cross-category overview**, add a briefing with **no selectors** — a
+catch-all over the whole event pool — pointed at a dedicated channel:
+
+```yaml
+briefings:
+  - name: general-debrief          # no include_* = every category, one channel
+    transports: ["discord-debrief"]
+    schedule: "24h"
+    top_n: 15
+```
+
 **Trigger it manually** (testing, or an on-demand recap):
 
 ```bash
