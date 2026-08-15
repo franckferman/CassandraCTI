@@ -1,10 +1,7 @@
 <div id="top" align="center">
 
-[![CI][ci-shield]](https://github.com/franckferman/CassandraCTI/actions/workflows/ci.yml)
-[![License][license-shield]](https://github.com/franckferman/CassandraCTI/blob/stable/LICENSE)
-
 <a href="https://github.com/franckferman/CassandraCTI">
-  <img src="https://raw.githubusercontent.com/franckferman/CassandraCTI/stable/docs/github/graphical_resources/Logo-CassandraCTI.png" alt="CassandraCTI" width="200" height="auto">
+  <img src="https://raw.githubusercontent.com/franckferman/CassandraCTI/stable/docs/github/graphical_resources/Logo-CassandraCTI.png" alt="CassandraCTI" width="380" height="auto">
 </a>
 
 <h2 align="center">CassandraCTI</h2>
@@ -1438,12 +1435,6 @@ See [LICENSE](https://github.com/franckferman/CassandraCTI/blob/stable/LICENSE) 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- Shields -->
-[ci-shield]: https://github.com/franckferman/CassandraCTI/actions/workflows/ci.yml/badge.svg
-[contributors-shield]: https://img.shields.io/github/contributors/franckferman/CassandraCTI.svg?style=for-the-badge
-[forks-shield]: https://img.shields.io/github/forks/franckferman/CassandraCTI.svg?style=for-the-badge
-[stars-shield]: https://img.shields.io/github/stars/franckferman/CassandraCTI.svg?style=for-the-badge
-[issues-shield]: https://img.shields.io/github/issues/franckferman/CassandraCTI.svg?style=for-the-badge
-[license-shield]: https://img.shields.io/github/license/franckferman/CassandraCTI.svg?style=for-the-badge
 [protonmail-shield]: https://img.shields.io/badge/ProtonMail-8B89CC?style=for-the-badge&logo=protonmail&logoColor=white
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=0078D7
 [twitter-shield]: https://img.shields.io/badge/-Twitter-black.svg?style=for-the-badge&logo=twitter&colorB=1DA1F2
