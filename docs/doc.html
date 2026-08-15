@@ -483,6 +483,7 @@
       <a class="sb-link" href="#cli-briefing">briefing-add / run</a>
       <a class="sb-link" href="#cli-doctor">doctor</a>
       <a class="sb-link" href="#cli-backfill">backfill</a>
+      <a class="sb-link" href="#cli-service">service install</a>
       <a class="sb-link" href="#cli-other">db-reset / seen-clear / list</a>
     </div>
     <div class="sb-section">
@@ -1824,7 +1825,16 @@ cassandra add-connector --id "discord"   --type discord --webhook-url "https://.
       <p>Same model. <code>sources.ransomware_live.lookback_days</code> controls how far back the source looks on each fetch; dedup guarantees each victim is delivered once, so in loop mode every newly-disclosed victim goes out on the next cycle. The PRO feeds (<code>ransomware_press</code>, <code>ransomware_8k</code>, <code>ransomware_stats</code>) run through the identical cycle, <code>ransomware_stats</code> deduplicates per day, so you get one digest daily.</p>
 
       <h3>As a service</h3>
-      <h4>systemd, long-running loop, auto-restart</h4>
+      <h4 id="cli-service">The easy way: <code>cassandra service install</code></h4>
+      <p>Cassandra can generate and install the unit for you. It auto-detects <strong>systemd</strong> or <strong>OpenRC</strong>, writes the unit, and (by default) enables and starts it. Both <code>Restart=always</code> (systemd) and <code>supervise-daemon</code> (OpenRC) restart the process on crash, and the service starts on every boot, which a bare <code>--loop</code> in your terminal does not.</p>
+      <pre><code><span class="hl">sudo cassandra service install</span>                 <span class="hl-dim"># system systemd, runs cassandra run --loop</span>
+<span class="hl">cassandra service install --user</span>               <span class="hl-dim"># per-user systemd (no root)</span>
+<span class="hl">sudo cassandra service install --init openrc</span>   <span class="hl-dim"># OpenRC, e.g. Gentoo</span>
+<span class="hl">sudo cassandra service install --command "run --loop --since 2026-08-14"</span>
+<span class="hl">cassandra service install --show</span>               <span class="hl-dim"># preview the unit, write nothing</span></code></pre>
+      <p>Manage it with <code>cassandra service status</code> and <code>cassandra service uninstall</code>. A per-user service also needs <code>loginctl enable-linger $USER</code> to run without an active login. On <strong>Windows</strong>, run under Docker with <code>restart: unless-stopped</code>, or wrap the loop with a manager such as NSSM.</p>
+
+      <h4>Manual systemd unit (what <code>install</code> generates)</h4>
       <pre><code><span class="pre-label">/etc/systemd/system/cassandra-cti.service</span>
 [Unit]
 Description=CassandraCTI aggregator

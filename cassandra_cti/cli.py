@@ -845,5 +845,127 @@ def seen_clear(source_prefix: Optional[str] = typer.Option(None), before: Option
     typer.echo("Seen cleared")
 
 
+# --------------------------------------------------------------------------- #
+# service: install/manage CassandraCTI as an OS service so `cassandra run`
+# survives crashes and reboots (systemd or OpenRC).
+# --------------------------------------------------------------------------- #
+service_app = typer.Typer(no_args_is_help=True,
+                          help="Install/manage CassandraCTI as an OS service (systemd or OpenRC).")
+app.add_typer(service_app, name="service")
+
+
+def _resolve_init(init: str):
+    from . import service as svc
+    chosen = init if init != "auto" else svc.detect_init()
+    if chosen not in ("systemd", "openrc"):
+        raise typer.BadParameter(
+            "Could not detect a supported init system. Pass --init systemd|openrc.")
+    return chosen
+
+
+@service_app.command("install")
+def service_install(
+        command: str = typer.Option("run --loop --interval 300", "--command",
+                                    help="The `cassandra ...` command the service runs"),
+        name: str = typer.Option("cassandra-cti", "--name", help="Service name"),
+        system: bool = typer.Option(True, "--system/--user",
+                                    help="System service (needs root) or per-user systemd service"),
+        init: str = typer.Option("auto", "--init", help="auto | systemd | openrc"),
+        env_file: Optional[str] = typer.Option(None, "--env-file", help="EnvironmentFile with your secrets (systemd)"),
+        config: Path = typer.Option(None), connectors: Path = typer.Option(None),
+        enable: bool = typer.Option(True, "--enable/--no-enable",
+                                    help="Enable + start after writing the unit"),
+        show_only: bool = typer.Option(False, "--show", help="Print the unit and exit; write nothing")):
+    """Generate and install a service unit that keeps `cassandra run` alive.
+
+    Examples:
+      cassandra service install                                  system systemd, run --loop
+      cassandra service install --user                           per-user systemd service
+      cassandra service install --command "run --loop --since 2026-08-14"
+      cassandra service install --init openrc                    OpenRC (e.g. Gentoo)
+      cassandra service install --show                           preview the unit, write nothing
+    """
+    from . import service as svc
+    chosen = _resolve_init(init)
+    if chosen == "openrc" and not system:
+        raise typer.BadParameter("OpenRC has no per-user services; drop --user.")
+
+    base = default_dir()
+    cfg = str((config or (base / "config.yaml")).expanduser().resolve())
+    cx = str((connectors or (base / "connectors.yaml")).expanduser().resolve())
+    exec_path = svc.resolve_exec()
+    run_args = svc.build_run_args(command, cfg, cx)
+
+    if chosen == "systemd":
+        unit = svc.render_systemd_unit(exec_cmd=f"{exec_path} {run_args}",
+                                       env_file=env_file, user_mode=not system)
+        path = svc.systemd_path(name, user_mode=not system)
+    else:
+        unit = svc.render_openrc_script(exec_path=exec_path, run_args_full=run_args, name=name)
+        path = svc.openrc_path(name)
+
+    if show_only:
+        typer.echo(f"# {path}\n\n{unit}")
+        return
+
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(unit, encoding="utf-8")
+        if chosen == "openrc":
+            os.chmod(path, 0o755)  # nosec B103 -- OpenRC init scripts must be executable (root-owned, no secrets)
+    except PermissionError:
+        typer.echo(f"Permission denied writing {path}.")
+        typer.echo("Re-run with sudo, or use --show to print the unit and install it manually.")
+        raise typer.Exit(1)
+
+    typer.echo(f"Wrote {path}")
+    if chosen == "openrc" and env_file:
+        typer.echo(f"Note: OpenRC reads secrets from /etc/conf.d/{name} (auto-sourced), not --env-file.")
+
+    if not enable:
+        typer.echo("Then enable it with:")
+        typer.echo(svc.manual_enable_hint(chosen, name, user_mode=not system))
+        return
+
+    if svc.enable_service(chosen, name, user_mode=not system):
+        typer.echo(f"Service '{name}' enabled and started.")
+        typer.echo(svc.status_hint(chosen, name, user_mode=not system))
+    else:
+        typer.echo("Unit written, but enabling failed (root required?). Run manually:")
+        typer.echo(svc.manual_enable_hint(chosen, name, user_mode=not system))
+
+
+@service_app.command("uninstall")
+def service_uninstall(
+        name: str = typer.Option("cassandra-cti", "--name", help="Service name"),
+        system: bool = typer.Option(True, "--system/--user"),
+        init: str = typer.Option("auto", "--init", help="auto | systemd | openrc")):
+    """Stop, disable and remove the service unit."""
+    from . import service as svc
+    chosen = _resolve_init(init)
+    path = svc.uninstall_service(chosen, name, user_mode=not system)
+    try:
+        if path.exists():
+            path.unlink()
+            typer.echo(f"Removed {path}")
+        else:
+            typer.echo(f"No unit at {path} (already gone)")
+    except PermissionError:
+        typer.echo(f"Disabled the service, but could not remove {path} (re-run with sudo).")
+        raise typer.Exit(1)
+
+
+@service_app.command("status")
+def service_status(
+        name: str = typer.Option("cassandra-cti", "--name", help="Service name"),
+        system: bool = typer.Option(True, "--system/--user"),
+        init: str = typer.Option("auto", "--init", help="auto | systemd | openrc")):
+    """Show the service status."""
+    from . import service as svc
+    chosen = _resolve_init(init)
+    if not svc.status_service(chosen, name, user_mode=not system):
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()

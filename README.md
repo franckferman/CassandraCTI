@@ -1155,6 +1155,30 @@ cassandra seen-clear --source-prefix "ransomware.live" --since 2025-03-01
 
 ---
 
+### `cassandra service`
+
+Install Cassandra as an OS service (systemd or OpenRC) so `run --loop` survives crashes and reboots.
+
+```bash
+sudo cassandra service install                 # detect init, write unit, enable + start
+cassandra service install --user               # per-user systemd service
+sudo cassandra service install --init openrc   # OpenRC (e.g. Gentoo)
+cassandra service install --show               # preview the unit, write nothing
+cassandra service status                       # is it running?
+cassandra service uninstall                    # stop, disable, remove
+```
+
+| Option | Description |
+|---|---|
+| `--command` | The `cassandra ...` command the service runs (default `run --loop --interval 300`) |
+| `--system` / `--user` | System service (needs root) or per-user systemd service |
+| `--init` | `auto` (default), `systemd`, or `openrc` |
+| `--env-file` | systemd `EnvironmentFile` holding your secrets |
+| `--no-enable` | Write the unit but do not start it |
+| `--show` | Print the unit and exit; write nothing |
+
+---
+
 ## Templates
 
 Messages are rendered with Jinja2. Custom templates can be assigned per route.
@@ -1268,7 +1292,19 @@ Same model. `sources.ransomware_live.lookback_days: 2` controls how far back the
 
 ### As a service
 
-**systemd** (long-running loop, auto-restart):
+Let Cassandra generate and install the unit for you. It auto-detects **systemd** or **OpenRC**, writes the unit, and (by default) enables and starts it:
+
+```bash
+sudo cassandra service install                 # system systemd, runs `cassandra run --loop`
+cassandra service install --user               # per-user systemd (no root)
+sudo cassandra service install --init openrc   # OpenRC, e.g. Gentoo
+sudo cassandra service install --command "run --loop --interval 300 --since 2026-08-14"
+cassandra service install --show               # preview the unit, write nothing
+```
+
+Both `Restart=always` (systemd) and `supervise-daemon` (OpenRC) restart the process on crash, and the service starts on every boot, which a bare `--loop` in your terminal does not. Manage it with `cassandra service status` and `cassandra service uninstall`. A per-user service also needs `loginctl enable-linger $USER` to keep running without an active login.
+
+Prefer to write it yourself? The systemd unit that `install` generates looks like:
 
 ```ini
 # /etc/systemd/system/cassandra-cti.service
@@ -1299,6 +1335,8 @@ journalctl -u cassandra-cti -f          # follow the logs
 ```cron
 */5 * * * * cassandra run --config ~/.config/cassandra-cti/config.yaml --connectors ~/.config/cassandra-cti/connectors.yaml
 ```
+
+**Windows**: run under [Docker](#docker) with `restart: unless-stopped`, or wrap the loop command with a service manager such as NSSM. (`cassandra service install` targets systemd and OpenRC only.)
 
 **Docker**: see [Docker](#docker) below; run the container with `--loop` and `restart: unless-stopped`.
 
