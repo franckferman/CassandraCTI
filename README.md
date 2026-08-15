@@ -1379,7 +1379,7 @@ Every outbound fetch goes through shared network helpers that are hardened by de
 
 - **TLS is verified** on all connections (certificate + hostname checks, SNI sent). To interoperate with an intercepting corporate proxy you can disable verification by setting the environment variable `CTI_TLS_NO_VERIFY=1`. Use this only when you trust the network path, it turns off certificate validation for all fetches.
 - **Response bodies are size-capped** (25 MiB per response) so a malicious or MITM'd feed cannot exhaust memory; oversized responses are refused.
-- **The metrics exporter binds `127.0.0.1` by default** (see [Metrics](#metrics)).
+- **The optional metrics exporter binds `127.0.0.1` by default.**
 
 ### Secrets
 
