@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CassandraCTI — Documentation</title>
+  <title>CassandraCTI, Documentation</title>
   <meta name="description" content="Full technical documentation for CassandraCTI: configuration reference, CLI, sources, transports, routing, templates, Docker, metrics." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -506,7 +506,7 @@
       <div class="section-tag">Introduction</div>
       <h2>CassandraCTI Documentation</h2>
       <p>CassandraCTI is a modular, asynchronous Cyber Threat Intelligence aggregator. It collects events from multiple sources, deduplicates them via SHA1 fingerprinting, routes them through configurable rules, renders messages from Jinja2 templates, and delivers them to Microsoft Teams, Discord, Telegram, or email (SMTP).</p>
-      <p>Named after the Trojan prophetess condemned to warn without being believed — CassandraCTI makes sure your threat intel <strong>actually reaches</strong> the people who need it.</p>
+      <p>Named after the Trojan prophetess condemned to warn without being believed, CassandraCTI makes sure your threat intel <strong>actually reaches</strong> the people who need it.</p>
 
       <h3>Pipeline at a glance</h3>
       <pre><code><span class="hl-dim">Sources</span>   RSS / Atom · ransomware.live · Red Flag Domains
@@ -516,7 +516,7 @@
    <span class="hl-dim">↓</span>
 <span class="hl-dim">Dedupe</span>    SHA1(source + url|title) → SQLite event store
    <span class="hl-dim">↓</span>
-<span class="hl-dim">Route</span>     source prefix · tag match · regex (title / source) — all-match
+<span class="hl-dim">Route</span>     source prefix · tag match · regex (title / source): all-match
    <span class="hl-dim">↓</span>
 <span class="hl-dim">Render</span>    Jinja2 templates per route
    <span class="hl-dim">↓</span>
@@ -618,7 +618,7 @@
       <h2>config.yaml</h2>
       <p>The main configuration file. Controls sources, routing, filtering, storage, and metrics. Supports <code>${VAR_NAME}</code> environment variable substitution anywhere in the file.</p>
 
-      <pre><code><span class="pre-label">config.yaml — full reference</span>
+      <pre><code><span class="pre-label">config.yaml, full reference</span>
 <span class="hl">schema_version</span>: <span class="hl-green">1</span>
 
 <span class="hl">scheduler</span>:
@@ -724,7 +724,7 @@
       </table>
 
       <h3 id="cfg-routes">Routes</h3>
-      <p><strong>Every matching route fires</strong> — a single event can fan out to several routes at once. Per-transport deduplication guarantees the same event is never delivered twice to the same transport. An event not matched by any route is silently dropped.</p>
+      <p><strong>Every matching route fires</strong>: a single event can fan out to several routes at once. Per-transport deduplication guarantees the same event is never delivered twice to the same transport. An event not matched by any route is silently dropped.</p>
       <table class="doc-table">
         <tr><th>Key</th><th>Type</th><th>Description</th></tr>
         <tr><td>name</td><td>string</td><td>Unique route identifier (used in logs).</td></tr>
@@ -733,7 +733,7 @@
         <tr><td>include_regex</td><td>string</td><td>Python regex tested against <code>title</code> and <code>source</code>.</td></tr>
         <tr><td>include_terms</td><td>list</td><td>Entity/company names (accent+case-insensitive) matched over title/summary/source/tags/meta.</td></tr>
         <tr><td>transports</td><td>list[str]</td><td>Connector IDs to deliver matched events to.</td></tr>
-        <tr><td>template</td><td>string</td><td>Path to a Jinja2 template file. Optional — falls back to transport default.</td></tr>
+        <tr><td>template</td><td>string</td><td>Path to a Jinja2 template file. Optional, falls back to transport default.</td></tr>
       </table>
 
       <h3 id="cfg-store">Store</h3>
@@ -855,7 +855,7 @@
         <tr><td>batching.max_items</td><td>int</td><td>No</td><td>Max events per batched message.</td></tr>
       </table>
       <div class="callout">
-        <p>Messages render as HTML with a <strong>4096-char limit</strong> (auto-truncated). On a <code>429</code> the transport honours Telegram's <code>retry_after</code> and backs off. Assign a Telegram-flavoured template (e.g. <code>templates/telegram_default.j2</code>) — Teams/Discord Markdown won't render as rich text on Telegram.</p>
+        <p>Messages render as HTML with a <strong>4096-char limit</strong> (auto-truncated). On a <code>429</code> the transport honours Telegram's <code>retry_after</code> and backs off. Assign a Telegram-flavoured template (e.g. <code>templates/telegram_default.j2</code>): Teams/Discord Markdown won't render as rich text on Telegram.</p>
       </div>
 
       <h3 id="conn-smtp">SMTP (email) connector params</h3>
@@ -894,7 +894,7 @@
         <tr><td>CTI_NO_DEDUPE</td><td>Set to any non-empty value to skip deduplication entirely.</td></tr>
         <tr><td>CTI_DRY_RUN</td><td>Set to any non-empty value to log delivery actions without sending anything.</td></tr>
         <tr><td>CTI_TLS_NO_VERIFY</td><td>Set to <code>1</code> to disable TLS certificate verification on all fetches (for intercepting corporate proxies). TLS is verified by default.</td></tr>
-        <tr><td>ABUSECH_API_KEY</td><td>abuse.ch Auth-Key — unlocks the ThreatFox &amp; MalwareBazaar feeds (Feodo/URLhaus work without it).</td></tr>
+        <tr><td>ABUSECH_API_KEY</td><td>abuse.ch Auth-Key, unlocks the ThreatFox &amp; MalwareBazaar feeds (Feodo/URLhaus work without it).</td></tr>
         <tr><td>ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY</td><td>Optional cloud keys for the LLM layer (AI briefs &amp; briefings). Not needed with a local Ollama.</td></tr>
         <tr><td>CTI_WEB_TOKEN</td><td>Optional Bearer / <code>?token=</code> auth for the web dashboard when exposed beyond localhost.</td></tr>
         <tr><td>SIGNAL_NUMBER</td><td>Signal sender number registered on your signal-cli-rest-api bridge.</td></tr>
@@ -941,7 +941,7 @@ sources:
       <h3>Event fields</h3>
       <table class="doc-table">
         <tr><th>Field</th><th>Value</th></tr>
-        <tr><td>source</td><td><code>rss:{name}</code> — e.g. <code>rss:CERT-FR Alertes</code></td></tr>
+        <tr><td>source</td><td><code>rss:{name}</code>: e.g. <code>rss:CERT-FR Alertes</code></td></tr>
         <tr><td>title</td><td>Feed entry title</td></tr>
         <tr><td>url</td><td>Feed entry link</td></tr>
         <tr><td>summary</td><td>Entry content/description (HTML stripped)</td></tr>
@@ -979,9 +979,9 @@ sources:
       <h3>Backend fallback chain</h3>
       <table class="doc-table">
         <tr><th>Order</th><th>Backend</th><th>Auth</th></tr>
-        <tr><td>1</td><td>API PRO — <code>api-pro.ransomware.live/victims/recent</code></td><td>Header <code>X-API-KEY</code> (from <code>api_key</code>); tried first only when a key is set.</td></tr>
-        <tr><td>2</td><td>API v2 — <code>api.ransomware.live/v2/recentvictims</code></td><td>Free, no auth.</td></tr>
-        <tr><td>3</td><td>posts.json — <code>data.ransomware.live/posts.json</code></td><td>Free legacy dump.</td></tr>
+        <tr><td>1</td><td>API PRO, <code>api-pro.ransomware.live/victims/recent</code></td><td>Header <code>X-API-KEY</code> (from <code>api_key</code>); tried first only when a key is set.</td></tr>
+        <tr><td>2</td><td>API v2, <code>api.ransomware.live/v2/recentvictims</code></td><td>Free, no auth.</td></tr>
+        <tr><td>3</td><td>posts.json, <code>data.ransomware.live/posts.json</code></td><td>Free legacy dump.</td></tr>
       </table>
       <p>Whichever backend serves the data, every record is normalised to the same canonical <code>raw</code> keys so templates behave identically. The <code>raw.backend</code> field records which one answered (<code>pro</code> / <code>v2</code> / <code>posts</code>).</p>
 
@@ -1002,15 +1002,15 @@ sources:
         <tr><td>raw.victim</td><td>Victim name</td></tr>
         <tr><td>raw.group_name</td><td>Ransomware group name</td></tr>
         <tr><td>raw.country</td><td>Victim country (ISO-2 code)</td></tr>
-        <tr><td>raw.country_display</td><td>Full country label — e.g. <code>France (FR)</code>. Falls back to the raw code when unknown, empty when absent.</td></tr>
-        <tr><td>raw.country_flag</td><td>Flag emoji computed from the ISO-2 code — e.g. 🇫🇷. Empty for an invalid/empty code.</td></tr>
+        <tr><td>raw.country_display</td><td>Full country label, e.g. <code>France (FR)</code>. Falls back to the raw code when unknown, empty when absent.</td></tr>
+        <tr><td>raw.country_flag</td><td>Flag emoji computed from the ISO-2 code, e.g. 🇫🇷. Empty for an invalid/empty code.</td></tr>
         <tr><td>raw.activity</td><td>Victim sector / group activity</td></tr>
         <tr><td>raw.website</td><td>Victim domain</td></tr>
         <tr><td>raw.discovered</td><td>Discovery date</td></tr>
         <tr><td>raw.attackdate</td><td>Attack date</td></tr>
-        <tr><td>raw.infostealer</td><td>ransomware.live infostealer <strong>object</strong> (users/employees/third-parties counts + a per-family <code>infostealer_stats</code> breakdown) — <strong>not</strong> a boolean.</td></tr>
-        <tr><td>raw.infostealer_summary</td><td>Human summary of the counts — e.g. <code>886 users, 32 employees, 251 third-parties</code>. Empty when all counts are zero (no false positive).</td></tr>
-        <tr><td>raw.infostealer_stealers</td><td>Top stealer families — e.g. <code>Lumma (137), RedLine (132)</code>. Empty when absent.</td></tr>
+        <tr><td>raw.infostealer</td><td>ransomware.live infostealer <strong>object</strong> (users/employees/third-parties counts + a per-family <code>infostealer_stats</code> breakdown): <strong>not</strong> a boolean.</td></tr>
+        <tr><td>raw.infostealer_summary</td><td>Human summary of the counts, e.g. <code>886 users, 32 employees, 251 third-parties</code>. Empty when all counts are zero (no false positive).</td></tr>
+        <tr><td>raw.infostealer_stealers</td><td>Top stealer families, e.g. <code>Lumma (137), RedLine (132)</code>. Empty when absent.</td></tr>
         <tr><td>raw.data_size</td><td>Exfiltrated data size (when reported)</td></tr>
         <tr><td>raw.leak_url</td><td>Group's onion leak-site post URL, when the backend provides it</td></tr>
         <tr><td>raw.backend</td><td>Backend that served the record (<code>pro</code> / <code>v2</code> / <code>posts</code>)</td></tr>
@@ -1019,13 +1019,13 @@ sources:
       <h3>Enrichment</h3>
       <p>Whichever backend serves a record, it is enriched with derived fields so the cards render consistently:</p>
       <ul>
-        <li><strong>Country.</strong> <code>country_display</code> (e.g. <code>France (FR)</code>) and <code>country_flag</code> (🇫🇷) are computed from the ISO-2 <code>country</code> code via <code>cassandra_cti/countries.py</code> — a full ISO-3166 name map plus a regional-indicator flag builder. Unknown codes fall back to the raw code; empty codes yield empty strings.</li>
-        <li><strong>Infostealer.</strong> ransomware.live's <code>infostealer</code> field is a rich <strong>object</strong> — users / employees / third-parties counts plus a per-stealer-family breakdown in <code>infostealer_stats</code> — <strong>not</strong> a boolean. It is condensed into <code>infostealer_summary</code> (e.g. <code>886 users, 32 employees, 251 third-parties</code>) and <code>infostealer_stealers</code> (top families, e.g. <code>Lumma (137), RedLine (132)</code>). Both stay empty when every count is zero — the API attaches the object even when it correlated nothing, so this avoids a false positive. The card renders the real counts and top stealer families only when they are non-zero.</li>
+        <li><strong>Country.</strong> <code>country_display</code> (e.g. <code>France (FR)</code>) and <code>country_flag</code> (🇫🇷) are computed from the ISO-2 <code>country</code> code via <code>cassandra_cti/countries.py</code>: a full ISO-3166 name map plus a regional-indicator flag builder. Unknown codes fall back to the raw code; empty codes yield empty strings.</li>
+        <li><strong>Infostealer.</strong> ransomware.live's <code>infostealer</code> field is a rich <strong>object</strong>: users / employees / third-parties counts plus a per-stealer-family breakdown in <code>infostealer_stats</code>: <strong>not</strong> a boolean. It is condensed into <code>infostealer_summary</code> (e.g. <code>886 users, 32 employees, 251 third-parties</code>) and <code>infostealer_stealers</code> (top families, e.g. <code>Lumma (137), RedLine (132)</code>). Both stay empty when every count is zero, the API attaches the object even when it correlated nothing, so this avoids a false positive. The card renders the real counts and top stealer families only when they are non-zero.</li>
         <li><strong>Leak link.</strong> <code>leak_url</code> is the group's onion leak site (when the backend provides it). The event <code>url</code> stays the stable ransomware.live permalink so dedup identity does not shift on a fallback; the cards link <strong>both</strong> the permalink and the leak site.</li>
       </ul>
 
       <div class="callout">
-        <p>The <strong>title</strong> country-flag emoji is detected from the event URL TLD — <strong>🇫🇷 🇬🇧 🇩🇪 🇺🇸 🇨🇦 ...</strong> — and prepended when <code>emojis: true</code>. This is separate from the <code>raw.country_flag</code> field above, which is derived from the ISO-2 <code>country</code> code.</p>
+        <p>The <strong>title</strong> country-flag emoji is detected from the event URL TLD, <strong>🇫🇷 🇬🇧 🇩🇪 🇺🇸 🇨🇦 ...</strong>: and prepended when <code>emojis: true</code>. This is separate from the <code>raw.country_flag</code> field above, which is derived from the ISO-2 <code>country</code> code.</p>
       </div>
     </div>
 
@@ -1057,7 +1057,7 @@ sources:
     <div class="doc-section" id="src-kev">
       <div class="section-tag">Sources</div>
       <h2>CISA KEV</h2>
-      <p>The <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noopener noreferrer">CISA Known Exploited Vulnerabilities</a> catalog — CVEs confirmed exploited in the wild. A single public JSON feed, <strong>no API key</strong>. Source id <code>cisa.kev</code>; feeds the dashboard's <em>Vulnerabilities</em> tab.</p>
+      <p>The <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noopener noreferrer">CISA Known Exploited Vulnerabilities</a> catalog, CVEs confirmed exploited in the wild. A single public JSON feed, <strong>no API key</strong>. Source id <code>cisa.kev</code>; feeds the dashboard's <em>Vulnerabilities</em> tab.</p>
 
       <h3>Configuration</h3>
       <pre><code>sources:
@@ -1070,7 +1070,7 @@ sources:
       <table class="doc-table">
         <tr><th>Field</th><th>Value</th></tr>
         <tr><td>source</td><td><code>cisa.kev</code></td></tr>
-        <tr><td>title</td><td><code>CVE-YYYY-NNNN — &lt;name&gt;</code></td></tr>
+        <tr><td>title</td><td><code>CVE-YYYY-NNNN, &lt;name&gt;</code></td></tr>
         <tr><td>url</td><td>NVD detail page for the CVE</td></tr>
         <tr><td>tags</td><td><code>["vulnerability", "kev"]</code> (plus <code>"ransomware"</code> when used in ransomware campaigns)</td></tr>
         <tr><td>raw</td><td><code>cve, vendor, product, due_date, ransomware_use, required_action, date_added</code></td></tr>
@@ -1113,7 +1113,7 @@ sources:
     <div class="doc-section" id="src-ransomware-press">
       <div class="section-tag">Sources · PRO</div>
       <h2>Ransomware Press</h2>
-      <p>Recent cyber-press news from the ransomware.live PRO endpoint <code>/press/recent</code>. <strong>PRO-only</strong> — there is no free equivalent, so without a valid <code>api_key</code> the source degrades gracefully: it logs a warning and yields nothing instead of failing the run.</p>
+      <p>Recent cyber-press news from the ransomware.live PRO endpoint <code>/press/recent</code>. <strong>PRO-only</strong>: there is no free equivalent, so without a valid <code>api_key</code> the source degrades gracefully: it logs a warning and yields nothing instead of failing the run.</p>
 
       <h3>Configuration</h3>
       <pre><code>sources:
@@ -1127,7 +1127,7 @@ sources:
         <tr><th>Field</th><th>Value</th></tr>
         <tr><td>source</td><td><code>ransomware.press</code></td></tr>
         <tr><td>title</td><td>Victim / headline (falls back to <code>Cyber press</code>)</td></tr>
-        <tr><td>url</td><td><code>None</code> — <code>/press/recent</code> items carry no article link</td></tr>
+        <tr><td>url</td><td><code>None</code>: <code>/press/recent</code> items carry no article link</td></tr>
         <tr><td>summary</td><td>Article summary</td></tr>
         <tr><td>tags</td><td><code>["press", "news"]</code></td></tr>
         <tr><td>raw</td><td>Full item: <code>date, victim, domain, country, summary</code></td></tr>
@@ -1150,12 +1150,12 @@ sources:
       <table class="doc-table">
         <tr><th>Field</th><th>Value</th></tr>
         <tr><td>source</td><td><code>ransomware.8k</code></td></tr>
-        <tr><td>title</td><td><code>{company} ({ticker})</code> — ticker omitted if absent</td></tr>
+        <tr><td>title</td><td><code>{company} ({ticker})</code>: ticker omitted if absent</td></tr>
         <tr><td>url</td><td>Real SEC / EDGAR filing link (also the dedup key)</td></tr>
         <tr><td>summary</td><td><code>SEC 8-K filing</code> + matched items</td></tr>
         <tr><td>tags</td><td><code>["sec", "8k", "disclosure"]</code></td></tr>
-        <tr><td>raw.item105</td><td>Item 1.05 — Material Cybersecurity Incident</td></tr>
-        <tr><td>raw.item801</td><td>Item 8.01 — Other Events</td></tr>
+        <tr><td>raw.item105</td><td>Item 1.05, Material Cybersecurity Incident</td></tr>
+        <tr><td>raw.item801</td><td>Item 8.01, Other Events</td></tr>
         <tr><td>raw.file_date</td><td>Filing date</td></tr>
         <tr><td>raw</td><td>Full form: <code>company, stockticker, form, file_date, cik, adsh, link, item105, item801</code></td></tr>
       </table>
@@ -1273,7 +1273,7 @@ sources:
     <div class="doc-section" id="tr-telegram">
       <div class="section-tag">Transports</div>
       <h2>Telegram</h2>
-      <p>Sends messages to a chat/channel via the Telegram <strong>Bot API</strong> (<code>sendMessage</code>). Unlike Teams/Discord there is <strong>no incoming-webhook URL</strong> — you need a <code>bot_token</code> and a <code>chat_id</code>.</p>
+      <p>Sends messages to a chat/channel via the Telegram <strong>Bot API</strong> (<code>sendMessage</code>). Unlike Teams/Discord there is <strong>no incoming-webhook URL</strong>: you need a <code>bot_token</code> and a <code>chat_id</code>.</p>
 
       <h3>Example connector</h3>
       <pre><code>connectors:
@@ -1299,7 +1299,7 @@ sources:
         <li>Messages render as <strong>HTML</strong> (<code>parse_mode: HTML</code>); the card title is emitted as <code>&lt;b&gt;…&lt;/b&gt;</code> by the transport, the body from a per-route template.</li>
         <li>Text is truncated at the Telegram <strong>4096-char limit</strong>.</li>
         <li>On <code>429</code> it honours Telegram's <code>retry_after</code> and backs off; 5 retry attempts with exponential backoff.</li>
-        <li><strong>Graceful plain-text fallback:</strong> if Telegram rejects the HTML entities (<code>can't parse entities</code>), the message is resent as plain text — this failure is deterministic and excluded from the retry policy.</li>
+        <li><strong>Graceful plain-text fallback:</strong> if Telegram rejects the HTML entities (<code>can't parse entities</code>), the message is resent as plain text, this failure is deterministic and excluded from the retry policy.</li>
       </ul>
       <div class="callout">
         <p>Assign a Telegram-flavoured template to Telegram routes (<code>telegram_default</code>, <code>telegram_ransomware</code>, <code>telegram_press</code>, <code>telegram_8k</code>, <code>telegram_stats</code>, <code>telegram_domains</code>). Teams/Discord Markdown won't render as rich text on Telegram.</p>
@@ -1309,7 +1309,7 @@ sources:
     <div class="doc-section" id="tr-smtp">
       <div class="section-tag">Transports</div>
       <h2>Email (SMTP)</h2>
-      <p>Sends HTML email through any SMTP server (Gmail, SendGrid, a corporate relay…). Uses the Python standard-library <code>smtplib</code> run in a worker thread so it never blocks the event loop — no extra dependency.</p>
+      <p>Sends HTML email through any SMTP server (Gmail, SendGrid, a corporate relay…). Uses the Python standard-library <code>smtplib</code> run in a worker thread so it never blocks the event loop, no extra dependency.</p>
 
       <h3>Example connector</h3>
       <pre><code>connectors:
@@ -1329,7 +1329,7 @@ sources:
       <h3>Message format</h3>
       <ul>
         <li><strong>Subject:</strong> <code>subject_prefix</code> + the event/source title.</li>
-        <li><strong>Body:</strong> a <code>multipart/alternative</code> message — plain text (tags stripped) plus HTML rendered from <code>templates/smtp_default.j2</code> (or a custom per-route template).</li>
+        <li><strong>Body:</strong> a <code>multipart/alternative</code> message, plain text (tags stripped) plus HTML rendered from <code>templates/smtp_default.j2</code> (or a custom per-route template).</li>
         <li><code>security</code> selects the connection: <code>starttls</code> (587, default), <code>ssl</code> (implicit TLS, 465), or <code>none</code> (plaintext relay on 25). Login is skipped when username/password are omitted.</li>
         <li>A recipient (<code>to_addrs</code>) is required; sending without one raises a configuration error.</li>
       </ul>
@@ -1341,7 +1341,7 @@ sources:
     <div class="doc-section" id="tr-signal">
       <div class="section-tag">Transports</div>
       <h2>Signal</h2>
-      <p>Signal has <strong>no hosted webhook or bot API</strong>, so this posts to a <strong>self-hosted bridge</strong> — <a href="https://github.com/bbernhard/signal-cli-rest-api" target="_blank" rel="noopener noreferrer">signal-cli-rest-api</a> — via <code>POST {api_url}/v2/send</code>. Run the bridge and register a dedicated number once.</p>
+      <p>Signal has <strong>no hosted webhook or bot API</strong>, so this posts to a <strong>self-hosted bridge</strong>: <a href="https://github.com/bbernhard/signal-cli-rest-api" target="_blank" rel="noopener noreferrer">signal-cli-rest-api</a>, via <code>POST {api_url}/v2/send</code>. Run the bridge and register a dedicated number once.</p>
 
       <h3>Example connector</h3>
       <pre><code>connectors:
@@ -1355,7 +1355,7 @@ sources:
       # text_mode: styled                    <span class="hl-dim"># optional: basic *bold* / _italic_</span></code></pre>
 
       <h3>Number, group, or both</h3>
-      <p><code>recipients</code> is a plain list — mix phone numbers and group ids freely:</p>
+      <p><code>recipients</code> is a plain list, mix phone numbers and group ids freely:</p>
       <table class="doc-table">
         <tr><th>Target</th><th><code>recipients</code></th></tr>
         <tr><td>A number only</td><td><code>["+33611111111"]</code></td></tr>
@@ -1364,32 +1364,32 @@ sources:
       </table>
 
       <h3>Setup &amp; test (one-time)</h3>
-      <p><strong>1.</strong> Run the bridge — device linking needs <code>json-rpc</code> mode and outbound network:</p>
+      <p><strong>1.</strong> Run the bridge, device linking needs <code>json-rpc</code> mode and outbound network:</p>
       <pre><code><span class="hl">docker run -d --name signal-api -p 8090:8080 --dns 9.9.9.9 \
   -v $HOME/.local/share/signal-api:/home/.local/share/signal-cli \
   -e MODE=json-rpc bbernhard/signal-cli-rest-api</span></code></pre>
-      <p><strong>2.</strong> Link it to your Signal account as a <strong>secondary device</strong> (your phone stays primary — no number takeover):</p>
+      <p><strong>2.</strong> Link it to your Signal account as a <strong>secondary device</strong> (your phone stays primary, no number takeover):</p>
       <pre><code><span class="hl">curl -s -o signal-qr.png "http://localhost:8090/v1/qrcodelink?device_name=cassandra-cti"
 xdg-open signal-qr.png</span>   <span class="hl-dim"># phone: Signal -> Settings -> Linked devices -> + -> scan</span></code></pre>
       <p><strong>3.</strong> Confirm the link, then send a test:</p>
       <pre><code><span class="hl">curl -s http://localhost:8090/v1/accounts</span>   <span class="hl-dim"># should list your number</span>
 <span class="hl">cassandra doctor connector --id signal-soc</span></code></pre>
       <div class="callout">
-        <p>If linking fails with <em>"Connection closed"</em>, the container has no internet — check <code>docker exec signal-api getent hosts chat.signal.org</code>. A common cause is a host firewall dropping the Docker bridge's forwarded traffic (allow forwarding for <code>docker0</code>). Alternatively you can register a <strong>dedicated</strong> number as a new primary (<code>POST /v1/register/{number}</code> + SMS/captcha) — never with your personal number.</p>
+        <p>If linking fails with <em>"Connection closed"</em>, the container has no internet, check <code>docker exec signal-api getent hosts chat.signal.org</code>. A common cause is a host firewall dropping the Docker bridge's forwarded traffic (allow forwarding for <code>docker0</code>). Alternatively you can register a <strong>dedicated</strong> number as a new primary (<code>POST /v1/register/{number}</code> + SMS/captcha): never with your personal number.</p>
       </div>
-      <p>Messages are <strong>plain text</strong> (URLs auto-link), so leave Signal routes template-less or use a plain-text template — a Markdown/HTML card would show its markup literally.</p>
+      <p>Messages are <strong>plain text</strong> (URLs auto-link), so leave Signal routes template-less or use a plain-text template, a Markdown/HTML card would show its markup literally.</p>
 
       <div class="callout">
-        <p><strong>Supply-chain note.</strong> CassandraCTI's Signal transport is a thin HTTP client — it imports no Signal library and vendors no bridge code, so there is <em>no code-level dependency</em> on the bridge (it's an external process behind <code>api_url</code>). To harden the bridge itself: pin the image by digest (<code>…@sha256:…</code> instead of <code>:latest</code>), or self-build from a reviewed fork. The transport works unchanged against any of them.</p>
+        <p><strong>Supply-chain note.</strong> CassandraCTI's Signal transport is a thin HTTP client, it imports no Signal library and vendors no bridge code, so there is <em>no code-level dependency</em> on the bridge (it's an external process behind <code>api_url</code>). To harden the bridge itself: pin the image by digest (<code>…@sha256:…</code> instead of <code>:latest</code>), or self-build from a reviewed fork. The transport works unchanged against any of them.</p>
       </div>
     </div>
 
     <div class="doc-section" id="tr-web">
       <div class="section-tag">Transports</div>
       <h2>Web Dashboard</h2>
-      <p>A live, read-only console for a CTI/Blue team — events stream in real time (SSE) as they are routed, with history served from the local SQLite store. Zero extra dependency, self-contained page (no CDN), so it runs on isolated networks.</p>
+      <p>A live, read-only console for a CTI/Blue team, events stream in real time (SSE) as they are routed, with history served from the local SQLite store. Zero extra dependency, self-contained page (no CDN), so it runs on isolated networks.</p>
 
-      <h3>Fastest way — no config</h3>
+      <h3>Fastest way, no config</h3>
       <pre><code>cassandra run --loop --web                 # http://127.0.0.1:8080
 cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
       <p><code>--web</code> injects a temporary catch-all route to a built-in <code>web</code> connector (nothing is written to your YAML) and implies <code>--loop</code>.</p>
@@ -1405,14 +1405,14 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
 
       <h3>The UI</h3>
       <ul>
-        <li><strong>Tabbed</strong> — Overview, Live feed, and one tab per category: Ransomware, RSS, Red flags, Vulnerabilities (CISA KEV), IOCs (abuse.ch).</li>
-        <li><strong>Overview</strong> — live clock, a stat strip (totals, 24h/7d/30d deltas, critical count, active sources, alerts sent), an activity chart, top sources, by-category and top ransomware groups, source health and a latest-critical list.</li>
-        <li><strong>Feed tabs</strong> — a log-style table with per-category filters, date range, sort, result count, and per-row actions: copy the IOC/CVE, an <strong>AI brief</strong>, and a details modal.</li>
-        <li><strong>Actionable</strong> — export the current view to CSV/JSON, deep-link tab + filters + search in the URL, keyboard shortcuts, optional sound on critical events.</li>
-        <li><strong>Inventory</strong> (opt-in) and <strong>AI briefs</strong> (opt-in) — see below.</li>
+        <li><strong>Tabbed</strong>: Overview, Live feed, and one tab per category: Ransomware, RSS, Red flags, Vulnerabilities (CISA KEV), IOCs (abuse.ch).</li>
+        <li><strong>Overview</strong>: live clock, a stat strip (totals, 24h/7d/30d deltas, critical count, active sources, alerts sent), an activity chart, top sources, by-category and top ransomware groups, source health and a latest-critical list.</li>
+        <li><strong>Feed tabs</strong>: a log-style table with per-category filters, date range, sort, result count, and per-row actions: copy the IOC/CVE, an <strong>AI brief</strong>, and a details modal.</li>
+        <li><strong>Actionable</strong>: export the current view to CSV/JSON, deep-link tab + filters + search in the URL, keyboard shortcuts, optional sound on critical events.</li>
+        <li><strong>Inventory</strong> (opt-in) and <strong>AI briefs</strong> (opt-in): see below.</li>
       </ul>
       <div class="callout">
-        <p>The server binds <code>127.0.0.1</code> by default — set a <code>token</code> before exposing it on the network.</p>
+        <p>The server binds <code>127.0.0.1</code> by default, set a <code>token</code> before exposing it on the network.</p>
       </div>
     </div>
 
@@ -1420,7 +1420,7 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
     <div class="doc-section" id="routing">
       <div class="section-tag">Routing</div>
       <h2>Routing Rules</h2>
-      <p>Routes match incoming events and determine which transports receive them. <strong>Every matching route fires</strong> — a single event can fan out across several routes at once (e.g. a "firehose" route alongside a topic route). <strong>Per-transport deduplication</strong> guarantees the same event is never delivered twice to the same transport, even when overlapping routes target it. Events not matched by any route are silently dropped.</p>
+      <p>Routes match incoming events and determine which transports receive them. <strong>Every matching route fires</strong>: a single event can fan out across several routes at once (e.g. a "firehose" route alongside a topic route). <strong>Per-transport deduplication</strong> guarantees the same event is never delivered twice to the same transport, even when overlapping routes target it. Events not matched by any route are silently dropped.</p>
 
       <h3>Match by source prefix</h3>
       <pre><code>routes:
@@ -1451,7 +1451,7 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
       </div>
 
       <h3>Match by entity / company name (include_terms)</h3>
-      <p>A plain list of names — <strong>accent- and case-insensitive</strong> — matched against the <code>title</code>, <code>summary</code>, <code>source</code>, <code>tags</code> AND <code>meta</code> of every event. Unlike <code>include_regex</code> (title/source only), it catches a company named only in the body or in a ransomware victim field. This is the "alert me when <em>X</em> appears anywhere" selector — pure config, CLI-portable, and it works on <a href="#briefings">briefings</a> too.</p>
+      <p>A plain list of names, <strong>accent- and case-insensitive</strong>: matched against the <code>title</code>, <code>summary</code>, <code>source</code>, <code>tags</code> AND <code>meta</code> of every event. Unlike <code>include_regex</code> (title/source only), it catches a company named only in the body or in a ransomware victim field. This is the "alert me when <em>X</em> appears anywhere" selector, pure config, CLI-portable, and it works on <a href="#briefings">briefings</a> too.</p>
       <pre><code>routes:
   - name: "entity-watch"
     include_terms: ["Credit Agricole", "BNP Paribas", "Gouvernement", "Airbus"]
@@ -1476,11 +1476,11 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
     <div class="doc-section" id="llm">
       <div class="section-tag">AI &amp; Automation</div>
       <h2>LLM Layer</h2>
-      <p>An optional, provider-agnostic layer behind one <code>complete()</code> call, powering the dashboard's <em>AI brief</em> and the <a href="#briefings">briefings</a>. <strong>Off by default</strong> — nothing leaves the network unless a feature invokes it. Privacy-first: <code>auto</code> prefers a reachable local Ollama, else the first cloud key set.</p>
+      <p>An optional, provider-agnostic layer behind one <code>complete()</code> call, powering the dashboard's <em>AI brief</em> and the <a href="#briefings">briefings</a>. <strong>Off by default</strong>: nothing leaves the network unless a feature invokes it. Privacy-first: <code>auto</code> prefers a reachable local Ollama, else the first cloud key set.</p>
 
       <table class="doc-table">
         <tr><th>Provider</th><th>Type</th><th>Key (env)</th><th>Default model</th></tr>
-        <tr><td><code>ollama</code></td><td>local, free, private</td><td>— (<code>http://localhost:11434</code>)</td><td>first installed model</td></tr>
+        <tr><td><code>ollama</code></td><td>local, free, private</td><td>, (<code>http://localhost:11434</code>)</td><td>first installed model</td></tr>
         <tr><td><code>anthropic</code></td><td>cloud</td><td><code>ANTHROPIC_API_KEY</code></td><td><code>claude-opus-5</code></td></tr>
         <tr><td><code>openai</code></td><td>cloud</td><td><code>OPENAI_API_KEY</code></td><td><code>gpt-4o-mini</code></td></tr>
         <tr><td><code>deepseek</code></td><td>cloud</td><td><code>DEEPSEEK_API_KEY</code></td><td><code>deepseek-chat</code></td></tr>
@@ -1494,14 +1494,14 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
   ollama_model: ""        # optional; else the first pulled model
   max_tokens: 300</code></pre>
       <div class="callout">
-        <p>With no Ollama and no cloud key, AI features are simply hidden/skipped — everything else runs unchanged.</p>
+        <p>With no Ollama and no cloud key, AI features are simply hidden/skipped, everything else runs unchanged.</p>
       </div>
     </div>
 
     <div class="doc-section" id="inventory">
       <div class="section-tag">AI &amp; Automation</div>
       <h2>Inventory</h2>
-      <p>Tell CassandraCTI which vendors/products/OS make up your stack; the dashboard's <strong>INV</strong> toggle then applies <code>match_mode</code> — <code>highlight</code> keeps every event but emphasizes the ones touching your stack, <code>filter</code> shows only those. Opt-in, dashboard-only.</p>
+      <p>Tell CassandraCTI which vendors/products/OS make up your stack; the dashboard's <strong>INV</strong> toggle then applies <code>match_mode</code>: <code>highlight</code> keeps every event but emphasizes the ones touching your stack, <code>filter</code> shows only those. Opt-in, dashboard-only.</p>
       <pre><code>inventory:
   enabled: true
   match_mode: highlight    # highlight (show all, emphasize) | filter (show only matches)
@@ -1511,7 +1511,7 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
     <div class="doc-section" id="briefings">
       <div class="section-tag">AI &amp; Automation</div>
       <h2>Briefings</h2>
-      <p>Routes deliver <strong>each</strong> event. A <strong>briefing</strong> does the opposite: periodically it recaps a <em>batch</em> — the LLM writes a short, <strong>prioritised</strong> summary with links, sent through a normal transport <strong>after</strong> the individual alerts. A shift hand-over: "here's what came in, and what matters."</p>
+      <p>Routes deliver <strong>each</strong> event. A <strong>briefing</strong> does the opposite: periodically it recaps a <em>batch</em>, the LLM writes a short, <strong>prioritised</strong> summary with links, sent through a normal transport <strong>after</strong> the individual alerts. A shift hand-over: "here's what came in, and what matters."</p>
 
       <pre><code>briefings:
   - name: vuln-daily
@@ -1525,8 +1525,8 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
 
       <table class="doc-table">
         <tr><th>Key</th><th>Default</th><th>Meaning</th></tr>
-        <tr><td>include_sources / include_tags / include_regex / include_terms</td><td>—</td><td>select events like a route (OR across them; none = all)</td></tr>
-        <tr><td>transports</td><td>—</td><td>connector id(s) that receive the brief</td></tr>
+        <tr><td>include_sources / include_tags / include_regex / include_terms</td><td>,</td><td>select events like a route (OR across them; none = all)</td></tr>
+        <tr><td>transports</td><td>,</td><td>connector id(s) that receive the brief</td></tr>
         <tr><td>schedule</td><td><code>24h</code></td><td>how often it may fire</td></tr>
         <tr><td>min_items</td><td><code>1</code></td><td>don't send with fewer than N new items</td></tr>
         <tr><td>max_items</td><td><code>40</code></td><td>cap on items fed to the LLM</td></tr>
@@ -1535,12 +1535,12 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
       </table>
 
       <p>Each cycle, after delivery, a briefing checks whether its <code>schedule</code> elapsed; if so it gathers the events <strong>ingested since its last run</strong> that match its selectors, has the LLM prioritise them (KEV / ransomware-linked / high-confidence IOCs first) and narrate them with links, sends one message and records the timestamp.</p>
-      <p>Briefings <strong>compose into per-category digests</strong>: define one per topic, each scoped to its sources, pointed at its own channel, with its own cadence + <code>top_n</code> — e.g. a 6h Top 10 news recap, a daily Top 10 ransomware recap, and a daily + weekly Top 10 CVE recap. Ranking is the LLM's judgment (exploited/critical first), not CVSS. For a single <strong>cross-category overview</strong>, add a briefing with <strong>no selectors</strong> (a catch-all over the whole event pool) pointed at a dedicated debrief channel. Trigger manually with <code>briefing-run</code>:</p>
+      <p>Briefings <strong>compose into per-category digests</strong>: define one per topic, each scoped to its sources, pointed at its own channel, with its own cadence + <code>top_n</code>: e.g. a 6h Top 10 news recap, a daily Top 10 ransomware recap, and a daily + weekly Top 10 CVE recap (the <code>category-digests</code> example wires exactly that). Ranking is the LLM's judgment (exploited/critical first), not CVSS. For a single <strong>cross-category overview</strong>, add a <code>general-debrief</code> briefing with <strong>no selectors</strong> (a catch-all over the whole event pool) pointed at a dedicated channel. Trigger manually with <code>briefing-run</code>:</p>
       <pre><code>cassandra briefing-run --all            # force every briefing now
 cassandra briefing-run --name vuln-daily
 cassandra briefing-run --all --dry-run  # [DRYRUN:BRIEFING], no LLM call</code></pre>
       <div class="callout">
-        <p>Briefings need the <a href="#llm">LLM layer</a> to resolve a provider. With none available they're skipped (a warning is logged) — everything else runs.</p>
+        <p>Briefings need the <a href="#llm">LLM layer</a> to resolve a provider. With none available they're skipped (a warning is logged): everything else runs.</p>
       </div>
     </div>
 
@@ -1561,7 +1561,7 @@ cassandra briefing-run --all --dry-run  # [DRYRUN:BRIEFING], no LLM call</code><
         <tr><td>--dry-run</td><td>flag</td><td>Log delivery actions without sending anything.</td></tr>
         <tr><td>--verbose</td><td>flag</td><td>Set log level to DEBUG.</td></tr>
         <tr><td>--since</td><td>TEXT</td><td>Only process events after this date (ISO8601 or YYYY-MM-DD).</td></tr>
-        <tr><td>--no-dedupe</td><td>flag</td><td>Skip deduplication — resend all events.</td></tr>
+        <tr><td>--no-dedupe</td><td>flag</td><td>Skip deduplication, resend all events.</td></tr>
       </table>
 
       <h4>Examples</h4>
@@ -1594,7 +1594,7 @@ cassandra briefing-run --all --dry-run  # [DRYRUN:BRIEFING], no LLM call</code><
       <h2>cassandra init</h2>
       <p>Scaffold the configuration directory with default files.</p>
       <pre><code><span class="hl">cassandra init</span> [--config PATH] [--connectors PATH]</code></pre>
-      <p>Creates <code>config.yaml</code>, <code>connectors.yaml</code>, and a <code>templates/</code> directory in the default config path (or the paths you specify). Skips files that already exist — safe to re-run.</p>
+      <p>Creates <code>config.yaml</code>, <code>connectors.yaml</code>, and a <code>templates/</code> directory in the default config path (or the paths you specify). Skips files that already exist, safe to re-run.</p>
     </div>
 
     <div class="doc-section" id="cli-add-source">
@@ -1632,14 +1632,14 @@ cassandra briefing-run --all --dry-run  # [DRYRUN:BRIEFING], no LLM call</code><
       <div class="section-tag">CLI Reference</div>
       <h2>cassandra add-connector</h2>
       <p>Add a connector to <code>connectors.yaml</code>. <code>--type</code> selects the transport (<code>teams</code> default, <code>discord</code>, <code>telegram</code>, <code>smtp</code>, <code>web</code>, <code>signal</code>); required params are validated per type.</p>
-      <pre><code><span class="hl-dim"># Teams / Discord — incoming webhook</span>
+      <pre><code><span class="hl-dim"># Teams / Discord, incoming webhook</span>
 <span class="hl">cassandra add-connector --id "teams-soc" --type teams   --webhook-url "https://..."
 cassandra add-connector --id "discord"   --type discord --webhook-url "https://..." --username "CassandraCTI"</span>
 
-<span class="hl-dim"># Telegram — bot token + chat id</span>
+<span class="hl-dim"># Telegram, bot token + chat id</span>
 <span class="hl">cassandra add-connector --id "tg-soc" --type telegram --bot-token "$TELEGRAM_BOT_TOKEN" --chat-id "@my_channel"</span>
 
-<span class="hl-dim"># Email — SMTP</span>
+<span class="hl-dim"># Email, SMTP</span>
 <span class="hl">cassandra add-connector --id "mail" --type smtp --host smtp.gmail.com --from-addr you@example.com --to-addrs "soc@example.com"</span></code></pre>
     </div>
 
@@ -1684,7 +1684,7 @@ cassandra add-connector --id "discord"   --type discord --webhook-url "https://.
 
 <span class="hl-dim"># Send a test message to a connector (Teams, Discord, Telegram, or SMTP)</span>
 <span class="hl">cassandra doctor connector --id teams-soc</span></code></pre>
-      <p><code>doctor config</code> also warns when a PRO-only feed (<code>ransomware_press</code>, <code>ransomware_8k</code>, <code>ransomware_stats</code>) is enabled but has no <code>api_key</code> — those feeds would silently skip.</p>
+      <p><code>doctor config</code> also warns when a PRO-only feed (<code>ransomware_press</code>, <code>ransomware_8k</code>, <code>ransomware_stats</code>) is enabled but has no <code>api_key</code>: those feeds would silently skip.</p>
     </div>
 
     <div class="doc-section" id="cli-backfill">
@@ -1708,7 +1708,7 @@ cassandra add-connector --id "discord"   --type discord --webhook-url "https://.
       <pre><code><span class="hl">cassandra db-reset</span>         <span class="hl-dim"># prompts for confirmation</span>
 <span class="hl">cassandra db-reset --force</span>  <span class="hl-dim"># skip confirmation</span></code></pre>
       <div class="callout callout-warn">
-        <p><strong>Destructive.</strong> All delivery tracking is lost — every event will be re-sent on the next run.</p>
+        <p><strong>Destructive.</strong> All delivery tracking is lost, every event will be re-sent on the next run.</p>
       </div>
 
       <h3>cassandra seen-clear</h3>
@@ -1740,11 +1740,11 @@ cassandra add-connector --id "discord"   --type discord --webhook-url "https://.
         <tr><td>templates/domains_list.j2</td><td>Malicious domain list with 50-domain preview and full link</td></tr>
         <tr><td>templates/batch_default.j2</td><td>Batched multi-event summary with emoji per event</td></tr>
         <tr><td>templates/smtp_default.j2</td><td>Default HTML email body for SMTP routes</td></tr>
-        <tr><td>templates/briefing_default.j2</td><td>LLM briefing body (Markdown — Discord/Teams)</td></tr>
+        <tr><td>templates/briefing_default.j2</td><td>LLM briefing body (Markdown, Discord/Teams)</td></tr>
       </table>
 
       <h4>Telegram templates (HTML, <code>parse_mode=HTML</code>)</h4>
-      <p>Telegram routes should use a Telegram-flavoured template — these emit Telegram HTML (the title is bolded by the transport; dynamic values are HTML-escaped):</p>
+      <p>Telegram routes should use a Telegram-flavoured template, these emit Telegram HTML (the title is bolded by the transport; dynamic values are HTML-escaped):</p>
       <table class="doc-table">
         <tr><th>File</th><th>Use case</th></tr>
         <tr><td>templates/telegram_default.j2</td><td>Generic single-event body with a "Read more" link</td></tr>
@@ -1795,38 +1795,38 @@ cassandra add-connector --id "discord"   --type discord --webhook-url "https://.
     <div class="doc-section" id="running">
       <div class="section-tag">Operations</div>
       <h2>Running Continuously</h2>
-      <p>The single most important thing to understand: <strong>deduplication is what makes "only send new items" work — not a flag.</strong> Every run reloads the config, fetches every source, and the SQLite store remembers what has already been delivered <em>to each transport</em>. Each pass therefore sends only items that were never delivered — run the same command a hundred times and each article goes out exactly once.</p>
+      <p>The single most important thing to understand: <strong>deduplication is what makes "only send new items" work, not a flag.</strong> Every run reloads the config, fetches every source, and the SQLite store remembers what has already been delivered <em>to each transport</em>. Each pass therefore sends only items that were never delivered, run the same command a hundred times and each article goes out exactly once.</p>
 
       <pre><code><span class="hl-dim">reload config → fetch all sources → filter → </span><span class="hl">DEDUP (SQLite)</span><span class="hl-dim"> → route → deliver</span></code></pre>
 
       <p>The store keeps this delivery history for <code>store.seen_ttl_days</code> (default 90) before purging older entries.</p>
 
       <h3>One-shot vs. loop</h3>
-      <pre><code><span class="hl-dim"># One pass and exit — ideal behind cron or a systemd timer</span>
+      <pre><code><span class="hl-dim"># One pass and exit, ideal behind cron or a systemd timer</span>
 <span class="hl">cassandra run --config config.yaml --connectors connectors.yaml</span>
 
 <span class="hl-dim"># Stay alive and repeat every N seconds (default 300 = 5 min)</span>
 <span class="hl">cassandra run --config config.yaml --connectors connectors.yaml --loop --interval 300</span></code></pre>
-      <p>In <code>--loop</code> mode the process reloads <code>config.yaml</code> <strong>at the start of every cycle</strong>, so adding a feed or editing a route is picked up on the next pass — no restart needed. RSS and <code>ransomware.live</code> share the exact same fetch → dedup → deliver cycle.</p>
+      <p>In <code>--loop</code> mode the process reloads <code>config.yaml</code> <strong>at the start of every cycle</strong>, so adding a feed or editing a route is picked up on the next pass, no restart needed. RSS and <code>ransomware.live</code> share the exact same fetch → dedup → deliver cycle.</p>
 
       <h3>First run: avoid the backlog flood</h3>
       <p>On a <strong>fresh</strong> database the first pass sees every item currently in your feeds as "new" and would send the whole backlog at once. Seed with a date floor, then let dedup take over:</p>
       <pre><code><span class="hl-dim"># 1) Seed: only recent items, sent once</span>
 <span class="hl">cassandra run --config config.yaml --connectors connectors.yaml --since 2026-07-05</span>
 
-<span class="hl-dim"># 2) Then run continuously — dedup prevents any repeats</span>
+<span class="hl-dim"># 2) Then run continuously, dedup prevents any repeats</span>
 <span class="hl">cassandra run --config config.yaml --connectors connectors.yaml --loop --interval 300</span></code></pre>
       <ul>
-        <li><strong>dedup</strong> (always on) — never re-sends a delivered item. Bypass for testing with <code>--no-dedupe</code>.</li>
-        <li><strong><code>--since YYYY-MM-DD</code></strong> — an optional date floor; most useful on the first run.</li>
-        <li><strong><code>filters.max_items_per_source</code></strong> (config) — caps how many items each feed emits per cycle.</li>
+        <li><strong>dedup</strong> (always on): never re-sends a delivered item. Bypass for testing with <code>--no-dedupe</code>.</li>
+        <li><strong><code>--since YYYY-MM-DD</code></strong>: an optional date floor; most useful on the first run.</li>
+        <li><strong><code>filters.max_items_per_source</code></strong> (config): caps how many items each feed emits per cycle.</li>
       </ul>
 
       <h3>Ransomware &amp; PRO feeds</h3>
-      <p>Same model. <code>sources.ransomware_live.lookback_days</code> controls how far back the source looks on each fetch; dedup guarantees each victim is delivered once, so in loop mode every newly-disclosed victim goes out on the next cycle. The PRO feeds (<code>ransomware_press</code>, <code>ransomware_8k</code>, <code>ransomware_stats</code>) run through the identical cycle — <code>ransomware_stats</code> deduplicates per day, so you get one digest daily.</p>
+      <p>Same model. <code>sources.ransomware_live.lookback_days</code> controls how far back the source looks on each fetch; dedup guarantees each victim is delivered once, so in loop mode every newly-disclosed victim goes out on the next cycle. The PRO feeds (<code>ransomware_press</code>, <code>ransomware_8k</code>, <code>ransomware_stats</code>) run through the identical cycle, <code>ransomware_stats</code> deduplicates per day, so you get one digest daily.</p>
 
       <h3>As a service</h3>
-      <h4>systemd — long-running loop, auto-restart</h4>
+      <h4>systemd, long-running loop, auto-restart</h4>
       <pre><code><span class="pre-label">/etc/systemd/system/cassandra-cti.service</span>
 [Unit]
 Description=CassandraCTI aggregator
@@ -1846,15 +1846,15 @@ WantedBy=multi-user.target</code></pre>
 <span class="hl">systemctl enable --now cassandra-cti</span>
 <span class="hl">journalctl -u cassandra-cti -f</span>          <span class="hl-dim"># follow the logs</span></code></pre>
 
-      <h4>cron / systemd timer — one-shot each fire (dedup makes repeats harmless)</h4>
+      <h4>cron / systemd timer, one-shot each fire (dedup makes repeats harmless)</h4>
       <pre><code><span class="hl">*/5 * * * * cassandra run --config ~/.config/cassandra-cti/config.yaml --connectors ~/.config/cassandra-cti/connectors.yaml</span></code></pre>
 
-      <p><strong>Docker:</strong> see <a href="#docker">Docker</a> below — run the container with <code>--loop</code> and <code>restart: unless-stopped</code>.</p>
+      <p><strong>Docker:</strong> see <a href="#docker">Docker</a> below, run the container with <code>--loop</code> and <code>restart: unless-stopped</code>.</p>
 
       <h3>Choosing the interval</h3>
       <table class="doc-table">
         <tr><th>--interval</th><th>Result</th></tr>
-        <tr><td>300 (5 min)</td><td>Near-real-time — each new post within ~5 min.</td></tr>
+        <tr><td>300 (5 min)</td><td>Near-real-time, each new post within ~5 min.</td></tr>
         <tr><td>3600 (1 h)</td><td>Hourly sweeps.</td></tr>
         <tr><td>86400 (daily)</td><td>One pass per day.</td></tr>
       </table>
@@ -1907,7 +1907,7 @@ ENV PYTHONUNBUFFERED=1
 CMD ["cassandra", "run", "--config", "/config/config.yaml"]</code></pre>
 
       <div class="callout">
-        <p>Mount a volume at <code>/config</code> containing <code>config.yaml</code> and <code>connectors.yaml</code>. Inject webhook URLs via environment variables — never commit them to the image.</p>
+        <p>Mount a volume at <code>/config</code> containing <code>config.yaml</code> and <code>connectors.yaml</code>. Inject webhook URLs via environment variables, never commit them to the image.</p>
       </div>
     </div>
 
@@ -1938,7 +1938,7 @@ CMD ["cassandra", "run", "--config", "/config/config.yaml"]</code></pre>
       <h3>Module map</h3>
       <table class="doc-table">
         <tr><th>Module</th><th>Responsibility</th></tr>
-        <tr><td>cli.py</td><td>Typer CLI — all user-facing commands</td></tr>
+        <tr><td>cli.py</td><td>Typer CLI, all user-facing commands</td></tr>
         <tr><td>main.py</td><td>Core pipeline orchestration (fetch → filter → route → send)</td></tr>
         <tr><td>models.py</td><td><code>Event</code> dataclass</td></tr>
         <tr><td>config.py</td><td>YAML loading, env substitution, <code>Settings</code> / <code>RouteDef</code> / <code>TransportDef</code></td></tr>
@@ -1965,8 +1965,8 @@ CMD ["cassandra", "run", "--config", "/config/config.yaml"]</code></pre>
       <h3>Deduplication</h3>
       <p>Event IDs are generated as <code>SHA1(source + canonical_url + title)</code>. This makes IDs deterministic and stable across restarts. Two SQLite tables track state:</p>
       <ul>
-        <li><strong>events</strong> — stores event metadata with first/last seen timestamps</li>
-        <li><strong>deliveries</strong> — tracks per-transport delivery status (ok / failed)</li>
+        <li><strong>events</strong>: stores event metadata with first/last seen timestamps</li>
+        <li><strong>deliveries</strong>: tracks per-transport delivery status (ok / failed)</li>
       </ul>
       <p>An event is only sent to a transport if it has no successful delivery record for that transport. Using <code>--no-dedupe</code> or setting <code>CTI_NO_DEDUPE</code> bypasses this check.</p>
 

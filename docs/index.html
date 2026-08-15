@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CassandraCTI — Modular Cyber Threat Intelligence Aggregator</title>
-  <meta name="description" content="CassandraCTI aggregates threat intelligence from RSS feeds, ransomware trackers, malicious domains, CISA KEV vulnerabilities and abuse.ch IOCs, then routes it to Microsoft Teams, Discord, Telegram, email or a live web dashboard — with optional AI briefings." />
+  <title>CassandraCTI, Modular Cyber Threat Intelligence Aggregator</title>
+  <meta name="description" content="CassandraCTI aggregates threat intelligence from RSS feeds, ransomware trackers, malicious domains, CISA KEV vulnerabilities and abuse.ch IOCs, then routes it to Microsoft Teams, Discord, Telegram, email or a live web dashboard, with optional AI briefings." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
@@ -1116,7 +1116,7 @@
     <p class="hero-desc">
       She warned of the danger. Nobody listened.<br><br>
       CassandraCTI collects threat intelligence from multiple sources and makes sure
-      your team <em style="font-style:normal;color:var(--amber)">actually receives it</em> — on Teams, Discord, Telegram, email or a live web dashboard.
+      your team <em style="font-style:normal;color:var(--amber)">actually receives it</em>, on Teams, Discord, Telegram, email or a live web dashboard.
     </p>
     <div class="hero-actions">
       <a href="#start" class="btn btn-amber">→ Get Started</a>
@@ -1134,7 +1134,7 @@
           <div class="status-dot" style="width:6px;height:6px;"></div>
           LIVE INTEL FEED
         </div>
-        <div class="feed-header-right" id="feed-clock">—</div>
+        <div class="feed-header-right" id="feed-clock">,</div>
       </div>
       <div class="feed-body">
         <div class="feed-stream" id="feed-stream">
@@ -1145,7 +1145,7 @@
         <div class="feed-counter">
           <span><span class="counter-val">32</span> SOURCES</span>
           <span><span class="counter-val">0</span> DUPES</span>
-          <span><span class="counter-val" id="evt-count">—</span> EVENTS</span>
+          <span><span class="counter-val" id="evt-count">,</span> EVENTS</span>
         </div>
         <span>DEDUP: ON · SQLITE</span>
       </div>
@@ -1178,7 +1178,7 @@
   <div class="section-header">
     <div class="eyebrow">Architecture</div>
     <h2>Four steps.<br>Zero noise.</h2>
-    <p class="section-lead">Every run fetches, deduplicates, routes, and delivers — straight to your team's channels, with an optional live dashboard when you want the full picture.</p>
+    <p class="section-lead">Every run fetches, deduplicates, routes, and delivers, straight to your team's channels, with an optional live dashboard when you want the full picture.</p>
   </div>
   <div class="pipeline">
     <div class="pipe-step">
@@ -1235,7 +1235,7 @@
   <div class="section-header">
     <div class="eyebrow">Sources</div>
     <h2>Eight threat intel<br>sources, ready to go.</h2>
-    <p class="section-lead">Eight sources across five providers — generic RSS/Atom feeds, the <strong style="color:var(--text-mid)">ransomware.live</strong> family (victims, plus Cyber Press · SEC 8-K · Tracker Stats on its PRO tier), Red Flag Domains, <strong style="color:var(--text-mid)">CISA KEV</strong> vulnerabilities and <strong style="color:var(--text-mid)">abuse.ch</strong> IOCs. Every fetch is TLS-verified by default (opt out with <code style="font-family:monospace;font-size:.85em;color:var(--amber)">CTI_TLS_NO_VERIFY=1</code> behind a proxy); the PRO feeds authenticate with <code style="font-family:monospace;font-size:.85em;color:var(--amber)">${RANSOMWARE_API_KEY}</code>.</p>
+    <p class="section-lead">Eight sources across five providers, generic RSS/Atom feeds, the <strong style="color:var(--text-mid)">ransomware.live</strong> family (victims, plus Cyber Press · SEC 8-K · Tracker Stats on its PRO tier), Red Flag Domains, <strong style="color:var(--text-mid)">CISA KEV</strong> vulnerabilities and <strong style="color:var(--text-mid)">abuse.ch</strong> IOCs. Every fetch is TLS-verified by default (opt out with <code style="font-family:monospace;font-size:.85em;color:var(--amber)">CTI_TLS_NO_VERIFY=1</code> behind a proxy); the PRO feeds authenticate with <code style="font-family:monospace;font-size:.85em;color:var(--amber)">${RANSOMWARE_API_KEY}</code>.</p>
   </div>
 
   <div class="sources-layout">
@@ -1331,7 +1331,7 @@
         </div>
       </div>
       <div class="source-body">
-        <p class="source-desc">The <strong style="color:var(--text-mid)">CISA Known Exploited Vulnerabilities</strong> catalog — CVEs confirmed exploited in the wild. A single public JSON feed, no API key. Feeds the dashboard's <em style="font-style:normal;color:var(--cyan)">Vulnerabilities</em> tab; CVEs used in ransomware campaigns are flagged.</p>
+        <p class="source-desc">The <strong style="color:var(--text-mid)">CISA Known Exploited Vulnerabilities</strong> catalog, CVEs confirmed exploited in the wild. A single public JSON feed, no API key. Feeds the dashboard's <em style="font-style:normal;color:var(--cyan)">Vulnerabilities</em> tab; CVEs used in ransomware campaigns are flagged.</p>
         <div class="source-fields">
           <span class="field-chip">cve</span>
           <span class="field-chip">vendor</span>
@@ -1354,7 +1354,7 @@
         </div>
       </div>
       <div class="source-body">
-        <p class="source-desc">Malware-infrastructure IOCs across four <strong style="color:var(--text-mid)">abuse.ch</strong> feeds — <strong style="color:var(--text-mid)">Feodo</strong> (C2 IPs) and <strong style="color:var(--text-mid)">URLhaus</strong> (malware URLs) are public; <strong style="color:var(--text-mid)">ThreatFox</strong> (mixed IOCs) and <strong style="color:var(--text-mid)">MalwareBazaar</strong> (sample hashes) unlock with one free <code style="font-family:monospace;font-size:.82em;color:var(--amber)">${ABUSECH_API_KEY}</code>. Feeds the dashboard's <em style="font-style:normal;color:var(--cyan)">IOCs</em> tab.</p>
+        <p class="source-desc">Malware-infrastructure IOCs across four <strong style="color:var(--text-mid)">abuse.ch</strong> feeds, <strong style="color:var(--text-mid)">Feodo</strong> (C2 IPs) and <strong style="color:var(--text-mid)">URLhaus</strong> (malware URLs) are public; <strong style="color:var(--text-mid)">ThreatFox</strong> (mixed IOCs) and <strong style="color:var(--text-mid)">MalwareBazaar</strong> (sample hashes) unlock with one free <code style="font-family:monospace;font-size:.82em;color:var(--amber)">${ABUSECH_API_KEY}</code>. Feeds the dashboard's <em style="font-style:normal;color:var(--cyan)">IOCs</em> tab.</p>
         <div class="source-fields">
           <span class="field-chip">ioc</span>
           <span class="field-chip">ioc_type</span>
@@ -1377,7 +1377,7 @@
         </div>
       </div>
       <div class="source-body">
-        <p class="source-desc">Recent cyber-press news articles from the ransomware.live PRO API (<code style="font-family:monospace;font-size:.82em;color:var(--amber)">/press/recent</code>). PRO-only — degrades gracefully to nothing without an api_key. Optional ISO-2 country filter.</p>
+        <p class="source-desc">Recent cyber-press news articles from the ransomware.live PRO API (<code style="font-family:monospace;font-size:.82em;color:var(--amber)">/press/recent</code>). PRO-only, degrades gracefully to nothing without an api_key. Optional ISO-2 country filter.</p>
         <div class="source-fields">
           <span class="field-chip">victim</span>
           <span class="field-chip">summary</span>
@@ -1421,7 +1421,7 @@
         </div>
       </div>
       <div class="source-body">
-        <p class="source-desc">One daily digest summarising the ransomware.live tracker — victims tracked, active groups and press-article counts. PRO-only. Dedup identity includes the day, so you get exactly one digest per day.</p>
+        <p class="source-desc">One daily digest summarising the ransomware.live tracker, victims tracked, active groups and press-article counts. PRO-only. Dedup identity includes the day, so you get exactly one digest per day.</p>
         <div class="source-fields">
           <span class="field-chip">victims</span>
           <span class="field-chip">groups</span>
@@ -1441,7 +1441,7 @@
   <div class="section-header">
     <div class="eyebrow">Transports</div>
     <h2>Reach your team<br>where they work.</h2>
-    <p class="section-lead">Microsoft Teams, Discord, Telegram, email — or a live web dashboard. Batching, throttling, emoji mapping, retry with backoff. Each transport is independently configurable.</p>
+    <p class="section-lead">Microsoft Teams, Discord, Telegram, email, or a live web dashboard. Batching, throttling, emoji mapping, retry with backoff. Each transport is independently configurable.</p>
   </div>
 
   <div class="transports-grid">
@@ -1534,6 +1534,23 @@
         <div class="param-row"><span class="pk">shortcut</span><span class="pv">cassandra run --web</span></div>
       </div>
     </div>
+
+    <div class="transport-block">
+      <div class="tb-head">
+        <div>
+          <div class="tb-type">TYPE: SIGNAL</div>
+          <div class="tb-name">Signal</div>
+        </div>
+        <div class="tb-glyph">🔒</div>
+      </div>
+      <div class="tb-body">
+        <div class="param-row"><span class="pk">api_url</span><span class="pv">self-hosted signal-cli bridge</span></div>
+        <div class="param-row"><span class="pk">number</span><span class="pv">registered sender</span></div>
+        <div class="param-row"><span class="pk">recipients</span><span class="pv">numbers and/or group ids</span></div>
+        <div class="param-row"><span class="pk">encrypted</span><span class="pv">end-to-end via Signal</span></div>
+        <div class="param-row"><span class="pk">no webhook</span><span class="pv">linked device, not a bot API</span></div>
+      </div>
+    </div>
   </div>
 
   <div style="margin-top:1.5rem;">
@@ -1542,7 +1559,7 @@
         <div class="d dr"></div><div class="d dy"></div><div class="d dg"></div>
         <span>connectors.yaml</span>
       </div>
-      <pre><span class="cc"># No secrets in files — use environment variables</span>
+      <pre><span class="cc"># No secrets in files, use environment variables</span>
 <span class="ck">connectors</span>:
   - <span class="ck">id</span>: <span class="cs">"teams-cert"</span>
     <span class="ck">type</span>: <span class="cs">"teams"</span>
@@ -1586,7 +1603,7 @@
   <div class="section-header">
     <div class="eyebrow">CLI Reference</div>
     <h2>One tool to rule<br>the full lifecycle.</h2>
-    <p class="section-lead">Init, run, debug, repair — everything from a single <code style="font-family:monospace;color:var(--amber)">cassandra</code> command.</p>
+    <p class="section-lead">Init, run, debug, repair, everything from a single <code style="font-family:monospace;color:var(--amber)">cassandra</code> command.</p>
   </div>
 
   <div class="cli-grid">
@@ -1595,12 +1612,13 @@
     <div class="cli-card"><div class="cli-cmd">cassandra run</div><div class="cli-desc">Execute the aggregation cycle. <code style="font-family:monospace;font-size:.8em">--loop</code> for daemon mode, <code style="font-family:monospace;font-size:.8em">--web</code> for the dashboard, <code style="font-family:monospace;font-size:.8em">--dry-run</code> to test.</div></div>
     <div class="cli-card"><div class="cli-cmd">cassandra add-source</div><div class="cli-desc">Enable a source: <code style="font-family:monospace;font-size:.8em">rss</code>, <code style="font-family:monospace;font-size:.8em">ransomware_live</code>, <code style="font-family:monospace;font-size:.8em">redflag</code>, <code style="font-family:monospace;font-size:.8em">kev</code>, <code style="font-family:monospace;font-size:.8em">abusech</code>.</div></div>
     <div class="cli-card"><div class="cli-cmd">cassandra import-feeds</div><div class="cli-desc">Bulk import RSS feeds from CSV. Format: <code style="font-family:monospace;font-size:.8em">Name,URL,Tags</code>.</div></div>
-    <div class="cli-card"><div class="cli-cmd">cassandra add-connector</div><div class="cli-desc">Register a connector — <code style="font-family:monospace;font-size:.8em">--type</code> teams / discord / telegram / smtp.</div></div>
-    <div class="cli-card"><div class="cli-cmd">cassandra routes-add</div><div class="cli-desc">Add or update a routing rule (source, tag, or regex) → transport(s).</div></div>
-    <div class="cli-card"><div class="cli-cmd">cassandra briefing-run</div><div class="cli-desc">Send periodic LLM briefings — prioritised recaps with links (<code style="font-family:monospace;font-size:.8em">briefing-add</code> to configure).</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra add-connector</div><div class="cli-desc">Register a connector: <code style="font-family:monospace;font-size:.8em">--type</code> teams / discord / telegram / smtp / web / signal.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra routes-add</div><div class="cli-desc">Route by source, tag, regex or entity name (<code style="font-family:monospace;font-size:.8em">include_terms</code>) to transport(s); the connector auto-activates.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra briefing-add / run</div><div class="cli-desc">Periodic LLM digests: a prioritised recap or a ranked <code style="font-family:monospace;font-size:.8em">top_n</code> per category, sent after the alerts.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra remove-source / connector</div><div class="cli-desc">Drop an RSS feed or a connector; <code style="font-family:monospace;font-size:.8em">routes-remove</code> / <code style="font-family:monospace;font-size:.8em">briefing-remove</code> too.</div></div>
     <div class="cli-card"><div class="cli-cmd">cassandra doctor</div><div class="cli-desc">Validate YAML schema or fire a test message through any connector.</div></div>
     <div class="cli-card"><div class="cli-cmd">cassandra list</div><div class="cli-desc">Print all configured sources, routes, and connector IDs.</div></div>
-    <div class="cli-card"><div class="cli-cmd">cassandra backfill</div><div class="cli-desc">Replay historical events to a transport — recover from downtime.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra backfill</div><div class="cli-desc">Replay historical events to a transport, recover from downtime.</div></div>
     <div class="cli-card"><div class="cli-cmd">cassandra db-reset</div><div class="cli-desc">Delete the SQLite database. Clears all dedup history. Requires <code style="font-family:monospace;font-size:.8em">--force</code>.</div></div>
     <div class="cli-card"><div class="cli-cmd">cassandra seen-clear</div><div class="cli-desc">Surgically clear dedup history by source prefix, date range, or both.</div></div>
   </div>
@@ -1632,7 +1650,7 @@
         <div class="tl-num">02</div>
         <div class="tl-content">
           <div class="tl-title">Initialize</div>
-          <p class="tl-desc">Create default config files. Edit them — or use CLI commands to populate them.</p>
+          <p class="tl-desc">Create default config files. Edit them, or use CLI commands to populate them.</p>
           <div class="code-win">
             <pre><span class="co">$</span> cassandra init
 <span class="cc"># → ~/.config/cassandra-cti/config.yaml</span>
@@ -1644,7 +1662,7 @@
         <div class="tl-num">03</div>
         <div class="tl-content">
           <div class="tl-title">Add connector & sources</div>
-          <p class="tl-desc">Register your webhook. Add feeds. Enable trackers.</p>
+          <p class="tl-desc">Register your webhook. Add feeds. Enable trackers. Or copy a ready-to-run scenario from the <a href="https://github.com/franckferman/CassandraCTI/tree/stable/examples" style="color:var(--amber)">examples</a> directory (Discord, Teams SOC, Signal, entity-watch, category digests, and more).</p>
           <div class="code-win">
             <pre><span class="co">$</span> cassandra add-connector \
     --id <span class="cs">"teams-soc"</span> \
@@ -1668,7 +1686,7 @@
 <span class="co">$</span> cassandra doctor connector --id teams-soc
 <span class="co">$</span> cassandra run --dry-run --verbose
 
-<span class="cc"># Go live — loop every 5 minutes</span>
+<span class="cc"># Go live, loop every 5 minutes</span>
 <span class="co">$</span> cassandra run --loop --interval 300</pre>
           </div>
         </div>
@@ -1679,7 +1697,7 @@
       <div class="code-win">
         <div class="code-win-bar">
           <div class="d dr"></div><div class="d dy"></div><div class="d dg"></div>
-          <span>config.yaml — minimal example</span>
+          <span>config.yaml, minimal example</span>
         </div>
         <pre><span class="ck">schema_version</span>: <span class="cn">1</span>
 
@@ -1856,19 +1874,19 @@ setInterval(updateEvt,4000);
 // ── Feed stream items ──
 const items = [
   {time:'14:32:01',source:'rss:CERT-FR Alertes',title:'Vulnérabilité critique dans OpenSSH 9.7',badge:'cert',bl:'b-cert'},
-  {time:'14:31:47',source:'ransomware.live',title:'ALPHV by BlackCat — Victim: FinanceCorp 🇫🇷',badge:'ransomware',bl:'b-ransomware'},
+  {time:'14:31:47',source:'ransomware.live',title:'ALPHV by BlackCat, Victim: FinanceCorp 🇫🇷',badge:'ransomware',bl:'b-ransomware'},
   {time:'14:30:55',source:'rss:BleepingComputer',title:'Microsoft patches 6 zero-days in April Patch Tuesday',badge:'news',bl:'b-news'},
   {time:'14:29:03',source:'red.flag.domains',title:'Red Flag Domains – 2026-03-19 (12,847 domains)',badge:'domains',bl:'b-domain'},
   {time:'14:28:21',source:'rss:Cisco Talos',title:'New campaign targeting ICS systems in Europe',badge:'vendor',bl:'b-vendor'},
-  {time:'14:27:44',source:'ransomware.live',title:'LockBit 3.0 — Victim: LogisticsGmbH 🇩🇪',badge:'ransomware',bl:'b-ransomware'},
-  {time:'14:26:18',source:'rss:Google TAG',title:'APT29 infrastructure update — credential phishing wave',badge:'vendor',bl:'b-vendor'},
+  {time:'14:27:44',source:'ransomware.live',title:'LockBit 3.0, Victim: LogisticsGmbH 🇩🇪',badge:'ransomware',bl:'b-ransomware'},
+  {time:'14:26:18',source:'rss:Google TAG',title:'APT29 infrastructure update, credential phishing wave',badge:'vendor',bl:'b-vendor'},
   {time:'14:25:09',source:'rss:Krebs on Security',title:'Inside the leak that exposed 50M health records',badge:'news',bl:'b-news'},
   {time:'14:24:33',source:'rss:SANS ISC Diary',title:'CVE-2026-0831: Apache RCE under active exploitation',badge:'cert',bl:'b-cert'},
   {time:'14:23:11',source:'rss:Palo Alto Unit 42',title:'Scattered Spider pivots to cloud-native intrusion path',badge:'vendor',bl:'b-vendor'},
-  {time:'14:22:58',source:'ransomware.live',title:'Akira — Victim: HealthGroup 🇬🇧',badge:'ransomware',bl:'b-ransomware'},
+  {time:'14:22:58',source:'ransomware.live',title:'Akira, Victim: HealthGroup 🇬🇧',badge:'ransomware',bl:'b-ransomware'},
   {time:'14:21:07',source:'rss:Microsoft Sentinel',title:'Detection rule: suspicious LSASS access patterns',badge:'vendor',bl:'b-vendor'},
   {time:'14:20:42',source:'ransomware.press',title:'Cyber Press: RetailCorp breach disclosed 🇺🇸',badge:'press',bl:'b-news'},
-  {time:'14:19:55',source:'ransomware.8k',title:'SEC 8-K: MedTech Inc (MDTK) — Item 1.05 filing',badge:'sec',bl:'b-cert'},
+  {time:'14:19:55',source:'ransomware.8k',title:'SEC 8-K: MedTech Inc (MDTK): Item 1.05 filing',badge:'sec',bl:'b-cert'},
 ];
 
 function buildFeed(){
