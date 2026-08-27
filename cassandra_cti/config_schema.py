@@ -51,3 +51,5 @@ class SettingsModel(BaseModel):
     store: Dict[str, Any] = Field(default_factory=dict)
     logging: Dict[str, Any] = Field(default_factory=dict)
     metrics: Dict[str, Any] = Field(default_factory=dict)
+    inventory: Dict[str, Any] = Field(default_factory=dict)
+    llm: Dict[str, Any] = Field(default_factory=dict)
