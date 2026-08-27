@@ -215,7 +215,7 @@ async def run_once(settings_path: str, connectors_path: str | None = None, only_
 
             for chunk in chunks:
                 # Determine title based on source name
-                # We want the card title to be the SOURCE NAME (e.g. "FR-CERT Avis")
+                # We want the card title to be the SOURCE NAME (e.g. "CERT-FR Avis")
                 # The article title will be in the body via template
                 if len(chunk) > 0:
                     s = chunk[0].source

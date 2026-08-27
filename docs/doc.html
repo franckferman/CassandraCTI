@@ -506,22 +506,22 @@
     <div class="doc-section" id="overview">
       <div class="section-tag">Introduction</div>
       <h2>CassandraCTI Documentation</h2>
-      <p>CassandraCTI is a modular, asynchronous Cyber Threat Intelligence aggregator. It collects events from multiple sources, deduplicates them via SHA1 fingerprinting, routes them through configurable rules, renders messages from Jinja2 templates, and delivers them to Microsoft Teams, Discord, Telegram, or email (SMTP).</p>
+      <p>CassandraCTI is a modular, asynchronous Cyber Threat Intelligence aggregator. It collects events from multiple sources, deduplicates them via SHA1 fingerprinting, routes them through configurable rules, renders messages from Jinja2 templates, and delivers them to Microsoft Teams, Discord, Telegram, email (SMTP), Signal, or a live web dashboard.</p>
       <p>Named after the Trojan prophetess condemned to warn without being believed, CassandraCTI makes sure your threat intel <strong>actually reaches</strong> the people who need it.</p>
 
       <h3>Pipeline at a glance</h3>
-      <pre><code><span class="hl-dim">Sources</span>   RSS / Atom · ransomware.live · Red Flag Domains
+      <pre><code><span class="hl-dim">Sources</span>   RSS / Atom · ransomware.live · Red Flag Domains · CISA KEV · abuse.ch
           ransomware.press · ransomware.8k · ransomware.stats (PRO)
    <span class="hl-dim">↓</span>
 <span class="hl-dim">Filter</span>    regex deny/allow · max_items_per_source · date filter
    <span class="hl-dim">↓</span>
 <span class="hl-dim">Dedupe</span>    SHA1(source + url|title) → SQLite event store
    <span class="hl-dim">↓</span>
-<span class="hl-dim">Route</span>     source prefix · tag match · regex (title / source): all-match
+<span class="hl-dim">Route</span>     source prefix · tag · regex · entity terms (any one matches)
    <span class="hl-dim">↓</span>
 <span class="hl-dim">Render</span>    Jinja2 templates per route
    <span class="hl-dim">↓</span>
-<span class="hl-dim">Send</span>      Teams · Discord · Telegram · Email (SMTP)  (retry + throttle)</code></pre>
+<span class="hl-dim">Send</span>      Teams · Discord · Telegram · Email (SMTP) · Signal · Web  (retry + throttle)</code></pre>
     </div>
 
     <!-- INSTALLATION -->
@@ -575,7 +575,7 @@
       <pre><code><span class="hl">cassandra init</span></code></pre>
 
       <h4>2. Add a connector</h4>
-      <pre><code><span class="hl-dim"># --type: teams (default) | discord | telegram | smtp</span>
+      <pre><code><span class="hl-dim"># --type: teams (default) | discord | telegram | smtp | web | signal</span>
 <span class="hl">cassandra add-connector --id "teams-soc" --type teams \
   --webhook-url "https://your-tenant.webhook.office.com/..." --theme-color "0078D7"</span>
 
@@ -623,8 +623,8 @@
 <span class="hl">schema_version</span>: <span class="hl-green">1</span>
 
 <span class="hl">scheduler</span>:
-  <span class="hl-cyan">mode</span>: oneshot          <span class="hl-dim"># "oneshot" | "loop"</span>
-  <span class="hl-cyan">interval_seconds</span>: 300  <span class="hl-dim"># used when mode: loop</span>
+  <span class="hl-cyan">mode</span>: oneshot          <span class="hl-dim"># reserved (not read yet); loop mode is enabled with run --loop</span>
+  <span class="hl-cyan">interval_seconds</span>: 300  <span class="hl-dim"># reserved (not read yet); interval comes from run --interval</span>
 
 <span class="hl">sources</span>:
   <span class="hl-cyan">rss</span>:
@@ -650,6 +650,15 @@
   <span class="hl-cyan">red_flag_domains</span>:
     <span class="hl-dim">enabled</span>: true
     <span class="hl-dim">base_url</span>: "..."         <span class="hl-dim"># optional override</span>
+  <span class="hl-cyan">cisa_kev</span>:                 <span class="hl-dim"># CISA Known Exploited Vulns (public JSON, no key)</span>
+    <span class="hl-dim">enabled</span>: false
+    <span class="hl-dim">lookback_days</span>: 365     <span class="hl-dim"># keep CVEs added within this window</span>
+    <span class="hl-dim">max_items</span>: 80
+  <span class="hl-cyan">abusech</span>:                  <span class="hl-dim"># malware-infra IOCs; feodo/urlhaus need no key</span>
+    <span class="hl-dim">enabled</span>: false
+    <span class="hl-dim">feeds</span>: ["feodo", "threatfox", "urlhaus", "malwarebazaar"]
+    <span class="hl-dim">api_key</span>: ${ABUSECH_API_KEY}     <span class="hl-dim"># unlocks threatfox + malwarebazaar</span>
+    <span class="hl-dim">max_items</span>: 60
 
 <span class="hl">filters</span>:
   <span class="hl-cyan">title_regex_deny</span>:       <span class="hl-dim"># drop events whose title matches</span>
@@ -682,8 +691,8 @@
       <h3 id="cfg-scheduler">Scheduler</h3>
       <table class="doc-table">
         <tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr>
-        <tr><td>mode</td><td>string</td><td>oneshot</td><td><code>oneshot</code> runs once and exits. <code>loop</code> repeats every <code>interval_seconds</code>.</td></tr>
-        <tr><td>interval_seconds</td><td>int</td><td>300</td><td>Loop interval in seconds. Only used when <code>mode: loop</code>.</td></tr>
+        <tr><td>mode</td><td>string</td><td>oneshot</td><td>Reserved; not read yet. Loop mode is enabled with <code>run --loop</code>, not this key.</td></tr>
+        <tr><td>interval_seconds</td><td>int</td><td>300</td><td>Reserved; not read yet. The loop interval comes from <code>run --interval</code> (default 300).</td></tr>
       </table>
 
       <h3 id="cfg-sources">Sources</h3>
@@ -1026,7 +1035,7 @@ sources:
       </ul>
 
       <div class="callout">
-        <p>The <strong>title</strong> country-flag emoji is detected from the event URL TLD, <strong>🇫🇷 🇬🇧 🇩🇪 🇺🇸 🇨🇦 ...</strong>: and prepended when <code>emojis: true</code>. This is separate from the <code>raw.country_flag</code> field above, which is derived from the ISO-2 <code>country</code> code.</p>
+        <p>The <strong>title</strong> country-flag emoji is detected from the event URL TLD (<strong>🇫🇷 🇬🇧 🇩🇪 🇺🇸 🇨🇦 ...</strong>) and prepended when <code>emojis: true</code>. This is separate from the <code>raw.country_flag</code> field above, which is derived from the ISO-2 <code>country</code> code.</p>
       </div>
     </div>
 
@@ -1481,7 +1490,7 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
 
       <table class="doc-table">
         <tr><th>Provider</th><th>Type</th><th>Key (env)</th><th>Default model</th></tr>
-        <tr><td><code>ollama</code></td><td>local, free, private</td><td>, (<code>http://localhost:11434</code>)</td><td>first installed model</td></tr>
+        <tr><td><code>ollama</code></td><td>local, free, private</td><td>none (<code>http://localhost:11434</code>)</td><td>first installed model</td></tr>
         <tr><td><code>anthropic</code></td><td>cloud</td><td><code>ANTHROPIC_API_KEY</code></td><td><code>claude-opus-5</code></td></tr>
         <tr><td><code>openai</code></td><td>cloud</td><td><code>OPENAI_API_KEY</code></td><td><code>gpt-4o-mini</code></td></tr>
         <tr><td><code>deepseek</code></td><td>cloud</td><td><code>DEEPSEEK_API_KEY</code></td><td><code>deepseek-chat</code></td></tr>
@@ -1526,8 +1535,8 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
 
       <table class="doc-table">
         <tr><th>Key</th><th>Default</th><th>Meaning</th></tr>
-        <tr><td>include_sources / include_tags / include_regex / include_terms</td><td>,</td><td>select events like a route (OR across them; none = all)</td></tr>
-        <tr><td>transports</td><td>,</td><td>connector id(s) that receive the brief</td></tr>
+        <tr><td>include_sources / include_tags / include_regex / include_terms</td><td>none</td><td>select events like a route (OR across them; none = all)</td></tr>
+        <tr><td>transports</td><td>none</td><td>connector id(s) that receive the brief</td></tr>
         <tr><td>schedule</td><td><code>24h</code></td><td>how often it may fire</td></tr>
         <tr><td>min_items</td><td><code>1</code></td><td>don't send with fewer than N new items</td></tr>
         <tr><td>max_items</td><td><code>40</code></td><td>cap on items fed to the LLM</td></tr>
@@ -1683,7 +1692,7 @@ cassandra add-connector --id "discord"   --type discord --webhook-url "https://.
       <pre><code><span class="hl-dim"># Validate YAML schema</span>
 <span class="hl">cassandra doctor config</span>
 
-<span class="hl-dim"># Send a test message to a connector (Teams, Discord, Telegram, or SMTP)</span>
+<span class="hl-dim"># Send a test message to any connector (Teams, Discord, Telegram, SMTP, Signal, Web)</span>
 <span class="hl">cassandra doctor connector --id teams-soc</span></code></pre>
       <p><code>doctor config</code> also warns when a PRO-only feed (<code>ransomware_press</code>, <code>ransomware_8k</code>, <code>ransomware_stats</code>) is enabled but has no <code>api_key</code>: those feeds would silently skip.</p>
     </div>
@@ -1701,7 +1710,7 @@ cassandra add-connector --id "discord"   --type discord --webhook-url "https://.
       <h2>db-reset · seen-clear · list</h2>
 
       <h3>cassandra list</h3>
-      <p>Display currently configured sources, routes, and connectors.</p>
+      <p>Display currently configured sources, routes, connectors, and briefings.</p>
       <pre><code><span class="hl">cassandra list</span></code></pre>
 
       <h3>cassandra db-reset</h3>
@@ -1951,7 +1960,7 @@ CMD ["cassandra", "run", "--config", "/config/config.yaml"]</code></pre>
         <tr><td>models.py</td><td><code>Event</code> dataclass</td></tr>
         <tr><td>config.py</td><td>YAML loading, env substitution, <code>Settings</code> / <code>RouteDef</code> / <code>TransportDef</code></td></tr>
         <tr><td>config_schema.py</td><td>Pydantic schema validation for config.yaml</td></tr>
-        <tr><td>router.py</td><td>Route matching (source / tag / regex)</td></tr>
+        <tr><td>router.py</td><td>Route matching (source / tag / regex / entity terms, any one matches)</td></tr>
         <tr><td>store.py</td><td>SQLite deduplication and delivery tracking</td></tr>
         <tr><td>emoji.py</td><td>Emoji selection logic (source map + country detection)</td></tr>
         <tr><td>util.py</td><td><code>expand_env()</code>, <code>canon()</code> URL normalizer, <code>make_event_id()</code> SHA1</td></tr>
@@ -1963,11 +1972,20 @@ CMD ["cassandra", "run", "--config", "/config/config.yaml"]</code></pre>
         <tr><td>sources/ransomware_8k.py</td><td>PRO SEC 8-K cyber-incident filings (<code>/8k</code>)</td></tr>
         <tr><td>sources/ransomware_stats.py</td><td>PRO daily tracker digest (<code>/stats</code>)</td></tr>
         <tr><td>sources/redflag.py</td><td>Red Flag Domains daily list scraper</td></tr>
+        <tr><td>sources/cisa_kev.py</td><td>CISA KEV catalog fetcher (exploited CVEs, lookback window, ransomware flag)</td></tr>
+        <tr><td>sources/abusech.py</td><td>abuse.ch IOC feeds: feodo / threatfox / urlhaus / malwarebazaar</td></tr>
         <tr><td>transports/teams.py</td><td>Microsoft Teams MessageCard transport</td></tr>
         <tr><td>transports/discord.py</td><td>Discord Embed transport</td></tr>
         <tr><td>transports/telegram.py</td><td>Telegram Bot API transport (HTML, plain-text fallback)</td></tr>
         <tr><td>transports/smtp.py</td><td>Email transport over stdlib <code>smtplib</code> (multipart plain + HTML)</td></tr>
+        <tr><td>transports/signal.py</td><td>Signal via a self-hosted signal-cli-rest-api bridge</td></tr>
+        <tr><td>transports/web.py</td><td>Live web dashboard transport (serves the SQLite history)</td></tr>
         <tr><td>transports/__init__.py</td><td>Transport factory registry</td></tr>
+        <tr><td>briefings.py</td><td>Periodic LLM digests (top_n, per-category, general-debrief)</td></tr>
+        <tr><td>llm.py</td><td>Provider-agnostic <code>complete()</code> (Ollama / Anthropic / OpenAI / DeepSeek)</td></tr>
+        <tr><td>service.py</td><td>systemd / OpenRC service unit generation and install</td></tr>
+        <tr><td>countries.py</td><td>ISO-2 country code to flag-emoji mapping</td></tr>
+        <tr><td>web/</td><td>Dashboard app (aiohttp handlers, inline HTML/JS assets)</td></tr>
       </table>
 
       <h3>Deduplication</h3>

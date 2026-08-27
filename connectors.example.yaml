@@ -9,8 +9,8 @@ connectors:
       throttle_ms: 400
       emojis: true
       emoji_map:
-        "rss:FR-CERT Alertes": "🇫🇷"
-        "rss:FR-CERT Avis": "🇫🇷"
+        "rss:CERT-FR Alertes": "🇫🇷"
+        "rss:CERT-FR Avis": "🇫🇷"
         "rss:US-CERT CISA": "🇺🇸"
 
   # Channel: Vendor & Microsoft

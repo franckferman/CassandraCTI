@@ -8,8 +8,8 @@ sources:
     enabled: true
     feeds:
       # --- CERTs & Agencies (Tag: cert) ---
-      - { name: "FR-CERT Alertes", url: "https://cert.ssi.gouv.fr/alerte/feed/", tags: ["cert", "fr"] }
-      - { name: "FR-CERT Avis", url: "https://cert.ssi.gouv.fr/avis/feed/", tags: ["cert", "fr"] }
+      - { name: "CERT-FR Alertes", url: "https://cert.ssi.gouv.fr/alerte/feed/", tags: ["cert", "fr"] }
+      - { name: "CERT-FR Avis", url: "https://cert.ssi.gouv.fr/avis/feed/", tags: ["cert", "fr"] }
       # - { name: "US-CERT CISA", url: "https://www.cisa.gov/uscert/ncas/alerts.xml", tags: ["cert", "us"] }
       # - { name: "US-CERT CISA", url: "https://www.cisa.gov/cybersecurity-advisories/cybersecurity-advisories.xml", tags: ["cert", "us"] }
       # - { name: "NCSC", url: "https://www.ncsc.gov.uk/api/1/services/v1/report-rss-feed.xml", tags: ["cert", "uk"] }

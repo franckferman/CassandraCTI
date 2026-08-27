@@ -115,7 +115,7 @@ cassandra quickstart              # sets up config + opens http://127.0.0.1:8080
 cassandra quickstart --no-web     # just create the config files
 ```
 
-The shipped `config.example.yaml` already enables RSS, ransomware.live, Red Flag Domains, CISA KEV and abuse.ch, so the dashboard fills up on the first pass. To also push alerts to Teams/Discord/Telegram/Email, wire a connector and a route as below.
+The shipped `config.example.yaml` already enables RSS, ransomware.live and Red Flag Domains, so the dashboard fills up on the first pass. CISA KEV and abuse.ch ship disabled; flip their `enabled: true` to add them. To also push alerts to Teams/Discord/Telegram/Email, wire a connector and a route as below.
 
 > **Prefer a worked example?** The [`examples/`](examples/) directory has ready-to-run `config.yaml` + `connectors.yaml` pairs, one per scenario (Discord quickstart, multi-channel Teams SOC, Telegram channel, email digest, vulnerability/IOC watch, dashboard-only). Copy the closest folder, set its env vars, and run. See [`examples/README.md`](examples/README.md).
 
@@ -187,8 +187,8 @@ CassandraCTI uses two YAML files:
 schema_version: 1
 
 scheduler:
-  mode: oneshot          # "oneshot" or "loop"
-  interval_seconds: 300
+  mode: oneshot          # reserved (not read yet); loop mode is enabled with `run --loop`
+  interval_seconds: 300  # reserved (not read yet); the interval comes from `run --interval`
 
 sources:
   rss:
@@ -295,7 +295,7 @@ connectors:
       throttle_ms: 500
 ```
 
-The bundled `connectors.example.yaml` includes ready-to-edit `teams`, `discord`, `telegram`, and `smtp` connectors, see the [Transports](#transports) section for the full parameter set of each.
+The bundled `connectors.example.yaml` includes ready-to-edit `teams`, `discord`, `telegram`, `smtp`, `web`, and `signal` connectors, see the [Transports](#transports) section for the full parameter set of each.
 
 ---
 
@@ -321,7 +321,7 @@ sources:
 |---|---|
 | CERTs | CERT-FR Alertes, CERT-FR Avis |
 | Microsoft | Microsoft Security, Sentinel Blog, MSRC |
-| Vendors | Cisco, Trend Micro, Proofpoint, CrowdStrike, Kaspersky, Recorded Future, Google TAG, Palo Alto |
+| Vendors | Cisco, Trend Micro, Proofpoint, Check Point, Kaspersky, Recorded Future, Google TAG, Palo Alto |
 | News | Krebs on Security, BleepingComputer, Dark Reading, Hacker News, Threatpost, SANS ISC |
 | Technical | Adam Chester (XPN), Modexp, James Forshaw |
 
