@@ -740,7 +740,7 @@ A route references a connector by its `id`; the connector file holds the secret.
 
 ```
 SOURCES ─▶ EVENTS (title, url, tags, raw) ─▶ FILTERS (deny/allow, max per source)
-        ─▶ ROUTES (all-match) ─▶ TRANSPORTS (render the route's template, POST to each connector)
+        ─▶ ROUTES (any selector matches) ─▶ TRANSPORTS (render the route's template, POST to each connector)
 ```
 
 A **route** is the glue: it *selects* events (`include_sources` / `include_tags` / `include_regex`), *names* one or more transports (connector IDs), and *picks* a template. Because **every** matching route fires, one event can hit several routes; per-transport dedup then delivers it to each connector at most once.
