@@ -2,7 +2,7 @@
 # Copyright (C) 2025 Franck Ferman
 # sources/cisa_kev.py
 #
-# CISA Known Exploited Vulnerabilities (KEV) catalog — CVEs known to be
+# CISA Known Exploited Vulnerabilities (KEV) catalog. CVEs known to be
 # actively exploited in the wild. A single public JSON feed, no API key.
 from __future__ import annotations
 import json
@@ -79,7 +79,7 @@ class CisaKev:
             product = (v.get("product") or "").strip()
             name = (v.get("vulnerabilityName") or "").strip()
             ransom = str(v.get("knownRansomwareCampaignUse") or "").strip().lower() == "known"
-            title = f"{cve} — {name}" if name else cve
+            title = f"{cve}: {name}" if name else cve
             raw_meta = {
                 "cve": cve,
                 "vendor": vendor,

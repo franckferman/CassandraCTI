@@ -48,7 +48,7 @@ def _now() -> str:
 
 
 def _kind(source: str) -> str:
-    """Coarse category for a source id — mirrors the dashboard's client-side
+    """Coarse category for a source id, mirroring the dashboard's client-side
     kind() so server aggregates and UI badges agree."""
     s = (source or "").lower()
     if "ransomware" in s:
@@ -144,7 +144,7 @@ class Store:
 
     def recent_events(self, limit: int = 200, source: str | None = None, q: str | None = None,
                       source_like: str | None = None) -> List[Dict[str, Any]]:
-        """Most recent events first — read-only, used by the web dashboard.
+        """Most recent events first. Read-only, used by the web dashboard.
 
         `source` matches exactly; `source_like` matches a prefix (e.g. 'rss:')
         so a category tab can pull every feed at once.
@@ -176,7 +176,7 @@ class Store:
             return out
 
     def events_between(self, lo_iso: str, hi_iso: str, limit: int = 500) -> List[Dict[str, Any]]:
-        """Events first seen in [lo, hi), newest first — the window a briefing
+        """Events first seen in [lo, hi), newest first. This is the window a briefing
         summarizes. Keyed on first_seen_at (when WE ingested it) so a briefing
         reflects 'what came in since last time', not original publish dates."""
         with closing(self._connect()) as db:
@@ -207,7 +207,7 @@ class Store:
                 (name, when_iso))
 
     def stats(self) -> Dict[str, Any]:
-        """Aggregate counters for the web dashboard — read-only.
+        """Aggregate counters for the web dashboard. Read-only.
 
         Returns totals, per-source and per-category breakdowns, per-source
         last-seen (source health), a 30-day daily and a 24-hour hourly activity

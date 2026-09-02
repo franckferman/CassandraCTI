@@ -4,7 +4,7 @@
 #
 # Optional, provider-agnostic LLM layer for AI-assisted features (event
 # briefs / triage). Providers: ollama (local, free, private), anthropic,
-# openai, deepseek — all behind one `complete(prompt) -> str`. Disabled by
+# openai, deepseek, all behind one `complete(prompt) -> str`. Disabled by
 # default; nothing calls out unless a feature invokes complete()/status().
 #
 # provider = "auto"  -> a reachable local Ollama first (free/private), else the
@@ -113,7 +113,7 @@ class LLM:
         r = await self.resolve()
         provider, model = r["provider"], r["model"]
         if not provider:
-            raise LLMError("no LLM provider available — start Ollama with a model, "
+            raise LLMError("no LLM provider available; start Ollama with a model, "
                            "or set a cloud API key (ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY)")
         if provider == "ollama":
             return await self._ollama(model, prompt, system)
@@ -144,7 +144,7 @@ class LLM:
             if provider == "anthropic":
                 headers = {"x-api-key": key, "anthropic-version": "2023-06-01",
                            "content-type": "application/json"}
-                # NB: current Claude models 400 on `temperature` — omit it.
+                # NB: current Claude models 400 on `temperature`, so omit it.
                 body: Dict[str, Any] = {"model": model, "max_tokens": self.max_tokens,
                                         "messages": [{"role": "user", "content": prompt}]}
                 if system:
@@ -182,6 +182,6 @@ class LLM:
                 lines.append(f"{k}: {meta[k]}")
         system = ("You are a senior SOC analyst. Explain this threat-intel event in 2-4 short "
                   "sentences: what it is, why it matters, and the single most useful action a "
-                  "blue team should take. Write plain prose only — no Markdown, no bold or "
+                  "blue team should take. Write plain prose only, no Markdown, no bold or "
                   "asterisks, no headings, no bullet or numbered lists. Be specific, no filler.")
         return await self.complete("\n".join(lines), system=system)

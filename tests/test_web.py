@@ -18,7 +18,7 @@ def _ev(**kw):
 
 
 class _FakeServer:
-    """Stands in for WebDashboardServer — no thread, no socket."""
+    """Stands in for WebDashboardServer, no thread, no socket."""
 
     def __init__(self):
         self.incoming = queue.SimpleQueue()

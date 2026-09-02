@@ -4,7 +4,7 @@
 #
 # Embedded read-only dashboard. The aiohttp server runs in a dedicated daemon
 # thread with its own event loop (see WebDashboardServer), because `run_once`
-# is invoked via `asyncio.run()` per scheduler iteration — a server started on
+# is invoked via `asyncio.run()` per scheduler iteration; a server started on
 # that loop would be torn down after every cycle. Events cross the thread
 # boundary through a `queue.SimpleQueue`; history is read from the SQLite
 # store (WAL mode → safe concurrent reads).
@@ -121,7 +121,7 @@ def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub,
             while True:
                 # Heartbeat: if no event arrives within the interval, send a
                 # comment ping. Writing to a client that has gone away raises,
-                # which prunes the subscriber here — otherwise a closed tab
+                # which prunes the subscriber here; otherwise a closed tab
                 # lingers as a phantom "live client" until the next real event.
                 try:
                     item = await asyncio.wait_for(q.get(), timeout=20)
@@ -160,7 +160,7 @@ def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub,
             raise web.HTTPUnauthorized(text="missing or invalid token")
         llm_cfg = app[LLM_KEY] or {}
         if not llm_cfg.get("enabled"):
-            return web.json_response({"error": "LLM disabled — set llm.enabled: true in config."},
+            return web.json_response({"error": "LLM disabled. Set llm.enabled: true in config."},
                                      status=503)
         try:
             payload = await request.json()

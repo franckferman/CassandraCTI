@@ -1,4 +1,4 @@
-"""Briefings core — offline (fake LLM, fake transport, real SQLite store)."""
+"""Briefings core, offline (fake LLM, fake transport, real SQLite store)."""
 import asyncio
 from datetime import datetime, timezone
 

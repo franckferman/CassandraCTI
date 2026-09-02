@@ -60,7 +60,7 @@ class Router:
                     ok = True
                     reason = "regex_match"
 
-            # Check plain terms (entity/company watch) — matches title + summary +
+            # Check plain terms (entity/company watch), matching title + summary +
             # source + tags + meta, accent/case-insensitive.
             if not ok and getattr(r, "include_terms", None):
                 hay = " ".join([

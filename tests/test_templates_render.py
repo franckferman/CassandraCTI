@@ -51,7 +51,7 @@ def test_all_templates_render_without_error():
 
 def test_ransomware_templates_tolerate_empty_raw():
     """A victim missing the infostealer / country / leak_url objects must not
-    crash the card — the optional lines are simply omitted."""
+    crash the card; the optional lines are simply omitted."""
     for name in ("ransomware_card.j2", "telegram_ransomware.j2"):
         text = open(os.path.join(TDIR, name), encoding="utf-8").read()
         out = Template(text).render(title="V by g", events=[], emoji="🏴",
@@ -67,20 +67,20 @@ def test_vuln_and_ioc_cards_surface_key_fields():
     KEV card, the IOC value for an abuse.ch card."""
     for name in ("vuln_card.j2", "telegram_vuln.j2"):
         text = open(os.path.join(TDIR, name), encoding="utf-8").read()
-        out = Template(text).render(title="CVE-2026-1234 — Acme RCE", events=[],
+        out = Template(text).render(title="CVE-2026-1234: Acme RCE", events=[],
                                     emoji="🛡️", source="cisa.kev",
                                     summary="Actively exploited RCE.", url="", raw=RAW)
         assert "CVE-2026-1234" in out, f"{name} does not render the CVE"
     for name in ("ioc_card.j2", "telegram_ioc.j2"):
         text = open(os.path.join(TDIR, name), encoding="utf-8").read()
-        out = Template(text).render(title="Emotet — 203.0.113.9:443", events=[],
+        out = Template(text).render(title="Emotet: 203.0.113.9:443", events=[],
                                     emoji="🦠", source="abuse.ch",
                                     summary="Emotet C2.", url="", raw=RAW)
         assert "203.0.113.9:443" in out, f"{name} does not render the IOC"
 
 
 def test_new_cards_tolerate_empty_raw():
-    """A KEV/IOC card with an empty raw dict must not crash — optional lines are
+    """A KEV/IOC card with an empty raw dict must not crash; optional lines are
     simply omitted, the title still renders."""
     for name in ("vuln_card.j2", "telegram_vuln.j2", "ioc_card.j2", "telegram_ioc.j2"):
         text = open(os.path.join(TDIR, name), encoding="utf-8").read()

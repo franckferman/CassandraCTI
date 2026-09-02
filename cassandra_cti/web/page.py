@@ -16,7 +16,7 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark light">
-<title>CassandraCTI — Live Threat Feed</title>
+<title>CassandraCTI Live Threat Feed</title>
 <style>
   :root {
     --bg: #06090f; --panel: #0b0f16; --panel2: #0f141d; --hover: #131a25;
@@ -476,7 +476,7 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
     var sl = s.source_last || {};
     var hrows = Object.keys(s.per_source || {}).map(function (src) { var last = sl[src], age = last ? (Date.now() - Date.parse(last)) / 3600000 : 999; return { src: src, n: s.per_source[src], last: last, age: age }; }).sort(function (a, b) { return a.age - b.age; });
     var healthBody = '<div class="dt health">' + hrows.map(function (r) { var c = r.age < 6 ? "" : (r.age < 48 ? "stale" : "old");
-      return '<div class="dtr"><span class="hdot ' + c + '"></span><span class="s">' + esc(r.src) + '</span><span class="n">' + fmt(r.n) + '</span><span class="a">' + (r.last ? relTime(r.last) + " ago" : "—") + "</span></div>"; }).join("") + "</div>";
+      return '<div class="dtr"><span class="hdot ' + c + '"></span><span class="s">' + esc(r.src) + '</span><span class="n">' + fmt(r.n) + '</span><span class="a">' + (r.last ? relTime(r.last) + " ago" : "-") + "</span></div>"; }).join("") + "</div>";
     html += '<div class="cgrid2">' + panel("Ransomware groups", "most active", grpBody) + panel("Source health", "last event", healthBody) + "</div>";
 
     var crit = store.filter(isCrit).slice(0, 7); if (!crit.length) crit = store.filter(function (e) { return ["ransomware", "vuln", "redflag"].indexOf(kind(e.source)) >= 0; }).slice(0, 7);
@@ -569,8 +569,8 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
     KVO.forEach(function (key) { var v = m[key]; if (v === undefined || v === "" || v === null) return;
       if (key === "country_display") v = (m.country_flag ? m.country_flag + " " : "") + v; else if (key === "ransomware_use") v = v ? "Yes" : "No"; else if (key === "confidence") v = v + "%";
       kv += kvrow(LBL[key] || key, esc(String(v)), key === "ioc" || key === "cve"); });
-    kv += kvrow("First seen", e.first_seen_at ? relTime(e.first_seen_at) + ' ago <span style="color:var(--faint)">· ' + esc(e.first_seen_at) + "</span>" : "—");
-    kv += kvrow("Published", e.published_at ? relTime(e.published_at) + ' ago <span style="color:var(--faint)">· ' + esc(e.published_at) + "</span>" : "—");
+    kv += kvrow("First seen", e.first_seen_at ? relTime(e.first_seen_at) + ' ago <span style="color:var(--faint)">· ' + esc(e.first_seen_at) + "</span>" : "-");
+    kv += kvrow("Published", e.published_at ? relTime(e.published_at) + ' ago <span style="color:var(--faint)">· ' + esc(e.published_at) + "</span>" : "-");
     var links = "", ind = indicator(e);
     if (e.url) links += '<a class="primary" href="' + esc(e.url) + '" target="_blank" rel="noopener noreferrer">' + svg("open") + "Open source</a>";
     if (m.cve) links += '<a href="' + SCHEME + "nvd.nist.gov/vuln/detail/" + encodeURIComponent(m.cve) + '" target="_blank" rel="noopener noreferrer">' + svg("open") + "NVD</a>";

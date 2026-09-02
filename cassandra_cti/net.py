@@ -34,7 +34,7 @@ async def read_capped(resp, max_bytes: int = MAX_BYTES) -> bytes:
 def valid_http_url(url) -> bool:
     """True only for a well-formed http(s) URL with a dotted host. Discord
     embed.url and Teams OpenUri return HTTP 400 on a malformed URL, which would
-    drop the whole message — callers should omit the link when this is False."""
+    drop the whole message, so callers should omit the link when this is False."""
     try:
         p = urlparse(url or "")
     except Exception:

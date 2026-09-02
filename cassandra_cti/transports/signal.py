@@ -72,7 +72,7 @@ class SignalTransport:
                 parts.append(ev0.url)
             body = "\n\n".join(p for p in parts if p)
         else:
-            body = "\n".join(f"• {e.title or ''}" + (f" — {e.url}" if e.url else "")
+            body = "\n".join(f"• {e.title or ''}" + (f" ({e.url})" if e.url else "")
                              for e in events)
         # Signal messages are plain text (URLs auto-linked); title on the first line.
         return f"{ttl}\n\n{body}".strip()

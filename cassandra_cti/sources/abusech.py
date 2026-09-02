@@ -87,7 +87,7 @@ class AbuseCh:
             when = _parse_dt(r.get("last_online") or "") or _parse_dt(r.get("first_seen") or "")
             out.append(Event(
                 source=self.source,
-                title=f"{malware} C2 — {ioc}",
+                title=f"{malware} C2: {ioc}",
                 url=f"https://feodotracker.abuse.ch/browse/host/{ip}/",
                 summary=f"{malware} botnet C2 on {ioc} ({country or 'unknown'}, "
                         f"AS{r.get('as_number')} {r.get('as_name') or ''}). Status: {status or 'n/a'}.",
@@ -124,14 +124,14 @@ class AbuseCh:
             if not ioc:
                 continue
             malware = (r.get("malware_printable") or r.get("malware") or "Unknown").strip()
-            # Unique per-IOC URL — a shared fallback URL would collapse distinct
+            # Unique per-IOC URL; a shared fallback URL would collapse distinct
             # IOCs to one event id (make_event_id keys off the URL).
             iid = r.get("id")
             ref = (r.get("reference") or "").strip()
             url = ("https://threatfox.abuse.ch/ioc/" + str(iid) + "/") if iid else (ref or None)
             out.append(Event(
                 source=self.source,
-                title=f"{malware} — {ioc}",
+                title=f"{malware}: {ioc}",
                 url=url,
                 summary=f"{r.get('threat_type_desc') or r.get('threat_type') or 'IOC'} "
                         f"({malware}), confidence {r.get('confidence_level')}%.",
@@ -146,7 +146,7 @@ class AbuseCh:
         return out
 
     async def _urlhaus(self) -> List[Event]:
-        # Public CSV dump (newest first) — no key required.
+        # Public CSV dump (newest first), no key required.
         try:
             raw = (await self._get(_URLHAUS_CSV)).decode("utf-8", "replace")
         except Exception:
@@ -163,7 +163,7 @@ class AbuseCh:
             malware = tags[-1] if tags else (threat or "malware")
             out.append(Event(
                 source=self.source,
-                title=f"{malware} — {url}",
+                title=f"{malware}: {url}",
                 url=link or None,  # unique per entry (urlhaus_link) -> distinct id
                 summary=f"{threat} · {status}" + ((" · " + ", ".join(tags)) if tags else ""),
                 published_at=_parse_dt(dateadded),
@@ -200,7 +200,7 @@ class AbuseCh:
             fname = (r.get("file_name") or "").strip()
             out.append(Event(
                 source=self.source,
-                title=f"{malware} — {h[:14]}",
+                title=f"{malware}: {h[:14]}",
                 url="https://bazaar.abuse.ch/sample/" + h + "/",  # unique per sample
                 summary=(fname + (" · " + ftype if ftype else "")).strip(" ·") or f"{malware} sample",
                 published_at=_parse_dt(r.get("first_seen") or ""),

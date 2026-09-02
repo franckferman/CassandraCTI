@@ -5,7 +5,7 @@
 # Periodic LLM briefings: a post-delivery step that, per configured briefing,
 # gathers the events ingested since the last brief (matching the same selectors
 # as routes), asks the LLM to PRIORITISE + narrate them with links, and sends
-# ONE recap through an existing transport — after the individual alerts went out.
+# ONE recap through an existing transport, after the individual alerts went out.
 #
 # Optional and off unless `briefings:` is configured AND the `llm:` layer can
 # resolve a provider. Honours CTI_DRY_RUN (prints [DRYRUN:BRIEFING], no calls).
@@ -49,7 +49,7 @@ def schedule_label(s: str) -> str:
 
 
 def matches(b, row: Dict[str, Any]) -> bool:
-    """OR across include_sources / include_tags / include_regex / include_terms —
+    """OR across include_sources / include_tags / include_regex / include_terms;
     mirrors the Router. A briefing with no selector matches everything."""
     src = row.get("source") or ""
     tags = row.get("tags") or []

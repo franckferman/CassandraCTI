@@ -1,4 +1,4 @@
-# countries.py — ISO-3166-1 alpha-2 helpers (no third-party dependency).
+# ISO-3166-1 alpha-2 country helpers (no third-party dependency).
 #
 # `flag()` computes the emoji from the two-letter code (Unicode regional
 # indicators), so it works for any valid code even if the name is unknown.

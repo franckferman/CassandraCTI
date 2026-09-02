@@ -20,7 +20,7 @@ app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
     help=(
-        "CassandraCTI — modular Cyber Threat Intelligence aggregator.\n\n"
+        "CassandraCTI, a modular Cyber Threat Intelligence aggregator.\n\n"
         "Quick start:\n"
         "  cassandra quickstart            set up config + open the dashboard\n"
         "  cassandra run --web             collect and serve the live dashboard\n\n"
@@ -31,7 +31,7 @@ app = typer.Typer(
 yaml = YAML()
 yaml.indent(mapping=2, sequence=4, offset=2)
 # Keep original quoting on round-trip: several feed URLs contain '?', which is
-# only valid unquoted in block context — dropping the quotes would emit a config
+# only valid unquoted in block context; dropping the quotes would emit a config
 # that stricter YAML parsers reject (the app's own ruamel loader tolerates it,
 # but external tooling should not choke on a file we wrote).
 yaml.preserve_quotes = True
@@ -178,7 +178,7 @@ def list_items(config: Path = typer.Option(None), connectors: Path = typer.Optio
         typer.echo("  (none)")
     for name, s in sources.items():
         s = s or {}
-        # A source is active only when `enabled` is truthy — mirror build_sources.
+        # A source is active only when `enabled` is truthy; mirrors build_sources.
         flag = "on " if s.get("enabled") else "off"
         if name == "rss":
             feeds = s.get("feeds", []) or []
@@ -448,7 +448,7 @@ def remove_connector(id: str = typer.Option(..., "--id", help="Connector id to r
     if before - len(cx["connectors"]):
         typer.echo(f"Removed connector {id}")
         if dangling:
-            typer.echo(f"Note: still referenced by: {', '.join(dangling)} — update or remove them.")
+            typer.echo(f"Note: still referenced by: {', '.join(dangling)}. Update or remove them.")
     else:
         typer.echo("No matching connector found")
 
