@@ -1,0 +1,16 @@
+connectors:
+  # Live alerts as they arrive.
+  - id: discord-alerts
+    type: discord
+    params:
+      webhook_url: ${DISCORD_WEBHOOK_ALERTS}
+      username: "CTI Alerts"
+      emojis: true
+
+  # The daily LLM briefing (a separate, quieter channel).
+  - id: discord-brief
+    type: discord
+    params:
+      webhook_url: ${DISCORD_WEBHOOK_BRIEF}
+      username: "CTI Briefing"
+      emojis: true

@@ -1,0 +1,17 @@
+{%- set NA = ['', 'N/A', 'n/a', 'None', 'none', 'Not Found', '-', 'null', 'Unknown'] -%}
+**{{ title }}**
+
+- **Group:** {{ (raw.group_name if raw else 'Unknown') | default('Unknown', true) }}
+{% if raw and raw.country and raw.country not in NA %}- **Country:** {{ raw.country_display or raw.country }}{% if raw.country_flag %} {{ raw.country_flag }}{% endif %}
+{% endif %}{% if raw and raw.activity and raw.activity not in NA %}- **Sector:** {{ raw.activity }}
+{% endif %}{% if raw and raw.website and raw.website not in NA and '.onion' not in raw.website %}- **Victim:** {{ raw.website }}
+{% endif %}{% if raw and raw.discovered %}- **Discovered:** {{ raw.discovered | string | truncate(19, True, '') | replace('T', ' ') }} UTC
+{% endif %}{% if raw and raw.data_size and raw.data_size not in NA %}- **Data size:** {{ raw.data_size }}
+{% endif %}{% if raw and raw.infostealer_summary %}- **Infostealer:** {{ raw.infostealer_summary }} compromised
+{% endif %}{% if raw and raw.infostealer_stealers %}- **Top stealers:** {{ raw.infostealer_stealers }}
+{% endif %}{% if summary and summary not in NA %}
+> {{ summary }}
+{% endif %}
+{% if url and url.strip() %}🌐 [Source (ransomware.live)]({{ url if url.startswith('http') else 'https://' + url }})
+{% endif %}{% if raw and raw.leak_url and '.onion' in raw.leak_url %}🧅 [Leak site (onion)]({{ raw.leak_url }})
+{% endif %}

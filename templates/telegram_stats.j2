@@ -1,0 +1,4 @@
+{#- Telegram ransomware.live daily digest. Title bolded by the transport. -#}
+📊 {{ summary | e }}
+{% if raw.last_update %}
+🕓 Updated: {{ raw.last_update | string | truncate(19, true, '') | replace('T', ' ') | e }} UTC{% endif %}

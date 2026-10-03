@@ -1,0 +1,8 @@
+connectors:
+  # Local live dashboard. Keep host on 127.0.0.1 unless you also set a token.
+  - id: web
+    type: web
+    params:
+      host: 127.0.0.1
+      port: 8080
+      # token: ${CTI_WEB_TOKEN}   # require Bearer token / ?token= before exposing
