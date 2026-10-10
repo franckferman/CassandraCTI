@@ -1,0 +1,10 @@
+connectors:
+  # Discord incoming webhook. Create one in your channel:
+  #   Channel → Edit → Integrations → Webhooks → New Webhook → Copy URL
+  # Then: export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+  - id: discord
+    type: discord
+    params:
+      webhook_url: ${DISCORD_WEBHOOK_URL}
+      username: "CassandraCTI"
+      emojis: true

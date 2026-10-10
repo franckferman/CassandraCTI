@@ -1,0 +1,8 @@
+{#- Telegram Red Flag Domains card (parse_mode=HTML). Title (date) is bolded by
+    the transport. Shows the count + a monospaced sample; full list via link. -#}
+🚩 <b>{{ raw.count | default('?', true) }}</b> new malicious domains
+{% if raw.date %}📅 {{ raw.date | e }}{% endif %}
+
+<code>{{ summary | e | truncate(500, True) }}</code>
+{% if url %}
+📄 <a href="{{ url | e }}">Full list</a>{% endif %}

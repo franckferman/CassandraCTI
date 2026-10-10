@@ -1,0 +1,1133 @@
+# CassandraCTI - Modular Cyber Threat Intelligence Aggregator
+# Copyright (C) 2025 Franck Ferman
+# cli.py
+from __future__ import annotations
+import os
+import sys
+import asyncio
+import csv
+import shutil
+from pathlib import Path
+from typing import Optional
+import typer
+from ruamel.yaml import YAML
+from colorama import init as colorama_init
+from .config import load_settings
+from .main import run_once
+from .store import Store
+
+app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    help=(
+        "CassandraCTI, a modular Cyber Threat Intelligence aggregator.\n\n"
+        "Quick start:\n"
+        "  cassandra quickstart            set up config + open the dashboard\n"
+        "  cassandra run --web             collect and serve the live dashboard\n\n"
+        "Config lives in your OS config dir by default; override with --config / "
+        "--connectors on any command."
+    ),
+)
+yaml = YAML()
+yaml.indent(mapping=2, sequence=4, offset=2)
+# Keep original quoting on round-trip: several feed URLs contain '?', which is
+# only valid unquoted in block context; dropping the quotes would emit a config
+# that stricter YAML parsers reject (the app's own ruamel loader tolerates it,
+# but external tooling should not choke on a file we wrote).
+yaml.preserve_quotes = True
+colorama_init()
+
+
+def default_dir() -> Path:
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))
+        return Path(base) / "cassandra-cti"
+    elif sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "cassandra-cti"
+    else:
+        return Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "cassandra-cti"
+
+
+def yload(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    with path.open("r", encoding="utf-8") as f:
+        return yaml.load(f) or {}
+
+
+def ysave(path: Path, data: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        yaml.dump(data, f)
+
+
+def _ensure_use(cfg: dict, transport_ids) -> None:
+    """Ensure each transport id is in config.yaml's transports.use, so a
+    connector is activated as soon as a route/briefing references it (no manual
+    transports.use editing)."""
+    tcfg = cfg.setdefault("transports", {})
+    if not isinstance(tcfg, dict):
+        return
+    use = tcfg.get("use")
+    if use is None:
+        use = []
+    for tid in transport_ids or []:
+        if tid and tid not in use:
+            use.append(tid)
+    tcfg["use"] = use
+
+
+def _scaffold(cfg_path: Path, cx_path: Path, tpl_dir: Path) -> None:
+    """Create config.yaml, connectors.yaml and templates/ if they are missing.
+
+    Shared by `init` and `quickstart`. Copies the shipped examples when present,
+    otherwise writes minimal defaults. Existing files are left untouched.
+    """
+    # cli.py is in cassandra_cti/, so the project root is one level up.
+    root = Path(__file__).parent.parent
+    src_cfg = root / "config.example.yaml"
+    src_cx = root / "connectors.example.yaml"
+    src_tpl = root / "templates"
+
+    cfg_path.parent.mkdir(parents=True, exist_ok=True)
+    cx_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not cfg_path.exists():
+        if src_cfg.exists():
+            shutil.copy(src_cfg, cfg_path)
+            typer.echo(f"Created {cfg_path} (copied from example)")
+        else:
+            ysave(cfg_path, {"schema_version": 1, "scheduler": {"mode": "oneshot"},
+                             "sources": {}, "transports": {}, "routes": [],
+                             "store": {"sqlite_path": ".cassandra_cti.db"}})
+            typer.echo(f"Created {cfg_path} (minimal default)")
+    else:
+        typer.echo(f"Exists: {cfg_path}")
+
+    if not cx_path.exists():
+        if src_cx.exists():
+            shutil.copy(src_cx, cx_path)
+            typer.echo(f"Created {cx_path} (copied from example)")
+        else:
+            ysave(cx_path, {"connectors": []})
+            typer.echo(f"Created {cx_path} (minimal default)")
+    else:
+        typer.echo(f"Exists: {cx_path}")
+
+    if not tpl_dir.exists():
+        if src_tpl.exists() and src_tpl.is_dir():
+            shutil.copytree(src_tpl, tpl_dir)
+            typer.echo(f"Created {tpl_dir} (copied from templates/)")
+        else:
+            typer.echo("WARNING: templates/ not found; create it manually.")
+    else:
+        typer.echo(f"Exists: {tpl_dir}")
+
+
+@app.command()
+def init(config: Path = typer.Option(None, help="Path to config.yaml (default: your config dir)"),
+         connectors: Path = typer.Option(None, help="Path to connectors.yaml (default: your config dir)")):
+    """Create starter config.yaml, connectors.yaml and templates/ (idempotent)."""
+    base = default_dir()
+    _scaffold(config or (base / "config.yaml"),
+              connectors or (base / "connectors.yaml"),
+              base / "templates")
+
+
+@app.command()
+def quickstart(web: bool = typer.Option(True, "--web/--no-web", help="Open the live dashboard after setup"),
+               web_host: str = typer.Option("127.0.0.1", "--web-host", help="Dashboard bind address"),
+               web_port: int = typer.Option(8080, "--web-port", help="Dashboard port"),
+               config: Path = typer.Option(None, help="Path to config.yaml"),
+               connectors: Path = typer.Option(None, help="Path to connectors.yaml")):
+    """Get running in one command: scaffold config, then open the dashboard.
+
+    Creates the config files if missing, then starts the collector with the web
+    dashboard. Use --no-web to only scaffold.
+
+    Examples:
+      cassandra quickstart              set up + open http://127.0.0.1:8080
+      cassandra quickstart --no-web     just create the config files
+    """
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cx_path = connectors or (base / "connectors.yaml")
+    _scaffold(cfg_path, cx_path, base / "templates")
+    typer.echo("")
+    typer.echo(f"Config ready: {cfg_path}")
+    typer.echo(f"Connectors:   {cx_path}")
+    if not web:
+        typer.echo("Next: edit the config to enable sources/routes, then run "
+                   "`cassandra run` (add --web for the dashboard).")
+        return
+    typer.echo("Starting the collector with the live dashboard...")
+    _do_run(str(cfg_path), str(cx_path), None, loop=True, interval=300,
+            web=True, web_host=web_host, web_port=web_port)
+
+
+@app.command("list")
+def list_items(config: Path = typer.Option(None), connectors: Path = typer.Option(None)):
+    """Show configured sources (all kinds), routes and connectors."""
+    base = default_dir()
+    cfg = yload(config or (base / "config.yaml"))
+    cx = yload(connectors or (base / "connectors.yaml"))
+
+    sources = cfg.get("sources", {}) or {}
+    typer.echo("Sources:")
+    if not sources:
+        typer.echo("  (none)")
+    for name, s in sources.items():
+        s = s or {}
+        # A source is active only when `enabled` is truthy; mirrors build_sources.
+        flag = "on " if s.get("enabled") else "off"
+        if name == "rss":
+            feeds = s.get("feeds", []) or []
+            typer.echo(f"  [{flag}] rss ({len(feeds)} feeds)")
+            for f in feeds:
+                typer.echo(f"         - {f.get('name')} :: {f.get('url')} :: tags={f.get('tags')}")
+        else:
+            bits = []
+            for k in ("lookback_days", "max_items", "feeds", "country"):
+                if s.get(k) not in (None, "", []):
+                    bits.append(f"{k}={s.get(k)}")
+            ak = s.get("api_key")
+            if ak:
+                # Never print the value: 'env' = ${VAR} placeholder, 'set' = literal.
+                bits.append("api_key=" + ("env" if str(ak).startswith("${") else "set"))
+            extra = ("  " + ", ".join(bits)) if bits else ""
+            typer.echo(f"  [{flag}] {name}{extra}")
+
+    typer.echo("Routes:")
+    for r in cfg.get("routes", []):
+        typer.echo(f"  - {r.get('name')} -> {r.get('transports')} via src={r.get('include_sources')} tags={r.get('include_tags')} regex={r.get('include_regex')}")
+
+    briefings = cfg.get("briefings", []) or []
+    if briefings:
+        typer.echo("Briefings:")
+        for b in briefings:
+            typer.echo(f"  - {b.get('name')} every {b.get('schedule', '24h')} -> {b.get('transports')} "
+                       f"src={b.get('include_sources')} tags={b.get('include_tags')}")
+
+    typer.echo("Connectors:")
+    for c in cx.get("connectors", []):
+        typer.echo(f"  - {c.get('id')} [{c.get('type')}]")
+
+
+@app.command()
+def add_source(kind: str = typer.Argument(..., help="rss|ransomware_live|redflag|kev|abusech"),
+               name: str = typer.Option(None, help="Feed name (rss)"),
+               url: str = typer.Option(None, help="Feed URL (rss)"),
+               tags: Optional[str] = typer.Option(None, help="comma-separated tags (rss)"),
+               api_key: Optional[str] = typer.Option(None, help="Auth-Key (abusech, optional)"),
+               feeds: Optional[str] = typer.Option(
+                   None, help="abuse.ch feeds, comma-separated: feodo,threatfox,urlhaus,malwarebazaar"),
+               config: Path = typer.Option(None)):
+    """Enable a data source: rss, ransomware.live, red-flag-domains, CISA KEV or abuse.ch."""
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    cfg.setdefault("sources", {})
+
+    if kind == "rss":
+        if not name or not url:
+            raise typer.BadParameter("rss requires --name and --url")
+        rss = cfg["sources"].setdefault("rss", {"enabled": True, "feeds": []})
+
+        if any(f.get("url") == url for f in rss["feeds"]):
+            typer.echo("Already present")
+        else:
+            rss["feeds"].append({"name": name, "url": url, "tags": (tags.split(',') if tags else [])})
+    elif kind == "ransomware_live":
+        s = cfg["sources"].setdefault("ransomware_live", {"enabled": True})
+        s["enabled"] = True
+    elif kind == "redflag":
+        s = cfg["sources"].setdefault("red_flag_domains", {"enabled": True})
+        s["enabled"] = True
+    elif kind in ("kev", "cisa_kev"):
+        s = cfg["sources"].setdefault("cisa_kev", {"enabled": True})
+        s["enabled"] = True
+    elif kind in ("abusech", "abuse_ch"):
+        s = cfg["sources"].setdefault("abusech", {"enabled": True, "feeds": ["feodo", "urlhaus"]})
+        s["enabled"] = True
+        if feeds:
+            s["feeds"] = [f.strip() for f in feeds.split(",") if f.strip()]
+        if api_key:
+            s["api_key"] = api_key
+    else:
+        raise typer.BadParameter("Unknown type")
+
+    ysave(cfg_path, cfg)
+    typer.echo(f"OK: {kind} added")
+
+
+@app.command("remove-source")
+def remove_source(kind: str = typer.Argument(..., help="rss|ransomware_live|redflag|kev|abusech"),
+                  name: Optional[str] = typer.Option(None, help="Feed name to remove (rss)"),
+                  url: Optional[str] = typer.Option(None, help="Feed URL to remove (rss)"),
+                  config: Path = typer.Option(None)):
+    """Remove an RSS feed (by --name or --url), or disable another source."""
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    sources = cfg.setdefault("sources", {})
+
+    if kind == "rss":
+        rss = sources.get("rss") or {}
+        feeds = rss.get("feeds") or []
+        if not url and not name:
+            raise typer.BadParameter("rss removal requires --name or --url")
+        before = len(feeds)
+        if url:
+            feeds = [f for f in feeds if f.get("url") != url]
+        else:
+            feeds = [f for f in feeds if f.get("name") != name]
+        rss["feeds"] = feeds
+        sources["rss"] = rss
+        removed = before - len(feeds)
+        typer.echo(f"Removed {removed} RSS feed(s)" if removed else "No matching feed found")
+    else:
+        keymap = {"ransomware_live": "ransomware_live", "redflag": "red_flag_domains",
+                  "kev": "cisa_kev", "cisa_kev": "cisa_kev",
+                  "abusech": "abusech", "abuse_ch": "abusech"}
+        key = keymap.get(kind)
+        if not key:
+            raise typer.BadParameter("Unknown type")
+        s = sources.get(key)
+        if not s:
+            typer.echo(f"{key} not present")
+            return
+        s["enabled"] = False
+        typer.echo(f"{key} disabled (enabled: false)")
+
+    ysave(cfg_path, cfg)
+
+
+@app.command("import-feeds")
+def import_feeds(file: Path = typer.Argument(..., help="Path to CSV file (Name,URL,Tags)"),
+                 config: Path = typer.Option(None)):
+    """Import RSS feeds from a CSV file (Name, URL, Tags)"""
+    if not file.exists():
+        raise typer.BadParameter(f"File not found: {file}")
+
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    cfg.setdefault("sources", {})
+    rss = cfg["sources"].setdefault("rss", {"enabled": True, "feeds": []})
+
+    count = 0
+    with file.open("r", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if len(row) < 2:
+                continue
+
+            name = row[0].strip()
+            url = row[1].strip()
+            tags = []
+            if len(row) > 2 and row[2].strip():
+                tags = [t.strip() for t in row[2].split("|")]
+
+            # Deduplicate by URL
+            if any(f.get("url") == url for f in rss["feeds"]):
+                typer.echo(f"Skip (already exists): {name}")
+                continue
+
+            rss["feeds"].append({"name": name, "url": url, "tags": tags})
+            count += 1
+
+    ysave(cfg_path, cfg)
+    typer.echo(f"Import finished: {count} feeds added")
+
+
+@app.command()
+def add_connector(id: str = typer.Option(..., "--id", help="Unique connector id"),
+                  type: str = typer.Option("teams", "--type", help="teams|discord|telegram|smtp"),
+                  webhook_url: Optional[str] = typer.Option(None, help="Incoming webhook URL (teams, discord)"),
+                  bot_token: Optional[str] = typer.Option(None, help="Bot token (telegram)"),
+                  chat_id: Optional[str] = typer.Option(None, help="Chat id (telegram)"),
+                  host: Optional[str] = typer.Option(None, help="SMTP host (smtp)"),
+                  port: int = typer.Option(587, help="SMTP port (smtp)"),
+                  security: str = typer.Option("starttls", help="SMTP security: starttls|ssl|none (smtp)"),
+                  from_addr: Optional[str] = typer.Option(None, help="From address (smtp)"),
+                  to_addrs: Optional[str] = typer.Option(None, help="Recipient(s), comma-separated (smtp)"),
+                  subject_prefix: str = typer.Option("[CTI]", help="Subject prefix (smtp)"),
+                  dashboard_port: int = typer.Option(8080, help="Dashboard port (web)"),
+                  token: Optional[str] = typer.Option(None, help="Bearer / ?token= auth (web)"),
+                  api_url: Optional[str] = typer.Option(None, help="signal-cli-rest-api endpoint (signal)"),
+                  number: Optional[str] = typer.Option(None, help="Registered sender number (signal)"),
+                  recipients: Optional[str] = typer.Option(None, help="Comma-separated numbers and/or group ids (signal)"),
+                  username: Optional[str] = typer.Option(None, help="Display name (discord)"),
+                  theme_color: str = typer.Option("000000", help="Card color (teams)"),
+                  emojis: bool = typer.Option(True, help="Prefix titles with emojis"),
+                  emoji_map: Optional[str] = typer.Option(None, help="inline JSON or path to a JSON file"),
+                  batching: Optional[str] = typer.Option(None, help="JSON ex: '{\"enabled\":true,\"max_items\":5}'"),
+                  connectors: Path = typer.Option(None)):
+    """Add a connector (teams, discord, telegram, smtp, web or signal)."""
+    base = default_dir()
+    cx_path = connectors or (base / "connectors.yaml")
+    cx = yload(cx_path)
+    lst = cx.setdefault("connectors", [])
+
+    if any(c.get("id") == id for c in lst):
+        typer.echo("ID already present")
+        return
+
+    t = type.lower()
+    if t in ("teams", "discord"):
+        if not webhook_url:
+            raise typer.BadParameter(f"{t} requires --webhook-url")
+        params = {"webhook_url": webhook_url, "emojis": emojis}
+        if t == "teams":
+            params["theme_color"] = theme_color
+        if t == "discord" and username:
+            params["username"] = username
+    elif t == "telegram":
+        if not bot_token or not chat_id:
+            raise typer.BadParameter("telegram requires --bot-token and --chat-id")
+        params = {"bot_token": bot_token, "chat_id": chat_id, "emojis": emojis}
+    elif t == "smtp":
+        if not host or not from_addr or not to_addrs:
+            raise typer.BadParameter("smtp requires --host, --from-addr and --to-addrs")
+        params = {"host": host, "port": port, "security": security,
+                  "from_addr": from_addr, "to_addrs": to_addrs,
+                  "subject_prefix": subject_prefix, "emojis": emojis}
+    elif t == "web":
+        # Dedicated --dashboard-port avoids colliding with the SMTP --port default.
+        params = {"host": host or "127.0.0.1", "port": dashboard_port}
+        if token:
+            params["token"] = token
+    elif t == "signal":
+        if not api_url or not number or not recipients:
+            raise typer.BadParameter("signal requires --api-url, --number and --recipients")
+        params = {"api_url": api_url, "number": number,
+                  "recipients": [r.strip() for r in recipients.split(",") if r.strip()],
+                  "emojis": emojis}
+    else:
+        raise typer.BadParameter(f"Unknown connector type: {type}")
+
+    if emoji_map:
+        import json as _json
+        if os.path.isfile(emoji_map):
+            with open(emoji_map, "r", encoding="utf-8") as _fp:
+                params["emoji_map"] = _json.load(_fp)
+        else:
+            params["emoji_map"] = _json.loads(emoji_map)
+    if batching:
+        import json as _json
+        params["batching"] = _json.loads(batching)
+
+    lst.append({"id": id, "type": t, "params": params})
+    ysave(cx_path, cx)
+    typer.echo(f"Connector {id} ({t}) added")
+
+
+@app.command("remove-connector")
+def remove_connector(id: str = typer.Option(..., "--id", help="Connector id to remove"),
+                     connectors: Path = typer.Option(None),
+                     config: Path = typer.Option(None)):
+    """Remove a connector from connectors.yaml (and deactivate it in config.yaml)."""
+    base = default_dir()
+    cx_path = connectors or (base / "connectors.yaml")
+    cx = yload(cx_path)
+    lst = cx.get("connectors") or []
+    before = len(lst)
+    cx["connectors"] = [c for c in lst if c.get("id") != id]
+    ysave(cx_path, cx)
+
+    # Deactivate: drop from transports.use in config.yaml, and warn about routes.
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    tcfg = cfg.get("transports")
+    if isinstance(tcfg, dict) and id in (tcfg.get("use") or []):
+        tcfg["use"] = [u for u in tcfg["use"] if u != id]
+        ysave(cfg_path, cfg)
+    dangling = [r.get("name") for r in (cfg.get("routes") or []) if id in (r.get("transports") or [])]
+    dangling += [b.get("name") for b in (cfg.get("briefings") or []) if id in (b.get("transports") or [])]
+
+    if before - len(cx["connectors"]):
+        typer.echo(f"Removed connector {id}")
+        if dangling:
+            typer.echo(f"Note: still referenced by: {', '.join(dangling)}. Update or remove them.")
+    else:
+        typer.echo("No matching connector found")
+
+
+@app.command()
+def routes_add(name: str = typer.Option(...),
+               include: Optional[str] = typer.Option(None, help="e.g. 'rss:' or 'ransomware.live'"),
+               include_tag: Optional[str] = typer.Option(None, help="single tag"),
+               include_regex: Optional[str] = typer.Option(None, help="regex on title/source"),
+               include_terms: Optional[str] = typer.Option(None, help="comma-separated entity/company names to watch (title/summary/meta)"),
+               transports: str = typer.Option(..., help="comma-separated IDs"),
+               template: Optional[Path] = typer.Option(None, help="path to template.j2"),
+               config: Path = typer.Option(None)):
+    """Add (or replace) a route mapping matched events to transports."""
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    routes = cfg.setdefault("routes", [])
+
+    # Remove existing route with same name if any
+    routes = [r for r in routes if r.get("name") != name]
+
+    R = {"name": name, "transports": transports.split(",")}
+    if include:
+        R["include_sources"] = [include]
+    if include_tag:
+        R["include_tags"] = [include_tag]
+    if include_regex:
+        R["include_regex"] = include_regex
+    if include_terms:
+        R["include_terms"] = [t.strip() for t in include_terms.split(",") if t.strip()]
+    if template:
+        R["template"] = str(template)
+
+    routes.append(R)
+    cfg["routes"] = routes
+    _ensure_use(cfg, R["transports"])          # activate referenced connectors
+    ysave(cfg_path, cfg)
+    typer.echo(f"Route {name} added")
+
+
+@app.command("channel-add")
+def channel_add(name: str = typer.Option(..., help="Channel name, e.g. news. Becomes the tag, the route and the connector id"),
+                webhook_url: str = typer.Option(..., help="Teams (or Discord) incoming webhook URL"),
+                type: str = typer.Option("teams", "--type", help="teams|discord"),
+                tag: Optional[str] = typer.Option(None, help="Tag routed to this channel (default: --name)"),
+                source: Optional[str] = typer.Option(None, help="Route a source instead of a tag, e.g. ransomware.live"),
+                theme_color: str = typer.Option("0078D7", help="Card color (teams)"),
+                batch: int = typer.Option(0, help="Group N items per card (0 = one card per item)"),
+                template: Optional[str] = typer.Option(None, help="Route template; defaults to rss_default.j2, or batch_default.j2 when --batch is set"),
+                brief_at: Optional[str] = typer.Option(None, "--brief-at", help="Add a daily briefing at this local time, e.g. 08:00"),
+                brief_to: Optional[str] = typer.Option(None, "--brief-to", help="Connector id receiving the briefing (default: this channel)"),
+                brief_top_n: int = typer.Option(5, "--brief-top-n", help="Ranked Top-N in the briefing"),
+                brief_min_items: int = typer.Option(3, "--brief-min-items", help="Skip the briefing below N items"),
+                no_route: bool = typer.Option(False, "--no-route", help="Connector only, no route: for a channel that receives briefings and nothing else"),
+                config: Path = typer.Option(None),
+                connectors: Path = typer.Option(None)):
+    """Wire a whole channel in one command: connector, route, and an optional daily briefing.
+
+    Equivalent to add-connector + routes-add + briefing-add, which is four files
+    and four chances to mistype an id.
+
+    --no-route builds a channel with no route at all, which is what a briefing
+    channel is: it carries the recaps of the other channels, and routing a tag
+    no feed carries to it would leave a route that can never match.
+    """
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cx_path = connectors or (base / "connectors.yaml")
+    cid = f"{type.lower()}-{name}"
+
+    cx = yload(cx_path)
+    lst = cx.setdefault("connectors", [])
+    lst = [c for c in lst if c.get("id") != cid]
+    params = {"webhook_url": webhook_url, "emojis": True}
+    if type.lower() == "teams":
+        params["theme_color"] = theme_color
+        params["throttle_ms"] = 1000          # floor enforced by the transport
+    if batch:
+        params["batching"] = {"enabled": True, "max_items": batch}
+    lst.append({"id": cid, "type": type.lower(), "params": params})
+    cx["connectors"] = lst
+    ysave(cx_path, cx)
+
+    cfg = yload(cfg_path)
+    routes = [r for r in (cfg.get("routes") or []) if r.get("name") != name]
+    if not no_route:
+        R = {"name": name, "transports": [cid]}
+        if source:
+            R["include_sources"] = [source]
+        else:
+            R["include_tags"] = [tag or name]
+        R["template"] = template or ("templates/batch_default.j2" if batch else "templates/rss_default.j2")
+        routes.append(R)
+    cfg["routes"] = routes
+    _ensure_use(cfg, [cid])
+
+    if brief_at:
+        bname = f"{name}-daily"
+        briefings = [b for b in (cfg.get("briefings") or []) if b.get("name") != bname]
+        B = {"name": bname, "transports": [brief_to or cid], "schedule": "24h", "at": brief_at,
+             "min_items": brief_min_items, "max_items": 40, "top_n": brief_top_n,
+             "template": "templates/briefing_default.j2"}
+        if source:
+            B["include_sources"] = [source]
+        else:
+            B["include_tags"] = [tag or name]
+        briefings.append(B)
+        cfg["briefings"] = briefings
+        if brief_to:
+            _ensure_use(cfg, [brief_to])
+    ysave(cfg_path, cfg)
+
+    what = f"connector {cid}" + ("" if no_route else f", route {name}")
+    if brief_at:
+        what += f", briefing {name}-daily at {brief_at} -> {brief_to or cid}"
+    typer.echo(f"Channel {name} wired: {what}")
+
+
+@app.command("routes-remove")
+def routes_remove(name: str = typer.Option(..., help="Route name to remove"),
+                  config: Path = typer.Option(None)):
+    """Remove a route from config.yaml by name."""
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    routes = cfg.get("routes") or []
+    before = len(routes)
+    cfg["routes"] = [r for r in routes if r.get("name") != name]
+    ysave(cfg_path, cfg)
+    typer.echo(f"Removed route {name}" if before - len(cfg["routes"]) else "No matching route found")
+
+
+@app.command("briefing-add")
+def briefing_add(name: str = typer.Option(..., help="Unique briefing name"),
+                 transports: str = typer.Option(..., help="comma-separated connector IDs"),
+                 include: Optional[str] = typer.Option(None, help="source, e.g. 'cisa.kev' or 'rss:'"),
+                 include_tag: Optional[str] = typer.Option(None, help="single tag, e.g. 'cert'"),
+                 include_regex: Optional[str] = typer.Option(None, help="regex on title/source"),
+                 include_terms: Optional[str] = typer.Option(None, help="comma-separated entity/company names to watch"),
+                 schedule: str = typer.Option("24h", help="cadence: 24h | 6h | 30m | 2d"),
+                 at: Optional[str] = typer.Option(None, help="wall-clock time, local zone, e.g. 08:00"),
+                 min_items: int = typer.Option(1, help="skip if fewer than N new items"),
+                 max_items: int = typer.Option(40, help="cap items fed to the LLM"),
+                 focus: Optional[str] = typer.Option(None, help="What 'important' means here, replacing the default criteria. e.g. 'Rank by victim sector: healthcare and utilities first'"),
+                 top_n: int = typer.Option(0, "--top-n", help="rank a numbered Top-N (0 = short 2-4 highlight narrative)"),
+                 title: Optional[str] = typer.Option(None, help="fixed message title (optional)"),
+                 template: Optional[str] = typer.Option(None, help="path to a briefing template"),
+                 config: Path = typer.Option(None)):
+    """Add (or replace) a periodic LLM briefing in config.yaml."""
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    briefings = [b for b in cfg.get("briefings", []) or [] if b.get("name") != name]
+
+    B = {"name": name, "transports": transports.split(","), "schedule": schedule,
+         "min_items": min_items, "max_items": max_items}
+    if focus:
+        B["focus"] = focus
+    if at:
+        B["at"] = at
+    if top_n:
+        B["top_n"] = top_n
+    if include:
+        B["include_sources"] = [include]
+    if include_tag:
+        B["include_tags"] = [include_tag]
+    if include_regex:
+        B["include_regex"] = include_regex
+    if include_terms:
+        B["include_terms"] = [t.strip() for t in include_terms.split(",") if t.strip()]
+    if title:
+        B["title"] = title
+    if template:
+        B["template"] = template
+
+    briefings.append(B)
+    cfg["briefings"] = briefings
+    _ensure_use(cfg, B["transports"])          # activate referenced connectors
+    ysave(cfg_path, cfg)
+    typer.echo(f"Briefing {name} added (every {schedule})")
+
+
+@app.command("briefing-remove")
+def briefing_remove(name: str = typer.Option(..., help="Briefing name to remove"),
+                    config: Path = typer.Option(None)):
+    """Remove a briefing from config.yaml by name."""
+    base = default_dir()
+    cfg_path = config or (base / "config.yaml")
+    cfg = yload(cfg_path)
+    briefings = cfg.get("briefings") or []
+    before = len(briefings)
+    cfg["briefings"] = [b for b in briefings if b.get("name") != name]
+    ysave(cfg_path, cfg)
+    typer.echo(f"Removed briefing {name}" if before - len(cfg["briefings"]) else "No matching briefing found")
+
+
+@app.command("briefing-run")
+def briefing_run(name: Optional[str] = typer.Option(None, help="Only this briefing (forces it)"),
+                 all: bool = typer.Option(False, "--all", help="Force all briefings now"),
+                 dry_run: bool = typer.Option(False, "--dry-run", help="Print [DRYRUN:BRIEFING], call nothing"),
+                 config: Path = typer.Option(None), connectors: Path = typer.Option(None)):
+    """Send LLM briefings now. No flag = the ones that are due; --name/--all force."""
+    base = default_dir()
+    cfg = str(config or (base / "config.yaml"))
+    cx = str(connectors or (base / "connectors.yaml"))
+    if dry_run:
+        os.environ["CTI_DRY_RUN"] = "1"
+
+    settings = load_settings(cfg, cx)
+    if name:
+        settings.briefings = [b for b in settings.briefings if b.name == name]
+        if not settings.briefings:
+            raise typer.BadParameter(f"No briefing named {name}")
+    if not settings.briefings:
+        typer.echo("No briefings configured.")
+        return
+
+    from .util import resolve_db_path
+    from .transports import build_transport
+    from .briefings import run_briefings
+
+    store = Store(resolve_db_path(settings.store.get("sqlite_path", ".cassandra_cti.db"), cfg))
+    transports_by_id = {}
+    for tdef in settings.transports:
+        try:
+            transports_by_id[tdef.id] = build_transport(tdef.type, tdef.params)
+        except Exception as e:
+            typer.echo(f"transport {tdef.id}: {e}", err=True)
+
+    force_all = bool(name) or all      # targeting one or --all forces; else due-only
+    dry = os.environ.get("CTI_DRY_RUN") == "1"
+    import logging
+    log = logging.getLogger("cassandra-cti.briefing")
+
+    async def _go():
+        n = await run_briefings(settings, store, transports_by_id, dry=dry, log=log,
+                                force_all=force_all)
+        for tr in transports_by_id.values():
+            try:
+                await tr.aclose()
+            except Exception:
+                pass
+        return n
+
+    n = asyncio.run(_go())
+    typer.echo(f"Briefings sent: {n}")
+
+
+@app.command()
+def doctor(kind: str = typer.Argument(..., help="connector|config|feeds"),
+           id: Optional[str] = typer.Option(None),
+           stale_days: int = typer.Option(60, "--stale-days", help="feeds: note a feed whose newest entry is older than this. Research blogs publish every few weeks, so a low value cries wolf"),
+           config: Path = typer.Option(None),
+           connectors: Path = typer.Option(None)):
+    """Validate the config ('doctor config'), send a live test message through a
+    connector ('doctor connector --id <id>'), or fetch every configured feed and
+    report what came back ('doctor feeds')."""
+    base = default_dir()
+    if kind == "config":
+        try:
+            settings = load_settings(str(config or (base / "config.yaml")), str(connectors or (base / "connectors.yaml")))
+            typer.echo("Config OK")
+            for name in ("ransomware_press", "ransomware_8k", "ransomware_stats"):
+                s = settings.sources.get(name) or {}
+                k = str(s.get("api_key") or "")
+                if s.get("enabled") and (not k or k.startswith("${")):
+                    typer.echo(f"WARNING: '{name}' is enabled but has no PRO api_key "
+                               "-> it will be skipped (PRO-only feed, no fallback).")
+        except Exception as e:
+            typer.echo(f"Invalid config: {e}")
+    elif kind == "feeds":
+        # Fetch every configured feed through the production path - same user
+        # agent, same TLS context, same parser - so the verdict describes what
+        # will actually run, not what a plain GET would have returned.
+        from .sources.rss import build_rss_sources
+        settings = load_settings(str(config or (base / "config.yaml")),
+                                 str(connectors or (base / "connectors.yaml")))
+        srcs = build_rss_sources(settings.sources.get("rss") or {})
+        if not srcs:
+            typer.echo("No RSS feeds configured")
+            return
+
+        import time as _time
+        from datetime import datetime as _dt, timezone as _tz
+
+        sem = asyncio.Semaphore(8)
+
+        async def _one(src):
+            async with sem:
+                t0 = _time.monotonic()
+                try:
+                    evs = await src.fetch()
+                    return src, evs, None, _time.monotonic() - t0
+                except Exception as e:             # noqa: BLE001 - reported, not raised
+                    return src, None, f"{type(e).__name__}: {e}", _time.monotonic() - t0
+
+        async def _all():
+            return await asyncio.gather(*(_one(s) for s in srcs))
+
+        rows = asyncio.run(_all())
+        now_utc = _dt.now(_tz.utc)
+        # Broken and quiet are different things. A feed that will not fetch or
+        # parses to nothing is a config error and fails the command; a research
+        # blog that posted five weeks ago is only worth a note, and failing on it
+        # would make this useless in CI.
+        broken, quiet = [], []
+        width = max(len(s.name) for s in srcs)
+        tag_width = max((len(",".join(s.tags)) for s in srcs), default=0)
+
+        for src, evs, err, secs in sorted(rows, key=lambda r: r[0].name.lower()):
+            if err:
+                verdict, detail = "FAIL", err[:70]
+            elif not evs:
+                verdict, detail = "EMPTY", "fetched, parsed, zero entries"
+            else:
+                dates = [e.published_at for e in evs if e.published_at]
+                without_link = sum(1 for e in evs if not e.url)
+                if not dates:
+                    verdict, detail = "NO DATES", f"{len(evs)} entries, none dated"
+                else:
+                    age = (now_utc - max(d.astimezone(_tz.utc) for d in dates)).days
+                    if age > stale_days:
+                        verdict, detail = "STALE", f"{len(evs)} entries, newest {age} days old"
+                    else:
+                        verdict = "OK"
+                        detail = f"{len(evs)} entries, newest {age}d"
+                        if without_link:
+                            verdict = "NO LINKS" if without_link == len(evs) else "OK"
+                            detail += f", {without_link} without a link"
+            if verdict in ("FAIL", "EMPTY", "NO LINKS"):
+                broken.append(src.name)
+            elif verdict != "OK":
+                quiet.append(src.name)
+            tags = ",".join(src.tags)
+            typer.echo(f"{verdict:9} {src.name:{width}}  {tags:{tag_width}}  {secs:5.1f}s  {detail}")
+
+        typer.echo("")
+        healthy = len(srcs) - len(broken)
+        typer.echo(f"{healthy}/{len(srcs)} feeds reachable and parsing" + (f" - broken: {', '.join(broken)}" if broken else ""))
+        if quiet:
+            typer.echo(f"quiet for over {stale_days} days, not an error: {', '.join(quiet)}")
+        if broken:
+            raise typer.Exit(1)
+    elif kind == "connector":
+        if not id:
+            raise typer.BadParameter("--id required")
+
+        from .transports import build_transport
+        from .models import Event
+
+        cx = yload(connectors or (base / "connectors.yaml"))
+        match = next((c for c in cx.get("connectors", []) if c.get("id") == id), None)
+
+        if not match:
+            raise typer.BadParameter("Connector not found")
+
+        from .util import expand_env
+
+        def _expand(x):
+            if isinstance(x, dict):
+                return {k: _expand(v) for k, v in x.items()}
+            if isinstance(x, list):
+                return [_expand(v) for v in x]
+            return expand_env(x) if isinstance(x, str) else x
+
+        t = build_transport(match.get("type"), _expand(match.get("params", {})))
+
+        async def _t():
+            try:
+                await t.send([Event(source="cli:doctor", title="CTI doctor", url="https://example.com", summary="Test OK")])
+                typer.echo("Test message sent successfully")
+            except Exception as e:
+                typer.echo(f"Error sending message: {e}", err=True)
+                raise
+            finally:
+                if hasattr(t, 'aclose'):
+                    await t.aclose()
+
+        try:
+            asyncio.run(_t())
+        except Exception as e:
+            typer.echo(f"Failed: {e}", err=True)
+            raise typer.Exit(1)
+
+
+def _do_run(cfg: str, cx: str, only, loop: bool, interval: int,
+            web: bool, web_host: str, web_port: int,
+            dry_run: bool = False, verbose: bool = False,
+            since: Optional[str] = None, no_dedupe: bool = False) -> None:
+    """Core collect/serve loop, shared by `run` and `quickstart`.
+
+    Kept separate from the Typer command so it can be called with plain Python
+    values (calling a Typer command function directly would pass OptionInfo
+    objects for any argument left unspecified).
+    """
+    if dry_run:
+        os.environ["CTI_DRY_RUN"] = "1"
+    if verbose:
+        os.environ["CTI_LOGLEVEL"] = "DEBUG"
+    if since:
+        os.environ["CTI_SINCE"] = since
+    if no_dedupe:
+        os.environ["CTI_NO_DEDUPE"] = "1"
+
+    extra_transports = extra_routes = None
+    if web:
+        if not loop:
+            typer.echo("--web implies --loop: enabling loop mode so the dashboard stays up.")
+            loop = True
+        from .config import TransportDef, RouteDef
+        extra_transports = [TransportDef(id="web-dashboard", type="web",
+                                         params={"host": web_host, "port": web_port})]
+        # Catch-all route: '.' matches any non-empty source name.
+        extra_routes = [RouteDef(name="web-dashboard", include_regex=".",
+                                 transports=["web-dashboard"])]
+        typer.echo(f"Web dashboard: http://{web_host}:{web_port}")
+
+    async def _once():
+        await run_once(cfg, cx, only_sources=only,
+                       extra_transports=extra_transports, extra_routes=extra_routes)
+
+    if not loop:
+        asyncio.run(_once())
+        return
+
+    while True:
+        asyncio.run(_once())
+        from time import sleep
+        sleep(interval)
+
+
+@app.command()
+def run(config: Path = typer.Option(None), connectors: Path = typer.Option(None),
+        loop: bool = typer.Option(False, help="Keep running, re-collecting every --interval seconds"),
+        sources: Optional[str] = typer.Option(None, help="Only these sources, e.g. 'rss:' or 'ransomware.live'"),
+        dry_run: bool = typer.Option(False, help="Print what would be sent; deliver nothing"),
+        verbose: bool = typer.Option(False, help="Debug logging"),
+        since: Optional[str] = typer.Option(None, help="ISO8601 or YYYY-MM-DD"),
+        no_dedupe: bool = typer.Option(False, help="Re-send events already delivered"),
+        interval: int = typer.Option(300, help="Seconds between collections in loop mode"),
+        web: bool = typer.Option(False, "--web", help="Serve the live web dashboard (implies --loop)"),
+        web_host: str = typer.Option("127.0.0.1", "--web-host", help="Dashboard bind address"),
+        web_port: int = typer.Option(8080, "--web-port", help="Dashboard port")):
+    """Collect from enabled sources and deliver to routed transports.
+
+    Examples:
+      cassandra run                     one collection pass, then exit
+      cassandra run --web               collect and serve the dashboard
+      cassandra run --dry-run           preview deliveries without sending
+      cassandra run --loop --interval 600   re-collect every 10 minutes
+    """
+    base = default_dir()
+    cfg = str(config or (base / "config.yaml"))
+    cx = str(connectors or (base / "connectors.yaml"))
+    only = sources.split(",") if sources else None
+    _do_run(cfg, cx, only, loop=loop, interval=interval, web=web,
+            web_host=web_host, web_port=web_port, dry_run=dry_run,
+            verbose=verbose, since=since, no_dedupe=no_dedupe)
+
+
+@app.command("backfill")
+def backfill(to: str = typer.Option(..., help="transport id"),
+             since: str = typer.Option(..., help="YYYY-MM-DD or ISO"),
+             config: Path = typer.Option(None), connectors: Path = typer.Option(None)):
+    """Replay stored events not yet delivered to a transport (since a date)."""
+    base = default_dir()
+    cfg_path = str(config or (base / "config.yaml"))
+    settings = load_settings(cfg_path, str(connectors or (base / "connectors.yaml")))
+
+    from .util import resolve_db_path
+    store = Store(resolve_db_path(settings.store.get("sqlite_path", ".cassandra_cti.db"), cfg_path))
+    rows = store.unsent_since(to, since)
+
+    if not rows:
+        typer.echo("Nothing to backfill")
+        return
+
+    tdef = next((t for t in settings.transports if t.id == to), None)
+    if not tdef:
+        raise typer.BadParameter("Unknown transport")
+
+    from .transports import build_transport
+    tr = build_transport(tdef.type, tdef.params)
+
+    from .models import Event
+
+    async def _bf():
+        # rows: id, source, url, title, summary, published_at
+        # Carry the stored id rather than recomputing one: the row already knows
+        # its identity, and a recomputed id drifts the day the identity rules
+        # change, marking the delivery under a key the next run will not match.
+        evs = [(eid, Event(source=s, title=ti, url=u, summary=su))
+               for (eid, s, u, ti, su, pub) in rows]
+
+        # Simple chunking
+        for i in range(0, len(evs), 10):
+            chunk = evs[i:i + 10]
+            await tr.send([ev for _, ev in chunk])
+            for eid, _ in chunk:
+                store.mark_delivery(eid, to, 'ok')
+        await tr.aclose()
+
+    asyncio.run(_bf())
+    typer.echo(f"Backfill OK: {len(rows)} events to {to}")
+
+
+@app.command("db-reset")
+def db_reset(config: Path = typer.Option(None), force: bool = typer.Option(False, "--force", "-f", help="Force deletion without confirmation")):
+    """Delete the SQLite database file to reset state"""
+    base = default_dir()
+    cfg_path = str(config or (base / "config.yaml"))
+    settings = load_settings(cfg_path)
+    from .util import resolve_db_path
+    db_path = Path(resolve_db_path(settings.store.get("sqlite_path", ".cassandra_cti.db"), cfg_path))
+
+    if not db_path.exists():
+        typer.echo(f"Database file not found at: {db_path}")
+        return
+
+    typer.echo(f"Database found at: {db_path}")
+
+    if not force:
+        if not typer.confirm("Are you sure you want to delete the database? All history will be lost."):
+            typer.echo("Aborted.")
+            return
+
+    try:
+        db_path.unlink()
+        typer.echo(f"Deleted: {db_path}")
+
+        # Cleanup WAL/SHM files if they exist
+        wal = db_path.with_suffix(".db-wal")
+        shm = db_path.with_suffix(".db-shm")
+        if wal.exists():
+            wal.unlink()
+        if shm.exists():
+            shm.unlink()
+
+    except Exception as e:
+        typer.echo(f"Error deleting database: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command("seen-clear")
+def seen_clear(source_prefix: Optional[str] = typer.Option(None), before: Optional[str] = typer.Option(None),
+               since: Optional[str] = typer.Option(None, help="Clear items seen AFTER this date"),
+               config: Path = typer.Option(None)):
+    """Selectively clear dedup history (by source prefix and/or date)."""
+    base = default_dir()
+    cfg_path = str(config or (base / "config.yaml"))
+    settings = load_settings(cfg_path)
+    from .util import resolve_db_path
+    store = Store(resolve_db_path(settings.store.get("sqlite_path", ".cassandra_cti.db"), cfg_path))
+    store.clear_seen(source_prefix, before, since)
+    typer.echo("Seen cleared")
+
+
+# --------------------------------------------------------------------------- #
+# service: install/manage CassandraCTI as an OS service so `cassandra run`
+# survives crashes and reboots (systemd or OpenRC).
+# --------------------------------------------------------------------------- #
+service_app = typer.Typer(no_args_is_help=True,
+                          help="Install/manage CassandraCTI as an OS service (systemd or OpenRC).")
+app.add_typer(service_app, name="service")
+
+
+def _resolve_init(init: str):
+    from . import service as svc
+    chosen = init if init != "auto" else svc.detect_init()
+    if chosen not in ("systemd", "openrc"):
+        raise typer.BadParameter(
+            "Could not detect a supported init system. Pass --init systemd|openrc.")
+    return chosen
+
+
+@service_app.command("install")
+def service_install(
+        command: str = typer.Option("run --loop --interval 300", "--command",
+                                    help="The `cassandra ...` command the service runs"),
+        name: str = typer.Option("cassandra-cti", "--name", help="Service name"),
+        system: bool = typer.Option(True, "--system/--user",
+                                    help="System service (needs root) or per-user systemd service"),
+        init: str = typer.Option("auto", "--init", help="auto | systemd | openrc"),
+        env_file: Optional[str] = typer.Option(None, "--env-file", help="EnvironmentFile with your secrets (systemd)"),
+        config: Path = typer.Option(None), connectors: Path = typer.Option(None),
+        enable: bool = typer.Option(True, "--enable/--no-enable",
+                                    help="Enable + start after writing the unit"),
+        show_only: bool = typer.Option(False, "--show", help="Print the unit and exit; write nothing")):
+    """Generate and install a service unit that keeps `cassandra run` alive.
+
+    Examples:
+      cassandra service install                                  system systemd, run --loop
+      cassandra service install --user                           per-user systemd service
+      cassandra service install --command "run --loop --since 2026-08-14"
+      cassandra service install --init openrc                    OpenRC (e.g. Gentoo)
+      cassandra service install --show                           preview the unit, write nothing
+    """
+    from . import service as svc
+    chosen = _resolve_init(init)
+    if chosen == "openrc" and not system:
+        raise typer.BadParameter("OpenRC has no per-user services; drop --user.")
+
+    base = default_dir()
+    cfg = str((config or (base / "config.yaml")).expanduser().resolve())
+    cx = str((connectors or (base / "connectors.yaml")).expanduser().resolve())
+    exec_path = svc.resolve_exec()
+    run_args = svc.build_run_args(command, cfg, cx)
+
+    if chosen == "systemd":
+        unit = svc.render_systemd_unit(exec_cmd=f"{exec_path} {run_args}",
+                                       env_file=env_file, user_mode=not system)
+        path = svc.systemd_path(name, user_mode=not system)
+    else:
+        unit = svc.render_openrc_script(exec_path=exec_path, run_args_full=run_args, name=name)
+        path = svc.openrc_path(name)
+
+    if show_only:
+        typer.echo(f"# {path}\n\n{unit}")
+        return
+
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(unit, encoding="utf-8")
+        if chosen == "openrc":
+            os.chmod(path, 0o755)  # nosec B103 -- OpenRC init scripts must be executable (root-owned, no secrets)
+    except PermissionError:
+        typer.echo(f"Permission denied writing {path}.")
+        typer.echo("Re-run with sudo, or use --show to print the unit and install it manually.")
+        raise typer.Exit(1)
+
+    typer.echo(f"Wrote {path}")
+    if chosen == "openrc" and env_file:
+        typer.echo(f"Note: OpenRC reads secrets from /etc/conf.d/{name} (auto-sourced), not --env-file.")
+
+    if not enable:
+        typer.echo("Then enable it with:")
+        typer.echo(svc.manual_enable_hint(chosen, name, user_mode=not system))
+        return
+
+    if svc.enable_service(chosen, name, user_mode=not system):
+        typer.echo(f"Service '{name}' enabled and started.")
+        typer.echo(svc.status_hint(chosen, name, user_mode=not system))
+    else:
+        typer.echo("Unit written, but enabling failed (root required?). Run manually:")
+        typer.echo(svc.manual_enable_hint(chosen, name, user_mode=not system))
+
+
+@service_app.command("uninstall")
+def service_uninstall(
+        name: str = typer.Option("cassandra-cti", "--name", help="Service name"),
+        system: bool = typer.Option(True, "--system/--user"),
+        init: str = typer.Option("auto", "--init", help="auto | systemd | openrc")):
+    """Stop, disable and remove the service unit."""
+    from . import service as svc
+    chosen = _resolve_init(init)
+    path = svc.uninstall_service(chosen, name, user_mode=not system)
+    try:
+        if path.exists():
+            path.unlink()
+            typer.echo(f"Removed {path}")
+        else:
+            typer.echo(f"No unit at {path} (already gone)")
+    except PermissionError:
+        typer.echo(f"Disabled the service, but could not remove {path} (re-run with sudo).")
+        raise typer.Exit(1)
+
+
+@service_app.command("status")
+def service_status(
+        name: str = typer.Option("cassandra-cti", "--name", help="Service name"),
+        system: bool = typer.Option(True, "--system/--user"),
+        init: str = typer.Option("auto", "--init", help="auto | systemd | openrc")):
+    """Show the service status."""
+    from . import service as svc
+    chosen = _resolve_init(init)
+    if not svc.status_service(chosen, name, user_mode=not system):
+        raise typer.Exit(1)
+
+
+if __name__ == "__main__":
+    app()

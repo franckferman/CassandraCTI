@@ -1,0 +1,195 @@
+schema_version: 1
+
+# ────────────────────────────────────────────────────────────────────────────
+# Scenario: Teams SOC with a dedicated briefing channel.
+#
+# Six channels carry the raw alerts, one carries nothing but the daily points
+# of situation. The briefings go to that seventh channel rather than back into
+# the stream they summarise: a recap posted into Ransomware, which takes dozens
+# of cards a day, is read by nobody.
+#
+# One briefing per source plus one across everything, staggered so they arrive
+# in a readable order, and a weekly on Monday morning. Each lands at a fixed
+# wall-clock time, so a morning point stays a morning point across restarts.
+#
+# The quick way to build this is not to edit the file by hand:
+#
+#   cassandra channel-add --name cert  --webhook-url "$MSTEAMS_WEBHOOK_CERT" \
+#       --brief-at 08:00 --brief-to teams-synthese
+#
+# writes the connector, the route and the briefing in one go. This file is what
+# six of those commands produce, kept here to read.
+#
+# Run:
+#   export MSTEAMS_WEBHOOK_CERT=...  MSTEAMS_WEBHOOK_AVIS=...  MSTEAMS_WEBHOOK_VENDOR=...
+#   export MSTEAMS_WEBHOOK_NEWS=...  MSTEAMS_WEBHOOK_RANSOMWARE=...  MSTEAMS_WEBHOOK_DOMAINS=...
+#   export MSTEAMS_WEBHOOK_SYNTHESE=...
+#   cassandra run --loop --interval 300 \
+#     --config examples/teams-soc-briefings/config.yaml \
+#     --connectors examples/teams-soc-briefings/connectors.yaml
+# ────────────────────────────────────────────────────────────────────────────
+
+sources:
+  rss:
+    enabled: true
+    user_agent: cassandra
+    feeds:
+      - { name: "CERT-FR Alertes", url: "https://cert.ssi.gouv.fr/alerte/feed/", tags: ["cert"] }
+      - { name: "US-CERT CISA", url: "https://www.cisa.gov/cybersecurity-advisories/all.xml", tags: ["cert"] }
+      - { name: "CERT-FR Avis", url: "https://cert.ssi.gouv.fr/avis/feed/", tags: ["avis"] }
+      - { name: "Cisco PSIRT", url: "https://sec.cloudapps.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml", tags: ["avis"] }
+      - { name: "Microsoft Security", url: "https://www.microsoft.com/en-us/security/blog/feed/", tags: ["vendor"] }
+      - { name: "Cisco Talos", url: "https://blog.talosintelligence.com/rss/", tags: ["vendor"] }
+      - { name: "The Hacker News", url: "http://feeds.feedburner.com/TheHackersNews?format=xml", tags: ["news"] }
+      - { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml", tags: ["news"] }
+
+  ransomware_live:
+    enabled: true
+    lookback_days: 7
+
+  red_flag_domains:
+    enabled: true
+
+transports:
+  use: ["teams-cert", "teams-avis", "teams-vendor", "teams-news",
+        "teams-ransomware", "teams-domains", "teams-synthese"]
+
+routes:
+  - name: cert
+    include_tags: ["cert"]
+    transports: ["teams-cert"]
+    template: "templates/rss_default.j2"
+
+  - name: avis
+    include_tags: ["avis"]
+    transports: ["teams-avis"]
+    template: "templates/rss_default.j2"
+
+  - name: vendor
+    include_tags: ["vendor"]
+    transports: ["teams-vendor"]
+    template: "templates/rss_default.j2"
+
+  - name: news
+    include_tags: ["news"]
+    transports: ["teams-news"]
+    template: "templates/batch_default.j2"
+
+  - name: ransomware
+    include_sources: ["ransomware.live"]
+    transports: ["teams-ransomware"]
+    template: "templates/ransomware_card.j2"
+
+  - name: domains
+    include_sources: ["red.flag.domains"]
+    transports: ["teams-domains"]
+    template: "templates/domains_list.j2"
+
+briefings:
+  # One per source, into the briefing channel. min_items keeps a channel quiet
+  # on a slow day rather than producing a recap of one item.
+  - name: cert-daily
+    transports: ["teams-synthese"]
+    include_tags: ["cert"]
+    schedule: "24h"
+    at: "08:00"
+    min_items: 1          # a single CERT alert is worth a line of its own
+    max_items: 20
+    top_n: 5
+    title: "CERT - last 24 hours"
+    template: "templates/briefing_default.j2"
+
+  - name: avis-daily
+    transports: ["teams-synthese"]
+    include_tags: ["avis"]
+    schedule: "24h"
+    at: "08:05"
+    min_items: 3
+    max_items: 40
+    top_n: 5
+    title: "Advisories - last 24 hours"
+    template: "templates/briefing_default.j2"
+
+  - name: vendor-daily
+    transports: ["teams-synthese"]
+    include_tags: ["vendor"]
+    schedule: "24h"
+    at: "08:10"
+    min_items: 3
+    max_items: 40
+    top_n: 5
+    title: "Vendor research - last 24 hours"
+    template: "templates/briefing_default.j2"
+
+  - name: news-daily
+    transports: ["teams-synthese"]
+    include_tags: ["news"]
+    schedule: "24h"
+    at: "08:15"
+    min_items: 3
+    max_items: 40
+    top_n: 5
+    focus: >
+      Rank by what a defender must act on today: confirmed in-the-wild
+      exploitation first, then a public proof of concept, then a patch for an
+      internet-facing product, then everything else. Breaches at other companies
+      rank low unless a shared supplier is named.
+    title: "News - last 24 hours"
+    template: "templates/briefing_default.j2"
+
+  - name: ransomware-daily
+    transports: ["teams-synthese"]
+    include_sources: ["ransomware.live"]
+    schedule: "24h"
+    at: "08:20"
+    min_items: 3
+    max_items: 40
+    top_n: 5
+    # Without this, the default criteria say to prioritise ransomware-linked
+    # items in a channel where every item is one, which ranks nothing. The model
+    # then invents a criterion of its own.
+    focus: >
+      Every item here is a ransomware leak-site posting, so that is not a
+      criterion. Rank by who the victim is: healthcare, utilities, government
+      and other critical infrastructure first, then large enterprises with
+      supply-chain reach, then the rest. Group several victims of the same actor
+      on one line and name the actor.
+    title: "Ransomware - last 24 hours"
+    template: "templates/briefing_default.j2"
+
+  # No selector: everything ingested since the last one. Last of the morning,
+  # so it reads as the closing summary under the five it follows.
+  - name: synthese-all
+    transports: ["teams-synthese"]
+    schedule: "24h"
+    at: "08:30"
+    min_items: 5
+    max_items: 60
+    top_n: 8
+    title: "Everything - last 24 hours"
+    template: "templates/briefing_default.j2"
+
+  # Weekly, Monday morning. 7d anchored on a Monday send keeps it on Mondays.
+  - name: synthese-weekly
+    transports: ["teams-synthese"]
+    schedule: "7d"
+    at: "09:00"
+    min_items: 10
+    max_items: 80
+    top_n: 10
+    title: "The week in review"
+    template: "templates/briefing_default.j2"
+
+llm:
+  enabled: true
+  # "auto" tries a local Ollama first, then the first cloud key in the
+  # environment. openai_base_url points the OpenAI-compatible client at any
+  # endpoint: LM Studio, vLLM, Mistral, Azure OpenAI, a local gateway.
+  provider: "auto"
+  ollama_base_url: "http://localhost:11434"
+  ollama_model: "qwen2.5:7b"
+  max_tokens: 900
+
+store:
+  sqlite_path: ".cassandra_cti.db"
+  seen_ttl_days: 90

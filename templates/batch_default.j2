@@ -1,0 +1,7 @@
+{{ emoji }} {{ title }}
+
+{% for e in events %}
+- {{ e.title }} - {{ e.url or '' }}
+{% endfor %}
+
+

@@ -1,0 +1,20 @@
+{#- The card heading is the source name (main.py imposes it), so the article
+    title belongs here: without it the card says only which feed spoke. What the
+    heading does already carry is the source, which is why the "Source:" line is
+    gone. Summaries are capped at 1500 characters upstream, a wall of text in a
+    card; 400 is an excerpt that invites the click. CVE ids and the date ride on
+    one line so the reader can judge relevance before opening anything. -#}
+**{{ title }}**
+{% if cves %}
+{{ cves | join(' · ') }}{% if published %} · {{ published }}{% endif %}
+{% elif published %}
+{{ published }}
+{% endif %}
+{%- if summary %}
+
+{{ summary | truncate(400, false, ' […]') }}
+{% endif %}
+{%- if url %}
+
+[Read the full item]({{ url }})
+{%- endif %}
