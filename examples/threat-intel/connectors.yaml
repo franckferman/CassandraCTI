@@ -1,0 +1,15 @@
+connectors:
+  - id: discord
+    type: discord
+    params:
+      webhook_url: ${DISCORD_WEBHOOK_URL}
+      username: "CTI Intel"
+      emojis: true
+
+  # Local triage console (SSE live feed + history). Keep on localhost.
+  - id: web
+    type: web
+    params:
+      host: 127.0.0.1
+      port: 8080
+      # token: ${CTI_WEB_TOKEN}   # set before exposing on the network

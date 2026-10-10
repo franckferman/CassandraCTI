@@ -1,0 +1,253 @@
+schema_version: 1
+scheduler:
+  mode: oneshot
+  interval_seconds: 0
+  # How many sources to fetch at once. This catalogue has over forty, and firing
+  # them all together means forty simultaneous DNS lookups and TLS handshakes:
+  # a resolver that blinks then answers "temporary failure in name resolution"
+  # and the feed looks like it went down.
+  max_concurrent_fetches: 10
+
+sources:
+  rss:
+    enabled: true
+    # Identity sent when fetching feeds. Presets: cassandra (default, honest),
+    # feedreader, curl, firefox, chrome. Any other value is sent verbatim.
+    # Claiming to be a browser is counter-productive: a browser user agent on a
+    # Python TLS stack is what gets a fetcher blocked. Override per feed with a
+    # `user_agent:` key on that feed if a site insists on something else.
+    user_agent: cassandra
+    feeds:
+      # --- CERTs & Agencies (Tag: cert) ---
+      - { name: "CERT-FR Alertes", url: "https://cert.ssi.gouv.fr/alerte/feed/", tags: ["cert", "fr"] }
+      - { name: "CERT-FR Avis", url: "https://cert.ssi.gouv.fr/avis/feed/", tags: ["cert", "fr"] }
+      - { name: "CERT-FR CTI", url: "https://cert.ssi.gouv.fr/cti/feed/", tags: ["cert", "fr", "intel"] }
+      - { name: "US-CERT CISA", url: "https://www.cisa.gov/cybersecurity-advisories/all.xml", tags: ["cert", "us"] }
+      - { name: "CISA ICS", url: "https://www.cisa.gov/cybersecurity-advisories/ics-advisories.xml", tags: ["cert", "us", "ics"] }
+
+      - { name: "NCSC UK", url: "https://www.ncsc.gov.uk/api/1/services/v1/news-rss-feed.xml", tags: ["cert", "uk"] }
+      # - { name: "EU-ENISA", url: "https://www.enisa.europa.eu/publications/RSS", tags: ["cert", "eu"] }
+      # - { name: "CIS Security", url: "https://www.cisecurity.org/feed/advisories", tags: ["cert"] }
+
+      # --- Microsoft Ecosystem (Tag: microsoft) ---
+      - { name: "Microsoft Security", url: "https://www.microsoft.com/en-us/security/blog/feed/", tags: ["microsoft"] }
+      # - { name: "Microsoft Sentinel", url: "https://techcommunity.microsoft.com/plugins/custom/microsoft/o365/custom-blog-rss?tid=8149516204242144484&board=MicrosoftSentinelBlog&size=25", tags: ["microsoft", "sentinel"] }
+      - { name: "Microsoft Sentinel", url: "https://techcommunity.microsoft.com/t5/s/gxcuf89792/rss/board?board.id=microsoft-security-blog", tags: ["microsoft", "sentinel"] }
+      - { name: "MSRC Update Guide", url: "https://api.msrc.microsoft.com/update-guide/rss", tags: ["microsoft", "vuln"] }
+
+      # --- Major Vendors (Tag: vendor) ---
+      - { name: "Cisco", url: "https://blogs.cisco.com/security/feed", tags: ["vendor"] }
+      - { name: "Trend Micro", url: "http://feeds.trendmicro.com/TrendMicroResearch", tags: ["vendor"] }
+      - { name: "Proofpoint", url: "https://www.proofpoint.com/us/rss.xml", tags: ["vendor"] }
+      - { name: "Checkpoint Research", url: "https://research.checkpoint.com/feed/", tags: ["vendor"] }
+      - { name: "Cisco Talos", url: "https://blog.talosintelligence.com/rss/", tags: ["vendor"] }
+      - { name: "Cisco PSIRT", url: "https://sec.cloudapps.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml", tags: ["vendor", "vuln"] }
+      - { name: "Fortinet PSIRT", url: "https://filestore.fortinet.com/fortiguard/rss/ir.xml", tags: ["vendor", "vuln"] }
+      - { name: "Rapid7", url: "https://blog.rapid7.com/rss/", tags: ["vendor"] }
+      - { name: "Huntress", url: "https://www.huntress.com/blog/rss.xml", tags: ["vendor"] }
+      - { name: "Malwarebytes Labs", url: "https://www.malwarebytes.com/blog/feed/index.xml", tags: ["vendor"] }
+      - { name: "Volexity", url: "https://www.volexity.com/feed/", tags: ["vendor"] }
+      - { name: "Sekoia.io", url: "https://blog.sekoia.io/feed/", tags: ["vendor", "fr"] }
+      - { name: "SentinelOne", url: "https://www.sentinelone.com/blog/feed/", tags: ["vendor"] }
+      - { name: "RedCanary", url: "https://redcanary.com/feed/", tags: ["vendor"] }
+      - { name: "PaloAlto Unit42", url: "https://unit42.paloaltonetworks.com/feed/", tags: ["vendor"] }
+      - { name: "Securelist (Kaspersky)", url: "https://securelist.com/feed/", tags: ["vendor"] }
+      # - { name: "Binary Defense", url: "https://www.binarydefense.com/feed/", tags: ["vendor"] }
+      - { name: "Recorded Future", url: "https://www.recordedfuture.com/feed", tags: ["vendor"] }
+      # - { name: "NCC Group", url: "https://research.nccgroup.com/category/threat-intelligence/feed/", tags: ["vendor"] }
+      # - { name: "NCC Group", url: "https://www.nccgroup.com/research-blog/feed", tags: ["vendor"] }
+      # Dead URL (HTTP 404 as of 2026-09): Google retired the dedicated TAG feed.
+      # - { name: "Google TAG", url: "https://blog.google/threat-analysis-group/rss/", tags: ["vendor", "google"] }
+      - { name: "VirusBulletin", url: "https://www.virusbulletin.com/rss", tags: ["vendor"] }
+      # - { name: "ATT Cybersecurity", url: "https://cybersecurity.att.com/site/blog-all-rss", tags: ["vendor"] }
+      # Dead URL (HTTP 404 as of 2026-09) after AT&T Cybersecurity became LevelBlue.
+      # - { name: "ATT Cybersecurity", url: "https://levelblue.com/site/blog-all-rss", tags: ["vendor"] }
+
+      # --- News & Blogs (Tag: news) ---
+      - { name: "Krebs on Security", url: "https://krebsonsecurity.com/feed/", tags: ["news", "must-read"] }
+      - { name: "The Hacker News", url: "http://feeds.feedburner.com/TheHackersNews?format=xml", tags: ["news"] }
+      - { name: "Bleeping Computer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+      - { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml", tags: ["news"] }
+      - { name: "Schneier on Security", url: "https://www.schneier.com/feed/atom/", tags: ["news"] }
+      - { name: "Graham Cluley", url: "https://grahamcluley.com/feed/", tags: ["news"] }
+      # No parsable entry left as of 2026-09: /feed/atom, /feed/ and /rss all come back empty.
+      # - { name: "Cyber-News.fr", url: "https://cyber-news.fr/feed/atom", tags: ["news", "fr"] }
+      - { name: "InfoSecurity Mag", url: "https://www.infosecurity-magazine.com/rss/news/", tags: ["news"] }
+      - { name: "SANS ISC", url: "https://isc.sans.edu/rssfeed.xml", tags: ["news", "technical"] }
+
+      # --- Technical & Research (Tag: tech) ---
+      - { name: "Adam Chester (XPN)", url: "https://blog.xpnsec.com/rss.xml", tags: ["tech", "research"] }
+      - { name: "Google Project Zero", url: "https://googleprojectzero.blogspot.com/feeds/posts/default", tags: ["tech", "research"] }
+      - { name: "watchTowr Labs", url: "https://labs.watchtowr.com/rss/", tags: ["tech", "research"] }
+      - { name: "The DFIR Report", url: "https://thedfirreport.com/feed/", tags: ["tech", "research"] }
+      - { name: "Quarkslab", url: "https://blog.quarkslab.com/feeds/all.rss.xml", tags: ["tech", "research", "fr"] }
+      - { name: "DaVinci Forensics", url: "https://davinciforensics.co.za/cybersecurity/feed/", tags: ["tech"] }
+
+  ransomware_live:
+    enabled: true
+    # Where to keep a local copy of what the API returned. Every successful fetch
+    # rewrites it, and it becomes the last link in the fallback chain: if the
+    # project's infrastructure goes away, the pipeline serves the last state it
+    # saw instead of failing on every pass. Leave it unset to disable.
+    mirror_path: "~/.cassandra/ransomware-mirror.json"
+    lookback_days: 30
+    # api_key: ${RANSOMWARE_API_KEY}   # optional PRO tier; else falls back to v2 -> posts.json
+  ransomware_press:                    # PRO-only cyber-press news feed (no fallback)
+    enabled: false
+    api_key: ${RANSOMWARE_API_KEY}
+    # country: US                      # optional ISO-2 filter
+  ransomware_8k:                       # PRO-only: SEC 8-K cyber-incident filings
+    enabled: false
+    api_key: ${RANSOMWARE_API_KEY}
+  ransomware_stats:                    # PRO-only: one daily tracker digest
+    enabled: false
+    api_key: ${RANSOMWARE_API_KEY}
+  red_flag_domains:
+    enabled: true
+    # How many daily lists to catch up on. Taking only the newest file loses one
+    # list per day of downtime, and nothing in the pipeline can notice the gap.
+    lookback_days: 3
+
+  # CISA Known Exploited Vulnerabilities (KEV) - CVEs actively exploited in the
+  # wild. A single public JSON feed, NO API key required.
+  cisa_kev:
+    enabled: false
+    lookback_days: 365     # keep CVEs added within this window
+    max_items: 80
+
+  # abuse.ch malware-infrastructure IOCs. One source, several feeds:
+  #   feodo         -> botnet C2 IPs        (public, no key)
+  #   threatfox     -> mixed IOCs + family  (needs a free Auth-Key)
+  #   urlhaus       -> malware URLs         (public CSV, no key)
+  #   malwarebazaar -> sample hashes        (needs the same Auth-Key)
+  # One free Auth-Key (auth.abuse.ch) unlocks threatfox + malwarebazaar. Without
+  # a key, only the public feeds (feodo, urlhaus) run.
+  abusech:
+    enabled: false
+    feeds: ["feodo", "threatfox", "urlhaus", "malwarebazaar"]
+    api_key: ${ABUSECH_API_KEY}     # optional; unlocks threatfox + malwarebazaar
+    max_items: 60
+
+filters:
+  title_regex_deny: ["^Weekly", "^Job", "Market Research"]
+  title_regex_allow: []
+  max_items_per_source: 50
+
+transports:
+  # LIST ONLY IDs HERE.
+  # The actual configuration (Webhook URL, etc.) MUST be in connectors.yaml
+  use: ["cassandra-cert", "cassandra-vendor", "cassandra-news", "cassandra-ransomware", "cassandra-domains", "discord-alert"]
+
+routes:
+  # --- CRITICAL ALERTS ---
+  - name: ransomware
+    include_sources: ["ransomware.live"]
+    transports: ["cassandra-ransomware", "discord-alert"]
+    template: "templates/ransomware_card.j2"
+  
+  - name: malicious-domains
+    include_sources: ["red.flag.domains"]
+    transports: ["cassandra-domains"]
+    template: "templates/domains_list.j2"
+
+  # Actively-exploited CVEs (CISA KEV) -> Discord (Markdown card)
+  - name: vulnerabilities
+    include_sources: ["cisa.kev"]
+    transports: ["discord-alert"]
+    template: "templates/vuln_card.j2"
+
+  # Malware-infrastructure IOCs (abuse.ch) -> Discord (Markdown card)
+  - name: iocs
+    include_sources: ["abuse.ch"]
+    transports: ["discord-alert"]
+    template: "templates/ioc_card.j2"
+
+  # --- RSS ROUTING ---
+  # CERTs -> Dedicated Channel
+  - name: cert-alerts
+    include_tags: ["cert"]
+    transports: ["cassandra-cert"]
+    template: "templates/rss_default.j2"
+
+  # Microsoft & Vendors -> Vendor Channel
+  - name: vendor-news
+    include_tags: ["vendor", "microsoft"]
+    transports: ["cassandra-vendor"]
+    template: "templates/rss_default.j2"
+
+  # General News & Tech -> News Channel
+  - name: general-news
+    include_tags: ["news", "tech"]
+    transports: ["cassandra-news"]
+    template: "templates/rss_default.j2"
+  
+  # Discord gets everything (as an example of 'firehose')
+  - name: discord-all
+    include_sources: ["rss:"]
+    transports: ["discord-alert"]
+    template: "templates/discord_default.j2"
+
+  # Entity/company watch: alert when a name shows up in ANY feed (title/summary/
+  # meta), accent+case-insensitive. Uncomment and set your names + transport.
+  # - name: entity-watch
+  #   include_terms: ["Credit Agricole", "Gouvernement", "Airbus"]
+  #   transports: ["discord-alert"]
+
+# Periodic LLM briefings / debriefs (optional). After the individual alerts go
+# out, a briefing recaps what came in - prioritised, with links. Needs the llm:
+# layer below (local Ollama or a cloud key). Full multi-channel setup in
+# examples/category-digests. Uncomment to enable.
+# briefings:
+#   # A per-category digest: Top 10 exploited CVEs of the day, to its own channel.
+#   - name: cve-daily
+#     include_sources: ["cisa.kev"]
+#     include_tags: ["vuln"]
+#     transports: ["discord-alert"]
+#     schedule: "24h"          # 24h | 6h | 30m | 2d
+#     top_n: 10                # ranked Top-N (0 = short 2-4 highlight narrative)
+#     min_items: 1             # skip if fewer than N new items
+#   # A cross-category GENERAL DEBRIEF: no selector = the whole event pool.
+#   - name: general-debrief
+#     transports: ["discord-alert"]
+#     schedule: "24h"
+#     top_n: 15
+
+store:
+  sqlite_path: .cassandra_cti.db
+  seen_ttl_days: 90
+
+logging:
+  level: INFO
+  json: false
+  file: null
+
+metrics:
+  enabled: true
+  host: 127.0.0.1      # localhost by default; set 0.0.0.0 to expose to other containers/hosts
+  port: 9108
+
+# Optional inventory match (web dashboard). OFF by default; when enabled, an
+# opt-in "Inventory" toggle appears in the feed tabs to filter/highlight only
+# the events that concern your tech/OS/vendor stack (title, summary and meta).
+inventory:
+  enabled: false
+  match_mode: highlight
+  terms:
+    - "Fortinet"
+    - "Cisco"
+    - "VMware"
+    - "Microsoft"
+    - "Ivanti"
+    - "Citrix"
+
+# Optional LLM layer (web dashboard "AI brief" per event). OFF by default.
+# provider "auto" prefers a reachable local Ollama (free/private), else the
+# first cloud key that is set. Cloud keys come from the environment:
+# ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY.
+llm:
+  enabled: false
+  provider: auto          # auto | ollama | anthropic | openai | deepseek
+  model: ""               # optional override (else a sensible per-provider default)
+  ollama_base_url: http://localhost:11434
+  ollama_model: ""        # optional; else the first pulled model
+  max_tokens: 300

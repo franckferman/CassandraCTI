@@ -1,0 +1,16 @@
+connectors:
+  - id: discord
+    type: discord
+    params:
+      webhook_url: ${DISCORD_WEBHOOK_URL}
+      username: "CassandraCTI"
+      emojis: true
+
+  - id: telegram
+    type: telegram
+    params:
+      bot_token: ${TELEGRAM_BOT_TOKEN}
+      chat_id: ${TELEGRAM_CHAT_ID}
+      parse_mode: "HTML"
+      throttle_ms: 1000
+      emojis: true

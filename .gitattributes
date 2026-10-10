@@ -1,0 +1,22 @@
+# Normalize line endings to LF across the repo
+* text=auto eol=lf
+
+# Explicit text types
+*.py    text
+*.pyi   text
+*.yaml  text
+*.yml   text
+*.md    text
+*.toml  text
+*.cfg   text
+*.txt   text
+*.sh    text eol=lf
+*.j2    text linguist-language=Jinja
+
+# Binary assets
+*.png   binary
+*.jpg   binary
+*.ico   binary
+
+# Keep the docs/ website out of GitHub language statistics
+docs/** linguist-documentation=true

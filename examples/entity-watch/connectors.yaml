@@ -1,0 +1,7 @@
+connectors:
+  - id: discord
+    type: discord
+    params:
+      webhook_url: ${DISCORD_WEBHOOK_URL}
+      username: "Entity Watch"
+      emojis: true

@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [stable, dev]
+    tags: ['v*']
+  pull_request:
+    branches: [stable, dev]
+
+jobs:
+  check:
+    name: Syntax Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Syntax check
+        run: |
+          find cassandra_cti -name "*.py" -print0 \
+            | xargs -0 python -m py_compile
+
+  lint:
+    name: Lint (flake8)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Check PEP8 compliance
+        run: flake8 . --count --ignore=E501
+
+  security:
+    name: Security (bandit)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install bandit
+        run: pip install bandit
+
+      - name: Run bandit
+        run: bandit -r cassandra_cti/ -s B104,B110
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t cassandra-cti-ci .
+
+  tests:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install package with test extras
+        run: pip install .[test]
+
+      - name: Entry point available
+        run: cassandra --help
+
+      - name: Run pytest
+        run: pytest -q

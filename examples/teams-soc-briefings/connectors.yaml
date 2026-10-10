@@ -1,0 +1,63 @@
+# One connector per channel. The webhook URL comes from the environment: these
+# URLs are credentials, anyone holding one can post into the channel.
+#
+# In Teams: channel ... > Workflows > "Post to a channel when a webhook request
+# is received". Office 365 connectors are retired, so a modern tenant only
+# offers the Workflows route.
+
+connectors:
+  - id: teams-cert
+    type: teams
+    params:
+      webhook_url: "${MSTEAMS_WEBHOOK_CERT}"
+      theme_color: "D13438"          # red: alerts
+      throttle_ms: 1500
+
+  - id: teams-avis
+    type: teams
+    params:
+      webhook_url: "${MSTEAMS_WEBHOOK_AVIS}"
+      theme_color: "F7630C"          # orange: advisories
+      throttle_ms: 1500
+
+  - id: teams-vendor
+    type: teams
+    params:
+      webhook_url: "${MSTEAMS_WEBHOOK_VENDOR}"
+      theme_color: "0078D4"
+      throttle_ms: 1500
+
+  - id: teams-news
+    type: teams
+    params:
+      webhook_url: "${MSTEAMS_WEBHOOK_NEWS}"
+      theme_color: "605E5C"          # grey: nothing to act on
+      throttle_ms: 2000
+      batching:
+        enabled: true
+        max_items: 5                 # one card for five articles, not five cards
+
+  - id: teams-ransomware
+    type: teams
+    params:
+      webhook_url: "${MSTEAMS_WEBHOOK_RANSOMWARE}"
+      theme_color: "8A2BE2"
+      throttle_ms: 2000
+
+  - id: teams-domains
+    type: teams
+    params:
+      webhook_url: "${MSTEAMS_WEBHOOK_DOMAINS}"
+      theme_color: "107C10"
+      throttle_ms: 2000
+
+  - id: teams-synthese
+    type: teams
+    params:
+      webhook_url: "${MSTEAMS_WEBHOOK_SYNTHESE}"
+      theme_color: "4F6BED"
+      throttle_ms: 1000
+      # A briefing card is one per day: warn earlier than elsewhere if the
+      # Power Automate burst quota is running down, since a dropped briefing
+      # is a whole day of reading lost.
+      quota_warn: 100

@@ -1,0 +1,38 @@
+# Feeds kept for the record, not for use.
+#
+# They still answer HTTP 200 and still serve entries, which is exactly what makes
+# them dangerous in a live catalogue: the pipeline stays green while the source has
+# stopped producing. Checked on 2026-09-30.
+#
+# Paste an entry back into config.example.yaml if the site comes back to life, and
+# run `cassandra doctor feeds` before trusting it again.
+#
+# `doctor feeds` is what found the last entry here: it reports the age of each
+# feed's newest item, so a source that stopped producing stops hiding.
+
+archive:
+  - name: "Threatpost"
+    url: "https://threatpost.com/feed/"
+    tags: ["news"]
+    last_seen: "2022-08"        # site shut down; the feed still serves its final posts
+    note: "Closed in 2022 after the Kaspersky spin-off ended."
+
+  - name: "James Forshaw"
+    url: "https://googleprojectzero.blogspot.com/feeds/posts/default/-/James%20Forshaw"
+    tags: ["tech", "research"]
+    last_seen: "2024-06"
+    note: "Author-filtered Project Zero feed, dormant. The main Project Zero feed is active
+           and is in the catalogue."
+
+  - name: "Modexp"
+    url: "https://modexp.wordpress.com/feed/"
+    tags: ["tech", "research"]
+    last_seen: "2024-09"
+    note: "Reachable again once the fetcher stopped claiming to be Chrome, but dormant."
+
+  - name: "Leak-Lookup"
+    url: "https://leak-lookup.com/rss"
+    tags: ["tech", "leaks"]
+    last_seen: "2026-06-03"     # 20 entries served, newest four months old
+    note: "Breach-index feed, stopped publishing. Found by `doctor feeds`, which
+           reported the newest entry at 121 days while the fetch stayed green."
