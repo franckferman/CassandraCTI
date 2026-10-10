@@ -29,9 +29,11 @@ dependencies = [
 
 [project.scripts]
 cassandra = "cassandra_cti.cli:app"
+cassandra-gui = "cassandra_cti.gui.app:main"
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
+gui = ["PySide6>=6.6"]
 
 [tool.setuptools.packages.find]
 include = ["cassandra_cti*"]

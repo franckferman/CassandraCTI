@@ -21,6 +21,7 @@
   <a href="#transports">Transports</a> ·
   <a href="#briefings">Briefings</a> ·
   <a href="#cli-reference">CLI Reference</a> ·
+  <a href="#gui">GUI</a> ·
   <a href="#docker">Docker</a> ·
   <a href="#templates">Templates</a> ·
   <a href="#security--tls">Security</a>
@@ -84,6 +85,12 @@ Or install as a package (provides the `cassandra` CLI entry point):
 
 ```bash
 pip install .
+```
+
+Optional desktop GUI (adds PySide6, see [GUI](#gui)):
+
+```bash
+pip install '.[gui]'
 ```
 
 ### Initialization
@@ -1531,6 +1538,24 @@ journalctl -u cassandra-cti -f          # follow the logs
 | `86400` (daily) | one pass per day |
 
 For a **grouped digest** (one message instead of one per item) enable `batching` on the connector (see [Transports](#transports)) and combine it with a longer interval for a daily roundup.
+
+## GUI
+
+An optional PySide6 desktop wrapper around the CLI. The CLI stays usable with
+zero GUI dependency; the GUI is an opt-in extra.
+
+```bash
+pip install '.[gui]'    # adds PySide6
+cassandra-gui           # or: python -m cassandra_cti.gui
+```
+
+Pick a subcommand on the left, fill the form, press Run (Ctrl+G). The command
+it runs is shown above the output pane; stdout goes to Output, the command line
+and stderr to Log.
+
+By design the GUI talks to the pipeline only by running the `cassandra` CLI as
+a subprocess, never by importing the core, so the CLI remains the single source
+of truth. Details and invariants: [`cassandra_cti/gui/README.md`](cassandra_cti/gui/README.md).
 
 ## Docker
 
