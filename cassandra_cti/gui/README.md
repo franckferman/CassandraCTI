@@ -1,28 +1,39 @@
 # GUI (optional)
 
-A thin PySide6 desktop wrapper around the `cassandra` CLI. Opt-in, and the CLI
-works with zero GUI dependency.
+A PySide6 desktop console for CassandraCTI. Opt-in, and the CLI works with zero
+GUI dependency.
 
 ```bash
 pip install 'CassandraCTI[gui]'   # adds PySide6
 cassandra-gui                     # or: python -m cassandra_cti.gui
 ```
 
-Pick a subcommand on the left, fill the form, press Run (Ctrl+G). The command
-it will execute is shown above the output; stdout lands in Output, the command
-line and stderr in Log.
+It is a task-oriented front end over the CLI, themed to match the project's
+site (near-black, amber accent, monospace for anything machine-written):
+
+- **Dashboard** counts what is configured and runs the pipeline in a click.
+- **Sources / Connectors / Routes / Briefings** show the current config in a
+  table and edit it (add, remove, test a connector, run a briefing) through the
+  CLI's own verbs.
+- **Run** streams a live pipeline run, with Stop.
+- **Config files** edits config.yaml and connectors.yaml directly (comments are
+  kept) and validates with `doctor config`.
+- **Settings** sets the workspace location once and edits the LLM layer
+  (provider, model, Ollama endpoint, token budget).
 
 ## Invariants
 
 These are deliberate. Keep them.
 
-- **Subprocess only.** The GUI reaches the pipeline exclusively by running the
-  CLI (`runner.py`). It never does `from cassandra_cti.core import ...` or
-  imports `cli`. The CLI is the single source of truth; change a flag and only
-  `forms.py` changes here.
-- **`runner.py` and `forms.py` are Qt-free.** `runner.py` is pure stdlib,
-  `forms.py` is pure data. Both import without a display and without PySide6,
-  which is why the tests need neither.
+- **Never import the core.** The GUI reaches the pipeline only by running the
+  CLI (`runner.py`), and only ever reads or writes the config *files*
+  (`state.py` reads, `confio.py` writes). It never does
+  `from cassandra_cti.core import ...` or imports `cli`. The CLI is the single
+  source of truth for actions; change a flag and only `forms.py` changes here.
+- **The non-Qt layers are non-Qt.** `runner.py` (pure stdlib), `forms.py` (pure
+  data), `state.py` (stdlib + PyYAML), `confio.py` (stdlib + ruamel) and
+  `theme.py` (pure strings) carry no Qt import, import without a display, and
+  are what the tests exercise. Only `app.py` touches PySide6.
 - **Resilient CLI resolution.** `resolve_cli_bin()` tries the sibling of the
   running interpreter, then PATH, then `python -m cassandra_cti`. The module
   fallback is the safety net for a launch without an active venv (a bare PATH
@@ -37,7 +48,9 @@ GPL), not tkinter (dated, awkward for a dashboard layout).
 
 ## Tests
 
-`tests/test_gui_runner.py` (alongside the rest of the suite) covers the runner
-and the form schema with no Qt and no real `cassandra` binary (the CLI is faked
-with a `python -c` prefix). Widget behaviour is not unit-tested; the runner
-tests plus the CLI's own suite carry the coverage.
+`tests/test_gui_runner.py` covers the runner and the form schema;
+`tests/test_gui_state.py` covers the workspace reader, the theme string and the
+config writer. All of it runs with no Qt, no display and no real `cassandra`
+binary (the CLI is faked with a `python -c` prefix). The widgets in `app.py`
+are not unit-tested; the layers below them plus the CLI's own suite carry the
+coverage.
