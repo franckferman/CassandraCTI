@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 DASHBOARD_PAGE = r"""<!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -260,12 +260,12 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
     <div class="brand">
       <svg class="logo" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <defs><linearGradient id="cg" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse"><stop class="a" offset="0"/><stop class="b" offset="1"/></linearGradient></defs>
-        <path d="M12 2.4l7.6 2.8v5.9c0 4.8-3.3 8.2-7.6 10.5C7.7 19.3 4.4 15.9 4.4 11.1V5.2L12 2.4Z" stroke="url(#cg)" stroke-width="1.7" stroke-linejoin="round"/>
-        <circle cx="12" cy="10.2" r="2.3" stroke="url(#cg)" stroke-width="1.7"/><path d="M8.9 15.6c1.9-1.4 4.3-1.4 6.2 0" stroke="url(#cg)" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M17.4 7.5A7 7 0 1 0 17.4 16.5" stroke="url(#cg)" stroke-width="2.1" stroke-linecap="round"/>
+        <circle cx="12" cy="12" r="1.7" fill="url(#cg)"/>
       </svg>
       <span class="brand-name">Cassandra<b>CTI</b></span>
     </div>
-    <span class="clock" id="clock">--:--:--</span>
+    <span class="clock" id="clock" title="Current time in UTC, matching the event timestamps">--:--:-- UTC</span>
     <span class="status" id="live"><span class="dot"></span><span id="live-label">connecting</span></span>
     <span class="spacer"></span>
     <button class="ibtn" id="sound" title="Sound alerts on critical events" aria-label="Toggle sound alerts">
@@ -299,8 +299,8 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
   var modal = document.getElementById("modal"), mcard = document.getElementById("mcard"), toastEl = document.getElementById("toast");
   var SCHEME = "https" + "://";
 
-  // Clock
-  function tick() { var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; }; document.getElementById("clock").textContent = p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()); }
+  // Clock (UTC, to match the UTC event timestamps operators correlate against)
+  function tick() { var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; }; document.getElementById("clock").textContent = p(d.getUTCHours()) + ":" + p(d.getUTCMinutes()) + ":" + p(d.getUTCSeconds()) + " UTC"; }
   tick(); setInterval(tick, 1000);
 
   // Theme
@@ -337,6 +337,10 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
     if (s.indexOf("rss:") === 0) return "rss"; return "other"; }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function reEsc(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+  // Only linkify http(s): a feed-supplied javascript:/data: URL must never
+  // become a clickable href. Mirrors net.valid_http_url(), which the Teams,
+  // Discord and Telegram transports use to drop unsafe links.
+  function safeUrl(u) { u = String(u == null ? "" : u); return /^https?:\/\//i.test(u) ? u : ""; }
   function fmt(n) { return (n || 0).toLocaleString(); }
   function tOf(e) { return e.published_at || e.first_seen_at || ""; }
   function relTime(iso) { if (!iso) return ""; var t = Date.parse(iso); if (isNaN(t)) return ""; var s = Math.max(0, (Date.now() - t) / 1000);
@@ -345,12 +349,34 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
     try { return x.replace(new RegExp("(" + p + ")", "ig"), "<mark>$1</mark>"); } catch (e) { return x; } }
   function invMatch(e) { if (!invTerms.length) return false; var h = ((e.title || "") + " " + (e.summary || "") + " " + JSON.stringify(e.meta || {})).toLowerCase();
     for (var i = 0; i < invTerms.length; i++) if (invTerms[i] && h.indexOf(invTerms[i].toLowerCase()) >= 0) return true; return false; }
-  function critScore(e) { var k = kind(e.source), m = e.meta || {};
-    if (k === "ransomware") return 100; if (k === "vuln") return m.ransomware_use ? 95 : 78; if (k === "redflag") return 60;
-    if (k === "ioc") return m.status === "online" ? 55 : 42; if (k === "rss") return 20; return 10; }
-  function isCrit(e) { var k = kind(e.source); return k === "ransomware" || (k === "vuln" && (e.meta || {}).ransomware_use); }
+  // A source may carry an explicit CVSS-style severity; when present it counts
+  // toward criticality so the whitelisted field is never silently ignored (no
+  // built-in source emits it today, but a custom RSS or future source can).
+  function sevRank(s) { s = String(s || "").toLowerCase();
+    if (s === "critical") return 100; if (s === "high") return 80; if (s === "medium") return 50; if (s === "low") return 25; return 0; }
+  function critScore(e) { var k = kind(e.source), m = e.meta || {}, base;
+    if (k === "ransomware") base = 100; else if (k === "vuln") base = m.ransomware_use ? 95 : 78;
+    else if (k === "redflag") base = 60; else if (k === "ioc") base = m.status === "online" ? 55 : 42;
+    else if (k === "rss") base = 20; else base = 10;
+    return Math.max(base, sevRank(m.severity)); }
+  function isCrit(e) { var k = kind(e.source), m = e.meta || {}; return k === "ransomware" || (k === "vuln" && m.ransomware_use) || sevRank(m.severity) >= 80; }
   function indicator(e) { var m = e.meta || {}; return m.ioc || m.cve || ""; }
+  // The single most useful string to copy for an event, by kind: the machine
+  // indicator for vuln/ioc, the flagged domain for red flags, the victim (or
+  // group) for ransomware. This is what an analyst would paste into a ticket.
+  function copyVal(e) { var k = kind(e.source), m = e.meta || {};
+    if (k === "vuln") return m.cve || ""; if (k === "ioc") return m.ioc || "";
+    if (k === "redflag") return e.title || ""; if (k === "ransomware") return m.victim || m.group_name || ""; return ""; }
+  function copyLabel(e) { var k = kind(e.source), m = e.meta || {};
+    if (k === "vuln") return "CVE"; if (k === "ioc") return "IOC"; if (k === "redflag") return "domain";
+    if (k === "ransomware") return m.victim ? "victim" : "group"; return "value"; }
   function summ(e) { var s = (e.summary || "").trim(); return (!s || s.toLowerCase() === "n/a") ? "" : s; }
+  // Treat source placeholders ("Not Found", "Unknown", "N/A", ...) as absent, so
+  // they never render as a tag or a detail row. Display-only: the raw value is
+  // untouched in the store and in the CSV / JSON export. Mirrors summ()'s strip.
+  function isPlaceholder(v) { var s = String(v == null ? "" : v).trim().toLowerCase();
+    return s === "" || s === "not found" || s === "unknown" || s === "n/a" || s === "na" || s === "none" || s === "null"; }
+  function has(v) { return v && !isPlaceholder(v); }
   function renderBrief(text) {
     var lines = String(text || "").split(/\r?\n/), out = "", inList = false;
     function cl() { if (inList) { out += "</ul>"; inList = false; } }
@@ -503,9 +529,9 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
   function uniq(events, f, multi) { var seen = {}, out = []; events.forEach(function (e) { (multi ? (f(e) || []) : [f(e)]).forEach(function (v) { if (v && !seen[v]) { seen[v] = 1; out.push(v); } }); }); return out.sort(); }
   function withinRange(e) { if (S.range === "all") return true; var t = Date.parse(tOf(e)); if (isNaN(t)) return true; var h = { "24h": 24, "7d": 168, "30d": 720 }[S.range] || 1e9; return (Date.now() - t) <= h * 3600000; }
   function tags(e, k, m) { var o = "";
-    if (k === "vuln") { if (m.vendor) o += '<span class="tg">' + esc(m.vendor + (m.product ? "·" + m.product : "")) + "</span>"; if (m.ransomware_use) o += '<span class="tg warn">ransom</span>'; if (m.due_date) o += '<span class="tg">due ' + esc(m.due_date) + "</span>"; }
-    else if (k === "ransomware") { if (m.country_display) o += '<span class="tg">' + esc((m.country_flag ? m.country_flag + " " : "") + m.country_display) + "</span>"; if (m.activity) o += '<span class="tg">' + esc(m.activity) + "</span>"; }
-    else if (k === "ioc") { if (m.malware) o += '<span class="tg warn">' + esc(m.malware) + "</span>"; if (m.ioc_type) o += '<span class="tg">' + esc(m.ioc_type) + "</span>"; if (m.status) o += '<span class="tg' + (m.status === "online" ? " on" : "") + '">' + esc(m.status) + "</span>"; }
+    if (k === "vuln") { if (has(m.vendor)) o += '<span class="tg">' + esc(m.vendor + (has(m.product) ? "·" + m.product : "")) + "</span>"; if (m.ransomware_use) o += '<span class="tg warn">ransom</span>'; if (has(m.due_date)) o += '<span class="tg">due ' + esc(m.due_date) + "</span>"; }
+    else if (k === "ransomware") { if (has(m.country_display)) o += '<span class="tg">' + esc((m.country_flag ? m.country_flag + " " : "") + m.country_display) + "</span>"; if (has(m.activity)) o += '<span class="tg">' + esc(m.activity) + "</span>"; }
+    else if (k === "ioc") { if (has(m.malware)) o += '<span class="tg warn">' + esc(m.malware) + "</span>"; if (has(m.ioc_type)) o += '<span class="tg">' + esc(m.ioc_type) + "</span>"; if (has(m.status)) o += '<span class="tg' + (m.status === "online" ? " on" : "") + '">' + esc(m.status) + "</span>"; }
     else if (k === "rss" && e.tags) e.tags.slice(0, 2).forEach(function (t) { o += '<span class="tg">' + esc(t) + "</span>"; });
     return o; }
   function rowHTML(e) {
@@ -515,7 +541,7 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
     else if (k === "ransomware" && m.group_name) ind = '<span class="ind">' + esc(m.group_name) + "</span>";
     var titleTxt = highlight(esc(e.title || e.url || "(untitled)"), invTerms);
     var acts = "";
-    if (indicator(e)) acts += '<button class="la" data-copy="' + esc(indicator(e)) + '" title="Copy">' + svg("copy") + "</button>";
+    var cv = copyVal(e); if (cv) acts += '<button class="la" data-copy="' + esc(cv) + '" title="Copy ' + copyLabel(e) + '">' + svg("copy") + "</button>";
     if (aiOn) acts += '<button class="la ai" data-ai="' + e._cid + '" title="AI brief">' + svg("ai") + "</button>";
     acts += '<button class="la" data-detail="' + e._cid + '" title="Details">' + svg("info") + "</button>";
     return '<div class="ln' + (S.inv && invMatch(e) ? " inv-hit" : "") + '" data-k="' + k + '" data-cid="' + e._cid + '">' +
@@ -574,20 +600,20 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
   var KVO = ["cve", "vendor", "product", "due_date", "ransomware_use", "group_name", "victim", "country_display", "activity", "malware", "ioc", "ioc_type", "confidence", "status", "website", "feed"];
   function kvrow(k, v, mono) { return '<div class="r"><span class="k">' + esc(k) + '</span><span class="v' + (mono ? " mono" : "") + '">' + v + "</span></div>"; }
   function openDetail(e) { if (!e) return; var k = kind(e.source), m = e.meta || {}, kv = "";
-    KVO.forEach(function (key) { var v = m[key]; if (v === undefined || v === "" || v === null) return;
+    KVO.forEach(function (key) { var v = m[key]; if (v === undefined || v === "" || v === null || isPlaceholder(v)) return;
       if (key === "country_display") v = (m.country_flag ? m.country_flag + " " : "") + v; else if (key === "ransomware_use") v = v ? "Yes" : "No"; else if (key === "confidence") v = v + "%";
       kv += kvrow(LBL[key] || key, esc(String(v)), key === "ioc" || key === "cve"); });
     kv += kvrow("First seen", e.first_seen_at ? relTime(e.first_seen_at) + ' ago <span style="color:var(--faint)">· ' + esc(e.first_seen_at) + "</span>" : "-");
     kv += kvrow("Published", e.published_at ? relTime(e.published_at) + ' ago <span style="color:var(--faint)">· ' + esc(e.published_at) + "</span>" : "-");
-    var links = "", ind = indicator(e);
-    if (e.url) links += '<a class="primary" href="' + esc(e.url) + '" target="_blank" rel="noopener noreferrer">' + svg("open") + "Open source</a>";
+    var links = "";
+    var evUrl = safeUrl(e.url); if (evUrl) links += '<a class="primary" href="' + esc(evUrl) + '" target="_blank" rel="noopener noreferrer">' + svg("open") + "Open source</a>";
     if (m.cve) links += '<a href="' + SCHEME + "nvd.nist.gov/vuln/detail/" + encodeURIComponent(m.cve) + '" target="_blank" rel="noopener noreferrer">' + svg("open") + "NVD</a>";
     if (m.ioc) links += '<a href="' + SCHEME + "www.virustotal.com/gui/search/" + encodeURIComponent(m.ioc) + '" target="_blank" rel="noopener noreferrer">' + svg("open") + "VirusTotal</a>";
-    if (m.leak_url) links += '<a href="' + esc(m.leak_url) + '" target="_blank" rel="noopener noreferrer">' + svg("open") + "Leak site</a>";
-    var acts = ""; if (ind) acts += '<button data-copy="' + esc(ind) + '">' + svg("copy") + "Copy " + (m.cve ? "CVE" : "IOC") + "</button>";
+    var leakUrl = safeUrl(m.leak_url); if (leakUrl) links += '<a href="' + esc(leakUrl) + '" target="_blank" rel="noopener noreferrer">' + svg("open") + "Leak site</a>";
+    var acts = "", cv = copyVal(e); if (cv) acts += '<button data-copy="' + esc(cv) + '">' + svg("copy") + "Copy " + copyLabel(e) + "</button>";
     if (aiOn) acts += '<button class="ai" data-ai-modal="' + e._cid + '">' + svg("ai") + "AI brief</button>";
-    var s = summ(e);
-    mcard.innerHTML = '<div class="mtop" style="--tone:var(--' + k + ')"><span class="mt-src">' + svg(k) + esc(e.source) + '</span><span class="time">' + relTime(tOf(e)) + ' ago</span><span class="spacer"></span><button class="ibtn" id="mclose" aria-label="Close">' + svg("x") + '</button></div>' +
+    var s = summ(e), relAgo = relTime(tOf(e)); relAgo = relAgo ? relAgo + " ago" : "no date";
+    mcard.innerHTML = '<div class="mtop" style="--tone:var(--' + k + ')"><span class="mt-src">' + svg(k) + esc(e.source) + '</span><span class="time">' + relAgo + '</span><span class="spacer"></span><button class="ibtn" id="mclose" aria-label="Close">' + svg("x") + '</button></div>' +
       '<div class="mbody"><h3>' + esc(e.title || "(untitled)") + "</h3>" + (s ? '<div class="msum">' + esc(s) + "</div>" : "") +
       '<div class="seclabel">Details</div><div class="kv">' + kv + "</div>" +
       (links ? '<div class="seclabel">Links</div><div class="lnk">' + links + "</div>" : "") +
