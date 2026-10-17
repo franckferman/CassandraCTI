@@ -165,6 +165,23 @@ def quickstart(web: bool = typer.Option(True, "--web/--no-web", help="Open the l
             web=True, web_host=web_host, web_port=web_port)
 
 
+@app.command()
+def gui() -> None:
+    """Open the desktop GUI (needs the optional GUI extra: PySide6).
+
+    Launches the Qt app in a separate process so the CLI never imports PySide;
+    if the extra is missing, that process prints how to install it.
+
+    Example:
+      cassandra gui
+    """
+    import subprocess  # nosec B404 - fixed argv list, shell=False, no shell string
+    # Re-invoke this interpreter on the GUI package. Importing Qt in-process
+    # would turn PySide into a hard dependency of the lightweight CLI.
+    raise typer.Exit(subprocess.call(  # nosec B603 - argv is a fixed list, not user input
+        [sys.executable, "-m", "cassandra_cti.gui"]))
+
+
 @app.command("list")
 def list_items(config: Path = typer.Option(None), connectors: Path = typer.Option(None)):
     """Show configured sources (all kinds), routes and connectors."""

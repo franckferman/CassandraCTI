@@ -8,6 +8,7 @@ transports are never built (backfill patches the builder); the autouse
 loud failure.
 """
 import sqlite3
+import sys
 
 import pytest
 import yaml
@@ -731,3 +732,25 @@ def test_doctor_feeds_passes_when_only_quiet(tmp_path, monkeypatch):
     r2 = runner.invoke(app, ["doctor", "feeds", "--stale-days", "120",
                              "--config", str(cfg), "--connectors", str(cx)])
     assert "STALE" not in r2.output               # --stale-days raises the bar
+
+
+def test_gui_launches_gui_module_in_subprocess(monkeypatch):
+    # `cassandra gui` must spawn the GUI package in a separate interpreter and
+    # never import Qt into the CLI process; capture the argv it would run.
+    seen = {}
+
+    def fake_call(argv):
+        seen["argv"] = argv
+        return 0
+
+    monkeypatch.setattr("subprocess.call", fake_call)
+    r = runner.invoke(app, ["gui"])
+    assert r.exit_code == 0
+    assert seen["argv"] == [sys.executable, "-m", "cassandra_cti.gui"]
+
+
+def test_gui_propagates_child_exit_code(monkeypatch):
+    # A missing [gui] extra makes the child exit 1; the CLI must surface that.
+    monkeypatch.setattr("subprocess.call", lambda argv: 1)
+    r = runner.invoke(app, ["gui"])
+    assert r.exit_code == 1
