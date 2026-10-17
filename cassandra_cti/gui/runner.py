@@ -16,6 +16,9 @@ from typing import Optional
 
 PKG = "cassandra_cti"
 BIN = "cassandra"
+# Sentinel first argument that makes the frozen single-file executable run
+# the CLI instead of the GUI. Must match cassandra_cti/frozen_entry.py.
+FROZEN_CLI_ARG = "__cli__"
 
 RC_TIMEOUT = 124
 RC_NOT_FOUND = 127
@@ -35,6 +38,11 @@ class RunResult:
 
 
 def resolve_cli_bin() -> list[str]:
+    # Frozen bundle (PyInstaller): there is no sibling "cassandra" script and
+    # no "python -m" to fall back on, so re-invoke this very executable in CLI
+    # mode via the sentinel that frozen_entry.py recognises.
+    if getattr(sys, "frozen", False):
+        return [sys.executable, FROZEN_CLI_ARG]
     # Order matters. Never trust the parent PATH alone: a GUI launched from a
     # .desktop file or without an active venv would get rc=127. The module
     # fallback always works as long as the package is importable.
