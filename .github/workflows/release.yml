@@ -1,0 +1,142 @@
+name: release
+
+# Builds the frozen double-click bundles for the three desktop OSes. A push to
+# dev builds and smoke-tests them, uploading the bundles as artifacts WITHOUT
+# cutting a release. A v* tag does the same and also attaches them to a GitHub
+# Release. (workflow_dispatch is kept for when the workflow reaches the default
+# branch, where that trigger becomes usable.)
+#
+# Signing is self-signed on every OS (GPG on Linux, ad-hoc codesign on macOS,
+# self-signed Authenticode on Windows). Self-signing does NOT clear macOS
+# Gatekeeper or Windows SmartScreen; it only states provenance. Real trust
+# needs an Apple Developer ID plus notarization and an OV/EV Authenticode cert.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'dev'
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: cassandra-linux-x86_64
+          - os: macos-latest
+            asset: cassandra-macos-arm64
+          - os: windows-latest
+            asset: cassandra-windows-x86_64
+    env:
+      ASSET: ${{ matrix.asset }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install project and PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[gui]" pyinstaller
+
+      - name: Build bundle from the spec
+        run: pyinstaller --noconfirm --clean packaging/cassandra.spec
+
+      - name: Resolve exe path
+        id: exe
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            echo "path=dist/cassandra/cassandra.exe" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=dist/cassandra/cassandra" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Smoke test the bundle
+        run: python packaging/smoke.py "${{ steps.exe.outputs.path }}"
+
+      - name: Self-sign and package (Linux, GPG)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -eu
+          tar -czf "dist/${ASSET}.tar.gz" -C dist cassandra
+          GNUPGHOME="$(mktemp -d)"; export GNUPGHOME; chmod 700 "$GNUPGHOME"
+          {
+            echo "%no-protection"
+            echo "Key-Type: eddsa"
+            echo "Key-Curve: ed25519"
+            echo "Key-Usage: sign"
+            echo "Name-Real: CassandraCTI Release (self-signed)"
+            echo "Name-Email: contact@franckferman.fr"
+            echo "Expire-Date: 0"
+            echo "%commit"
+          } > "$GNUPGHOME/kp"
+          gpg --batch --gen-key "$GNUPGHOME/kp"
+          gpg --batch --yes --detach-sign --armor \
+            -o "dist/${ASSET}.tar.gz.asc" "dist/${ASSET}.tar.gz"
+          gpg --armor --export > "dist/${ASSET}-pubkey.asc"
+          LC_ALL=C gpg --verify "dist/${ASSET}.tar.gz.asc" "dist/${ASSET}.tar.gz"
+
+      - name: Self-sign and package (macOS, ad-hoc codesign)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -eu
+          codesign --force --deep --sign - dist/cassandra/cassandra
+          codesign --verify --verbose dist/cassandra/cassandra
+          tar -czf "dist/${ASSET}.tar.gz" -C dist cassandra
+
+      - name: Self-sign and package (Windows, self-signed Authenticode)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert `
+            -Subject "CN=CassandraCTI (self-signed)" `
+            -CertStoreLocation Cert:\CurrentUser\My
+          Set-AuthenticodeSignature -FilePath dist\cassandra\cassandra.exe `
+            -Certificate $cert | Out-Null
+          $sig = Get-AuthenticodeSignature dist\cassandra\cassandra.exe
+          Write-Host "Authenticode status:" $sig.Status
+          if ($null -eq $sig.SignerCertificate) { throw "no signature was applied" }
+          Compress-Archive -Path dist\cassandra -DestinationPath "dist\$env:ASSET.zip" -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: |
+            dist/${{ matrix.asset }}.tar.gz
+            dist/${{ matrix.asset }}.tar.gz.asc
+            dist/${{ matrix.asset }}-pubkey.asc
+            dist/${{ matrix.asset }}.zip
+          if-no-files-found: ignore
+
+  release:
+    name: publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Attach bundles to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          body: |
+            Self-signed desktop bundles. Self-signing states provenance only;
+            it does not clear macOS Gatekeeper or Windows SmartScreen.
+            macOS: right-click the app and choose Open.
+            Windows: More info then Run anyway.
