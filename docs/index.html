@@ -1609,6 +1609,7 @@
   <div class="cli-grid">
     <div class="cli-card"><div class="cli-cmd">cassandra init</div><div class="cli-desc">Create default config in <code style="font-family:monospace;font-size:.8em">~/.config/cassandra-cti/</code>. First step on any new machine.</div></div>
     <div class="cli-card"><div class="cli-cmd">cassandra quickstart</div><div class="cli-desc">Zero to running in one command: scaffold the config and open the live dashboard.</div></div>
+    <div class="cli-card"><div class="cli-cmd">cassandra gui</div><div class="cli-desc">Open the desktop app: a task-oriented console driving the same CLI. Needs the GUI extra: <code style="font-family:monospace;font-size:.8em">pip install ".[gui]"</code>.</div></div>
     <div class="cli-card"><div class="cli-cmd">cassandra run</div><div class="cli-desc">Execute the aggregation cycle. <code style="font-family:monospace;font-size:.8em">--loop</code> for daemon mode, <code style="font-family:monospace;font-size:.8em">--web</code> for the dashboard, <code style="font-family:monospace;font-size:.8em">--dry-run</code> to test.</div></div>
     <div class="cli-card"><div class="cli-cmd">cassandra add-source</div><div class="cli-desc">Enable a source: <code style="font-family:monospace;font-size:.8em">rss</code>, <code style="font-family:monospace;font-size:.8em">ransomware_live</code>, <code style="font-family:monospace;font-size:.8em">redflag</code>, <code style="font-family:monospace;font-size:.8em">kev</code>, <code style="font-family:monospace;font-size:.8em">abusech</code>.</div></div>
     <div class="cli-card"><div class="cli-cmd">cassandra import-feeds</div><div class="cli-desc">Bulk import RSS feeds from CSV. Format: <code style="font-family:monospace;font-size:.8em">Name,URL,Tags</code>.</div></div>
@@ -1643,7 +1644,10 @@
           <p class="tl-desc">Clone and install. The <code style="font-family:monospace;font-size:.85em;color:var(--amber)">cassandra</code> CLI entry point is available globally after install.</p>
           <div class="code-win">
             <pre><span class="co">$</span> git clone https://github.com/franckferman/CassandraCTI.git
-<span class="co">$</span> cd CassandraCTI && pip install .</pre>
+<span class="co">$</span> cd CassandraCTI && pip install .
+
+<span class="cc"># Optional: the desktop app, then launch it with `cassandra gui`</span>
+<span class="co">$</span> pip install ".[gui]"</pre>
           </div>
         </div>
       </div>

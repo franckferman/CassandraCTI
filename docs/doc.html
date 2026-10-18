@@ -424,6 +424,7 @@
       <a class="sb-link" href="#overview">Overview</a>
       <a class="sb-link" href="#installation">Installation</a>
       <a class="sb-link" href="#quickstart">Quick Start</a>
+      <a class="sb-link" href="#gui">Desktop GUI</a>
     </div>
     <div class="sb-section">
       <span class="sb-label">Configuration</span>
@@ -545,7 +546,10 @@
 <span class="hl">pip install -r requirements.txt</span>
 
 <span class="hl-dim"># Or install as a package (installs the cassandra CLI entry point)</span>
-<span class="hl">pip install .</span></code></pre>
+<span class="hl">pip install .</span>
+
+<span class="hl-dim"># Add the optional desktop app (PySide6); see the Desktop GUI section</span>
+<span class="hl">pip install ".[gui]"</span></code></pre>
 
       <h3>Configuration directory</h3>
       <p>By default, CassandraCTI looks for its configuration in a platform-specific directory:</p>
@@ -612,6 +616,52 @@
 
 <span class="hl-dim"># Dry run (no messages sent)</span>
 <span class="hl">cassandra run --dry-run --verbose</span></code></pre>
+    </div>
+
+    <!-- DESKTOP GUI -->
+    <div class="doc-section" id="gui">
+      <div class="section-tag">Getting Started</div>
+      <h2>Desktop GUI</h2>
+
+      <p>CassandraCTI ships an optional desktop application: a task-oriented console that
+      drives the very same CLI underneath. It never imports the core engine directly; every
+      action runs the <code>cassandra</code> command in a subprocess, so the window and the
+      terminal always behave identically.</p>
+
+      <div class="callout">
+        <p><strong>Prefer not to touch a terminal?</strong> Install the GUI extra and run
+        <code>cassandra gui</code>. The window walks you through init, sources, connectors,
+        routes and a one-click live dashboard.</p>
+      </div>
+
+      <h3>Install the GUI extra</h3>
+      <p>The desktop app depends on <strong>PySide6</strong>, kept out of the base install so
+      the CLI stays lightweight. Pull it in with the <code>[gui]</code> extra:</p>
+      <pre><code><span class="hl-dim"># From a source checkout or a published package</span>
+<span class="hl">pip install ".[gui]"</span></code></pre>
+
+      <h3>Launch it</h3>
+      <pre><code><span class="hl-dim"># Both entry points open the same window</span>
+<span class="hl">cassandra gui</span>
+<span class="hl">cassandra-gui</span></code></pre>
+      <p>If PySide6 is not installed, the command prints a one-line install hint and exits
+      cleanly, with no traceback.</p>
+
+      <h3>Prebuilt desktop bundles</h3>
+      <p>Every tagged release builds a self-contained, double-click bundle for
+      <strong>Linux</strong>, <strong>macOS</strong> and <strong>Windows</strong> through GitHub
+      Actions, so anyone without a Python toolchain can run CassandraCTI straight away. One
+      binary serves both faces: double-click it for the GUI, or call it from a shell for the
+      CLI. The bundles are attached to each tagged release on the
+      <a href="https://github.com/franckferman/CassandraCTI/releases">Releases page</a>.</p>
+
+      <div class="callout">
+        <p><strong>About the signatures.</strong> The bundles are self-signed (GPG on Linux,
+        ad-hoc codesign on macOS, a self-signed Authenticode certificate on Windows). That
+        states provenance only; it does not clear macOS Gatekeeper or Windows SmartScreen. On
+        macOS, right-click the app and choose <em>Open</em>; on Windows, choose
+        <em>More info</em> then <em>Run anyway</em>.</p>
+      </div>
     </div>
 
     <!-- CONFIG.YAML -->
