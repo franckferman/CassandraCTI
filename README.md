@@ -22,6 +22,7 @@
   <a href="#briefings">Briefings</a> ·
   <a href="#cli-reference">CLI Reference</a> ·
   <a href="#gui">GUI</a> ·
+  <a href="#prebuilt-binaries">Binaries</a> ·
   <a href="#docker">Docker</a> ·
   <a href="#templates">Templates</a> ·
   <a href="#security--tls">Security</a>
@@ -54,6 +55,7 @@ Built from tooling I developed for enterprise security needs, it is released as 
 | **Modular sources** | RSS/Atom feeds, the **ransomware.live** family (victims free; plus Cyber Press, SEC 8-K and Stats on its PRO tier), Red Flag Domains, **CISA KEV** vulnerabilities, **abuse.ch** IOCs (Feodo/ThreatFox/URLhaus/MalwareBazaar) |
 | **Modular transports** | Microsoft Teams, Discord, Telegram, Email (SMTP), Signal, and a live web dashboard (extensible) |
 | **Live web dashboard** | Dependency-free SOC command center: real-time SSE feed, per-category tabs, filters, export, optional AI briefs |
+| **Desktop GUI and binaries** | Optional PySide6 desktop app (`cassandra gui`); self-signed, double-click bundles for Linux, macOS and Windows on every release |
 | **LLM briefings** | Optional periodic recap per category, prioritised, with links, sent after the alerts (local Ollama or a cloud key) |
 | **Entity/company watch** | Alert when a name you care about shows up in any feed (`include_terms`, accent/case-insensitive) |
 | **Resilient ransomware feed** | Multi-backend fallback chain: API PRO, then API v2, then the legacy `posts.json` dump |
@@ -92,6 +94,25 @@ Optional desktop GUI (adds PySide6, see [GUI](#gui)):
 ```bash
 pip install '.[gui]'
 ```
+
+### Prebuilt binaries
+
+No Python toolchain? Each tagged release ships a self-contained, double-click bundle,
+built on GitHub Actions:
+
+| OS | Target | First run |
+|---|---|---|
+| Linux | x86_64 | Runs on any distro with glibc 2.35 or newer (Debian 12+, Ubuntu 22.04+, Arch, Gentoo, Fedora 36+) |
+| macOS | Apple Silicon (arm64) | Right-click the app and choose **Open** |
+| Windows | x86_64 | Choose **More info**, then **Run anyway** |
+
+A single binary serves both faces: double-click it for the desktop [GUI](#gui), or call it
+from a shell for the CLI. The bundles are attached to each tagged release on the
+[Releases page](https://github.com/franckferman/CassandraCTI/releases).
+
+They are self-signed (GPG on Linux, ad-hoc codesign on macOS, a self-signed Authenticode
+certificate on Windows). That states provenance only and does not clear macOS Gatekeeper or
+Windows SmartScreen, hence the first-run steps above.
 
 ### Initialization
 
@@ -1546,7 +1567,7 @@ zero GUI dependency; the GUI is an opt-in extra.
 
 ```bash
 pip install '.[gui]'    # adds PySide6
-cassandra-gui           # or: python -m cassandra_cti.gui
+cassandra gui           # or: cassandra-gui, or: python -m cassandra_cti.gui
 ```
 
 Pick a subcommand on the left, fill the form, press Run (Ctrl+G). The command
@@ -1556,6 +1577,9 @@ and stderr to Log.
 By design the GUI talks to the pipeline only by running the `cassandra` CLI as
 a subprocess, never by importing the core, so the CLI remains the single source
 of truth. Details and invariants: [`cassandra_cti/gui/README.md`](cassandra_cti/gui/README.md).
+
+Shipping to users without Python? Each release bundles this GUI and the CLI into a
+single frozen binary for Linux, macOS and Windows; see [Prebuilt binaries](#prebuilt-binaries).
 
 ## Docker
 
