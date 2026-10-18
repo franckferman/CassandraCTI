@@ -403,7 +403,7 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
 
   var TABS = [
     { id: "overview", label: "Overview", ic: "overview" },
-    { id: "all", label: "Live feed", ic: "all", kinds: null, filters: [{ id: "source", label: "Source", get: function (e) { return e.source; } }] },
+    { id: "all", label: "Live feed", ic: "all", kinds: null, filters: [{ id: "source", label: "Source", get: function (e) { return e.source; }, exclude: true }] },
     { id: "ransomware", label: "Ransomware", ic: "ransomware", kinds: ["ransomware"], filters: [
       { id: "group", label: "Group", get: function (e) { return e.meta.group_name; } },
       { id: "country", label: "Country", get: function (e) { return e.meta.country_display; } },
@@ -427,13 +427,13 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
     if (p.get("tab")) S.tab = p.get("tab"); S.q = p.get("q") || ""; S.sort = p.get("sort") || "new"; S.range = p.get("range") || "all";
     S.period = p.get("period") || "7d"; S.inv = p.get("inv") === "1"; S.sound = p.get("sound") === "1";
     var t = tabDef(S.tab), fs = S.filters[S.tab] = S.filters[S.tab] || {};
-    (t.filters || []).forEach(function (f) { if (p.get("f_" + f.id)) fs[f.id] = p.get("f_" + f.id); });
+    (t.filters || []).forEach(function (f) { if (p.get("f_" + f.id)) fs[f.id] = p.get("f_" + f.id); if (f.exclude && p.get("x_" + f.id)) fs[f.id + "_ex"] = p.get("x_" + f.id); });
     (t.toggles || []).forEach(function (tg) { if (p.get("t_" + tg.id) === "1") fs[tg.id] = true; }); }
   function writeURL() { var p = new URLSearchParams(); if (token) p.set("token", token); p.set("tab", S.tab);
     if (S.q) p.set("q", S.q); if (S.sort !== "new") p.set("sort", S.sort); if (S.range !== "all") p.set("range", S.range);
     if (S.tab === "overview" && S.period !== "7d") p.set("period", S.period); if (S.inv) p.set("inv", "1"); if (S.sound) p.set("sound", "1");
     var t = tabDef(S.tab), fs = S.filters[S.tab] || {};
-    (t.filters || []).forEach(function (f) { if (fs[f.id]) p.set("f_" + f.id, fs[f.id]); });
+    (t.filters || []).forEach(function (f) { if (fs[f.id]) p.set("f_" + f.id, fs[f.id]); if (f.exclude && fs[f.id + "_ex"]) p.set("x_" + f.id, fs[f.id + "_ex"]); });
     (t.toggles || []).forEach(function (tg) { if (fs[tg.id]) p.set("t_" + tg.id, "1"); });
     try { history.replaceState(null, "", location.pathname + "?" + p.toString()); } catch (e) {} }
 
@@ -552,7 +552,7 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
   }
   function currentItems(t) { var fs = S.filters[t.id] || (S.filters[t.id] = {}), q = S.q.trim().toLowerCase();
     var items = store.filter(function (e) { if (t.kinds && t.kinds.indexOf(kind(e.source)) < 0) return false; if (S.inv && invMode === "filter" && !invMatch(e)) return false; if (!withinRange(e)) return false;
-      var ok = true; (t.filters || []).forEach(function (f) { var v = fs[f.id]; if (!v) return; if (f.getMulti) { if ((f.getMulti(e) || []).indexOf(v) < 0) ok = false; } else if (f.get(e) !== v) ok = false; });
+      var ok = true; (t.filters || []).forEach(function (f) { var v = fs[f.id]; if (v) { if (f.getMulti) { if ((f.getMulti(e) || []).indexOf(v) < 0) ok = false; } else if (f.get(e) !== v) ok = false; } if (f.exclude) { var xv = fs[f.id + "_ex"]; if (xv) { if (f.getMulti) { if ((f.getMulti(e) || []).indexOf(xv) >= 0) ok = false; } else if (f.get(e) === xv) ok = false; } } });
       (t.toggles || []).forEach(function (tg) { if (fs[tg.id] && !tg.test(e)) ok = false; });
       if (ok && q) { if ((((e.title || "") + " " + (e.summary || "") + " " + JSON.stringify(e.meta || {})).toLowerCase()).indexOf(q) < 0) ok = false; } return ok; });
     if (S.sort === "old") items = items.slice().reverse();
@@ -563,7 +563,8 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
     var html = '<div class="toolbar"><label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>' +
       '<input type="search" id="q" placeholder="filter…  ( / )" value="' + esc(S.q) + '"></label>';
     (t.filters || []).forEach(function (f) { var opts = uniq(base, f.get || f.getMulti, !!f.getMulti);
-      html += '<select class="f" data-f="' + f.id + '"><option value="">' + esc(f.label) + " · all</option>" + opts.map(function (o) { return '<option value="' + esc(o) + '"' + (fs[f.id] === o ? " selected" : "") + ">" + esc(o) + "</option>"; }).join("") + "</select>"; });
+      html += '<select class="f" data-f="' + f.id + '"><option value="">' + esc(f.label) + " · all</option>" + opts.map(function (o) { return '<option value="' + esc(o) + '"' + (fs[f.id] === o ? " selected" : "") + ">" + esc(o) + "</option>"; }).join("") + "</select>";
+      if (f.exclude) html += '<select class="f" data-f="' + f.id + '_ex"><option value="">exclude · none</option>' + opts.map(function (o) { return '<option value="' + esc(o) + '"' + (fs[f.id + "_ex"] === o ? " selected" : "") + ">" + esc(o) + "</option>"; }).join("") + "</select>"; });
     (t.toggles || []).forEach(function (tg) { html += '<button class="b' + (fs[tg.id] ? " on" : "") + '" data-toggle="' + tg.id + '">' + esc(tg.label) + "</button>"; });
     html += '<select class="f" id="range">' + [["all", "any time"], ["24h", "24h"], ["7d", "7d"], ["30d", "30d"]].map(function (o) { return '<option value="' + o[0] + '"' + (S.range === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select>";
     html += '<select class="f" id="sort">' + [["new", "newest"], ["old", "oldest"], ["crit", "criticality"]].map(function (o) { return '<option value="' + o[0] + '"' + (S.sort === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select>";
