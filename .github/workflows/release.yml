@@ -30,7 +30,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          # Oldest supported Ubuntu LTS on purpose: its glibc (2.35) is the floor
+          # the frozen Linux binary links against, so the bundle runs on any distro
+          # with glibc >= 2.35 (Debian 12+, Ubuntu 22.04+, Arch, Gentoo, Fedora 36+).
+          # Building on ubuntu-latest raised the floor to glibc 2.38 and broke
+          # Debian 12 (bookworm, glibc 2.36). Do not bump this to newer than the
+          # oldest Linux you intend to support.
+          - os: ubuntu-22.04
             asset: cassandra-linux-x86_64
           - os: macos-latest
             asset: cassandra-macos-arm64
