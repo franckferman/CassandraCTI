@@ -5,7 +5,7 @@ GUI dependency.
 
 ```bash
 pip install 'CassandraCTI[gui]'   # adds PySide6
-cassandra-gui                     # or: python -m cassandra_cti.gui
+cassandra gui                     # or: cassandra-gui, or: python -m cassandra_cti.gui
 ```
 
 It is a task-oriented front end over the CLI, themed to match the project's
