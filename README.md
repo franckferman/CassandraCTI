@@ -89,6 +89,12 @@ Or install as a package (provides the `cassandra` CLI entry point):
 pip install .
 ```
 
+Confirm the CLI is on your PATH:
+
+```bash
+cassandra --version
+```
+
 Optional desktop GUI (adds PySide6, see [GUI](#gui)):
 
 ```bash
