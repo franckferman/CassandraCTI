@@ -13,6 +13,7 @@ from typing import Optional, List
 from jinja2 import Template
 from ..models import Event
 from ..emoji import emoji_for
+from ..net import ssl_ctx
 from ..util import template_context
 
 TELEGRAM_LIMIT = 4096
@@ -60,7 +61,10 @@ class TelegramTransport:
 
     async def _ensure_session(self):
         if self._session is None or self._session.closed:
-            connector = aiohttp.TCPConnector(family=socket.AF_INET)
+            # Share the project TLS context so the CTI_TLS_NO_VERIFY opt-out
+            # applies here too (aiohttp verifies by default, so this does not
+            # weaken anything; it just makes every transport consistent).
+            connector = aiohttp.TCPConnector(family=socket.AF_INET, ssl=ssl_ctx())
             self._session = aiohttp.ClientSession(
                 connector=connector, timeout=aiohttp.ClientTimeout(total=30))
 
