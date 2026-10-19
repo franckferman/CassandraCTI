@@ -874,6 +874,19 @@ def doctor(kind: str = typer.Argument(..., help="connector|config|feeds"),
             raise typer.Exit(1)
 
 
+def _is_loopback_host(host: str) -> bool:
+    """True if binding `host` keeps the dashboard on the local machine only."""
+    h = (host or "").strip().lower()
+    if h in ("", "localhost"):
+        return True
+    import ipaddress
+    try:
+        return ipaddress.ip_address(h).is_loopback
+    except ValueError:
+        # A hostname other than 'localhost': cannot assume it is loopback.
+        return False
+
+
 def _do_run(cfg: str, cx: str, only, loop: bool, interval: int,
             web: bool, web_host: str, web_port: int,
             dry_run: bool = False, verbose: bool = False,
@@ -905,6 +918,18 @@ def _do_run(cfg: str, cx: str, only, loop: bool, interval: int,
         extra_routes = [RouteDef(name="web-dashboard", include_regex=".",
                                  transports=["web-dashboard"])]
         typer.echo(f"Web dashboard: http://{web_host}:{web_port}")
+        # `run --web` serves the dashboard without a token. On loopback that is
+        # fine; on any other address it would be reachable from the network with
+        # no authentication, so warn loudly (do not block: a reverse proxy may
+        # add its own auth).
+        if not _is_loopback_host(web_host):
+            typer.echo(
+                f"Warning: the dashboard will listen on {web_host} with no "
+                "authentication and be reachable from your network. Bind "
+                "127.0.0.1 (default), or put it behind a reverse proxy that "
+                "adds authentication.",
+                err=True,
+            )
 
     async def _once():
         await run_once(cfg, cx, only_sources=only,

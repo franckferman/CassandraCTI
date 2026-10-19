@@ -754,3 +754,14 @@ def test_gui_propagates_child_exit_code(monkeypatch):
     monkeypatch.setattr("subprocess.call", lambda argv: 1)
     r = runner.invoke(app, ["gui"])
     assert r.exit_code == 1
+
+
+def test_is_loopback_host():
+    # The dashboard warns before serving without auth on a non-loopback host,
+    # so this classification must be right.
+    from cassandra_cti.cli import _is_loopback_host
+
+    for host in ("127.0.0.1", "127.5.5.5", "::1", "localhost", ""):
+        assert _is_loopback_host(host) is True, host
+    for host in ("0.0.0.0", "192.168.1.10", "10.0.0.5", "example.com"):
+        assert _is_loopback_host(host) is False, host
