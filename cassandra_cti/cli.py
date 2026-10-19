@@ -15,6 +15,7 @@ from colorama import init as colorama_init
 from .config import load_settings
 from .main import run_once
 from .store import Store
+from . import __version__
 
 app = typer.Typer(
     add_completion=False,
@@ -36,6 +37,27 @@ yaml.indent(mapping=2, sequence=4, offset=2)
 # but external tooling should not choke on a file we wrote).
 yaml.preserve_quotes = True
 colorama_init()
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"cassandra {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def _root(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        "-V",
+        help="Show the version and exit.",
+        is_eager=True,
+        callback=_version_callback,
+    ),
+) -> None:
+    # Root-level options only; every subcommand carries the real work.
+    pass
 
 
 def default_dir() -> Path:
