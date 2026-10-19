@@ -10,6 +10,7 @@
 # store (WAL mode → safe concurrent reads).
 from __future__ import annotations
 import asyncio
+import hmac
 import json
 import logging
 import queue
@@ -62,12 +63,21 @@ INVENTORY_KEY = web.AppKey("inventory", dict)
 LLM_KEY = web.AppKey("llm", dict)
 
 
+def _ct_eq(a: Optional[str], b: Optional[str]) -> bool:
+    # Constant-time compare so the token check is not a timing oracle. Compare
+    # on bytes so a non-ASCII token cannot make compare_digest raise.
+    if a is None or b is None:
+        return False
+    return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+
+
 def _check_auth(request: web.Request, token: Optional[str]) -> bool:
     if not token:
         return True
-    if request.headers.get("Authorization") == f"Bearer {token}":
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer ") and _ct_eq(header[len("Bearer "):], token):
         return True
-    return request.query.get("token") == token
+    return _ct_eq(request.query.get("token"), token)
 
 
 def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub,

@@ -331,6 +331,27 @@ def test_auth_required_on_every_endpoint(tmp_path):
     assert _get(port, "/api/stats?token=wrong")[0] == 401
 
 
+def test_check_auth_token_edges():
+    # Unit-level edges for the constant-time token check: no crash on a
+    # non-ASCII token, and malformed/empty Authorization headers are refused.
+    from cassandra_cti.web.app import _check_auth
+
+    class _Req:
+        def __init__(self, auth=None, qtoken=None):
+            self.headers = {} if auth is None else {"Authorization": auth}
+            self.query = {} if qtoken is None else {"token": qtoken}
+
+    tok = "s3cr3t-Token_\u00e9"  # trailing char is non-ASCII on purpose
+    assert _check_auth(_Req(), None) is True                       # no token -> open
+    assert _check_auth(_Req(auth=f"Bearer {tok}"), tok) is True    # correct bearer
+    assert _check_auth(_Req(qtoken=tok), tok) is True              # correct ?token=
+    assert _check_auth(_Req(auth="Bearer nope"), tok) is False     # wrong bearer
+    assert _check_auth(_Req(qtoken="nope"), tok) is False          # wrong ?token=
+    assert _check_auth(_Req(), tok) is False                       # no creds
+    assert _check_auth(_Req(auth=tok), tok) is False               # missing "Bearer "
+    assert _check_auth(_Req(auth="Bearer "), tok) is False         # empty bearer
+
+
 # -- SSE: a published event reaches a connected client ------------------------
 def test_sse_delivers_published_event():
     srv, port = _serve(db_path=None)
