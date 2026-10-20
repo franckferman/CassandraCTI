@@ -10,14 +10,13 @@
 # Optional and off unless `briefings:` is configured AND the `llm:` layer can
 # resolve a provider. Honours CTI_DRY_RUN (prints [DRYRUN:BRIEFING], no calls).
 from __future__ import annotations
-import os
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from .llm import LLM, LLMError
 from .models import Event
-from .util import any_term_in
+from .util import any_term_in, resolve_template_path
 
 _DUR = re.compile(r"^\s*(\d+)\s*([smhd])\s*$")
 _UNIT = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days"}
@@ -197,12 +196,10 @@ async def _make_brief(llm: LLM, b, events: List[Dict[str, Any]], period_label: s
 _DEFAULT_TEMPLATE = "{{ summary }}\n\n_Prioritised by CassandraCTI_"
 
 
-def _load_template(path: Optional[str]) -> Optional[str]:
-    if not path:
-        return None
-    p = os.path.expanduser(path)
-    if os.path.exists(p):
-        with open(p, "r", encoding="utf-8") as f:
+def _load_template(path: Optional[str], config_path: Optional[str] = None) -> Optional[str]:
+    resolved = resolve_template_path(path, config_path)
+    if resolved:
+        with open(resolved, "r", encoding="utf-8") as f:
             return f.read()
     return None
 
@@ -210,7 +207,7 @@ def _load_template(path: Optional[str]) -> Optional[str]:
 async def run_briefings(settings, store, transports_by_id: Dict[str, Any],
                         dry: bool = False, log=None, llm: Optional[LLM] = None,
                         force_names: Optional[set] = None, force_all: bool = False,
-                        now: Optional[datetime] = None) -> int:
+                        now: Optional[datetime] = None, config_path: Optional[str] = None) -> int:
     """Check every configured briefing; send those that are due (or forced).
     Returns the number of briefings sent (or, in dry-run, that would send)."""
     briefings = list(getattr(settings, "briefings", []) or [])
@@ -267,7 +264,7 @@ async def run_briefings(settings, store, transports_by_id: Dict[str, Any],
             continue
 
         title = b.title or f"Briefing: {b.name} ({len(events)} items, last {label})"
-        tpl = _load_template(b.template) or _DEFAULT_TEMPLATE
+        tpl = _load_template(b.template, config_path) or _DEFAULT_TEMPLATE
         ev = Event(source=b.name, title=title, url=None, summary=text,
                    tags=["briefing"], raw={"kind": "briefing", "count": len(events)})
 

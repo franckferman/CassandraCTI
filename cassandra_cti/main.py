@@ -86,7 +86,7 @@ async def run_once(settings_path: str, connectors_path: str | None = None, only_
             log.warning(f"Metrics server error: {e}")
 
     # Resolve DB path (relative paths anchored to the config file's directory)
-    from .util import resolve_db_path
+    from .util import resolve_db_path, resolve_template_path
     db_path = resolve_db_path(settings.store.get("sqlite_path", ".cassandra_cti.db"), settings_path)
     store = Store(db_path)
 
@@ -257,10 +257,9 @@ async def run_once(settings_path: str, connectors_path: str | None = None, only_
     for rname, tmap in to_send.items():
         tpl_text = None
         tpl_path = route_tpl.get(rname)
-        if tpl_path:
-            tpl_path = os.path.expanduser(tpl_path)
-        if tpl_path and os.path.exists(tpl_path):
-            with open(tpl_path, 'r', encoding='utf-8') as f:
+        resolved_tpl = resolve_template_path(tpl_path, settings_path)
+        if resolved_tpl:
+            with open(resolved_tpl, 'r', encoding='utf-8') as f:
                 tpl_text = f.read()
         elif tpl_path:
             log.warning(f"Template not found: {tpl_path}")
@@ -319,7 +318,8 @@ async def run_once(settings_path: str, connectors_path: str | None = None, only_
     if getattr(settings, "briefings", None):
         try:
             from .briefings import run_briefings
-            n = await run_briefings(settings, store, transports_by_id, dry=dry, log=log)
+            n = await run_briefings(settings, store, transports_by_id, dry=dry, log=log,
+                                    config_path=settings_path)
             if n:
                 log.info(f"Briefings sent: {n}")
         except Exception as e:

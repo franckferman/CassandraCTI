@@ -725,7 +725,7 @@ def briefing_run(name: Optional[str] = typer.Option(None, help="Only this briefi
 
     async def _go():
         n = await run_briefings(settings, store, transports_by_id, dry=dry, log=log,
-                                force_all=force_all)
+                                force_all=force_all, config_path=cfg)
         for tr in transports_by_id.values():
             try:
                 await tr.aclose()

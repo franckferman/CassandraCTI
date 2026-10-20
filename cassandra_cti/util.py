@@ -83,6 +83,32 @@ def resolve_db_path(sqlite_path: str | None, config_path: str | None) -> str:
     return str(p)
 
 
+def resolve_template_path(template: str | None, config_path: str | None) -> str | None:
+    """Find a route or briefing template file, or None if it does not exist.
+
+    An absolute or ``~`` path is honoured as given. A relative path is tried
+    next to the config file first, because ``init`` copies ``templates/`` into
+    the config directory, so a relative ``template:`` must resolve there no
+    matter the working directory (same reasoning as resolve_db_path). It then
+    falls back to the current directory so the shipped examples, documented to
+    run from the repo root, keep working. First match wins.
+    """
+    if not template:
+        return None
+    import pathlib
+    p = pathlib.Path(os.path.expanduser(template))
+    if p.is_absolute():
+        return str(p) if p.exists() else None
+    candidates = []
+    if config_path:
+        candidates.append(pathlib.Path(config_path).parent / p)
+    candidates.append(p)
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    return None
+
+
 _CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,7}\b", re.I)
 
 
