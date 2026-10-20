@@ -3,9 +3,13 @@ SMTP TLS-mode selection in _send_sync.
 """
 import asyncio
 import smtplib
+import traceback
 
+import aiohttp
 import pytest
+from multidict import CIMultiDict
 from tenacity import RetryError
+from yarl import URL
 
 from cassandra_cti.models import Event
 from cassandra_cti.transports.telegram import TelegramTransport, TelegramParseError
@@ -70,6 +74,49 @@ def test_post_retries_runtimeerror_but_not_parseerror(monkeypatch):
     with pytest.raises(TelegramParseError):
         asyncio.run(tr._post({"chat_id": "@chan", "text": "x"}))
     assert pe["n"] == 1
+
+
+def test_rate_limit_non_json_body_does_not_leak_token(monkeypatch):
+    # A 429 whose body is not JSON (an intermediary returning HTML, say) must
+    # not surface the bot token: aiohttp's decode error embeds api_url, and that
+    # string would otherwise reach the logs and the deliveries store.
+    async def _fast(*a, **k):
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", _fast)
+    token_url = URL("https://api.telegram.org/bot123:SECRET-abc/sendMessage")
+
+    class FakeResp:
+        status = 429
+
+        async def json(self, *a, **k):
+            ri = aiohttp.RequestInfo(url=token_url, method="POST",
+                                     headers=CIMultiDict(), real_url=token_url)
+            raise aiohttp.ContentTypeError(ri, (), message="unexpected mimetype: text/html")
+
+    class FakeCtx:
+        async def __aenter__(self):
+            return FakeResp()
+
+        async def __aexit__(self, *a):
+            return False
+
+    class FakeSession:
+        def post(self, url, **kw):
+            return FakeCtx()
+
+    async def fake_ensure(self):
+        self._session = FakeSession()
+
+    monkeypatch.setattr(TelegramTransport, "_ensure_session", fake_ensure)
+
+    tr = _tg()
+    with pytest.raises(Exception) as ei:
+        asyncio.run(tr._post({"chat_id": "@chan", "text": "x"}))
+    # run_once logs this with exc_info=True, so the whole exception chain (not
+    # just str(e)) must be token-free, which is what the full traceback models.
+    tb = "".join(traceback.format_exception(type(ei.value), ei.value, ei.value.__traceback__))
+    assert "SECRET-abc" not in tb
 
 
 # -- SMTP -------------------------------------------------------------------

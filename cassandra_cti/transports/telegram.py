@@ -108,8 +108,17 @@ class TelegramTransport:
         await self._ensure_session()
         async with self._session.post(self.api_url, json=payload) as resp:
             if resp.status == 429:
-                body = await resp.json()
-                retry_after = int(body.get("parameters", {}).get("retry_after", 5))
+                # The body is normally JSON with parameters.retry_after, but an
+                # intermediary (proxy, CDN) can return a non-JSON 429. Parsing
+                # that with resp.json() would raise an aiohttp error whose text
+                # embeds api_url, i.e. the bot token, which then reaches the
+                # logs and the deliveries store. Decode defensively instead.
+                try:
+                    body = await resp.json(content_type=None)
+                except Exception:  # noqa: BLE001 - any parse failure falls back to a default wait
+                    body = {}
+                params = body.get("parameters", {}) if isinstance(body, dict) else {}
+                retry_after = int(params.get("retry_after", 5) or 5)
                 await asyncio.sleep(retry_after)
                 raise RuntimeError("Telegram rate limit hit, retrying")
             if resp.status >= 300:
