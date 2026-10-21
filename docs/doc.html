@@ -1887,7 +1887,7 @@ cassandra add-connector --id "discord"   --type discord --webhook-url "https://.
 
       <pre><code><span class="hl-dim">reload config → fetch all sources → filter → </span><span class="hl">DEDUP (SQLite)</span><span class="hl-dim"> → route → deliver</span></code></pre>
 
-      <p>The store keeps this delivery history for <code>store.seen_ttl_days</code> (default 90) before purging older entries.</p>
+      <p>The store keeps this delivery history for <code>store.seen_ttl_days</code> days before purging older entries; <code>config.example.yaml</code> ships <code>90</code>, and omitting the key (or <code>0</code>) keeps history indefinitely.</p>
 
       <h3>One-shot vs. loop</h3>
       <pre><code><span class="hl-dim"># One pass and exit, ideal behind cron or a systemd timer</span>
