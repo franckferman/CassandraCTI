@@ -91,3 +91,40 @@ def test_cve_correlations_sorted_by_breadth(tmp_path):
     cors = s.cve_correlations(min_sources=2)
     assert cors[0]["cve"] == "CVE-2026-1001"       # widest breadth (3 kinds) first
     assert "CVE-2026-2002" in {c["cve"] for c in cors}   # multi-outlet still surfaced
+
+
+def test_rising_week_over_week(tmp_path):
+    from datetime import datetime, timezone, timedelta
+    s = Store(str(tmp_path / "t.db"))
+    now = datetime.now(timezone.utc)
+
+    def iso(dt):
+        return dt.isoformat(timespec="seconds").replace("+00:00", "Z")
+
+    cur, prev = iso(now - timedelta(days=1)), iso(now - timedelta(days=10))
+    # qilin: 3 this week, 1 last week (rising, not new).
+    for i in range(3):
+        s.upsert_event(f"q{i}", "ransomware.live", f"u/q{i}", f"victim{i}", "", cur,
+                       meta={"group_name": "qilin", "activity": "Manufacturing"})
+    s.upsert_event("qp", "ransomware.live", "u/qp", "old", "", prev,
+                   meta={"group_name": "qilin", "activity": "Manufacturing"})
+    # akira: 2 this week, 0 last week (new).
+    for i in range(2):
+        s.upsert_event(f"a{i}", "ransomware.live", f"u/a{i}", f"v{i}", "", cur,
+                       meta={"group_name": "akira", "activity": "Healthcare"})
+    # lockbit: only last week -> not active now, excluded.
+    s.upsert_event("lb", "ransomware.live", "u/lb", "old2", "", prev,
+                   meta={"group_name": "lockbit"})
+    # Placeholder group is filtered out.
+    s.upsert_event("un", "ransomware.live", "u/un", "x", "", cur, meta={"group_name": "Unknown"})
+
+    groups = s.rising("group_name", days=7)
+    byv = {g["value"]: g for g in groups}
+    assert byv["qilin"]["cur"] == 3 and byv["qilin"]["prev"] == 1 and byv["qilin"]["new"] is False
+    assert byv["akira"]["cur"] == 2 and byv["akira"]["new"] is True
+    assert "lockbit" not in byv            # not active this week
+    assert "Unknown" not in byv            # placeholder filtered
+    assert groups[0]["value"] == "qilin"   # most active first
+
+    sectors = s.rising("activity", days=7)
+    assert {x["value"] for x in sectors} == {"Manufacturing", "Healthcare"}

@@ -317,6 +317,30 @@ def test_api_correlations_without_store_is_graceful():
     assert st == 200 and j["correlations"] == [] and "note" in j
 
 
+def test_api_trends_week_over_week(tmp_path):
+    from datetime import datetime, timezone, timedelta
+    db = str(tmp_path / "tr.db")
+    store = Store(db)
+    now = datetime.now(timezone.utc)
+    cur = (now - timedelta(days=1)).isoformat(timespec="seconds").replace("+00:00", "Z")
+    for i in range(2):
+        store.upsert_event(f"g{i}", "ransomware.live", f"u/{i}", f"v{i}", "", cur,
+                           meta={"group_name": "qilin", "activity": "Energy"})
+    _, port = _serve(db_path=db)
+
+    st, j = _jget(port, "/api/trends")
+    assert st == 200
+    groups = j["trends"]["groups"]
+    assert any(g["value"] == "qilin" and g["cur"] == 2 for g in groups)
+    assert any(s["value"] == "Energy" for s in j["trends"]["sectors"])
+
+
+def test_api_trends_without_store_is_graceful():
+    _, port = _serve(db_path=None)
+    st, j = _jget(port, "/api/trends")
+    assert st == 200 and j["trends"] == {} and "note" in j
+
+
 def test_dashboard_page_has_analyses_tab_wired():
     # The Analyses tab exists and is wired to the /api/briefings data path
     # through renderAnalyses, rendering each brief with the escaping renderer.
@@ -379,14 +403,14 @@ def test_auth_required_on_every_endpoint(tmp_path):
 
     # No token: every endpoint refuses. /api/stream rejects before it streams,
     # so the GET returns promptly rather than hanging.
-    for path in ("/", "/api/events", "/api/briefings", "/api/correlations", "/api/stats", "/api/meta", "/api/stream"):
+    for path in ("/", "/api/events", "/api/briefings", "/api/correlations", "/api/trends", "/api/stats", "/api/meta", "/api/stream"):
         st, _b = _get(port, path)
         assert st == 401, f"{path} unauth status {st}"
     st, _b = _post(port, "/api/ai/summarize", {"event": {"title": "x"}})
     assert st == 401
 
     # A Bearer header opens the data endpoints (not /api/stream: it would block).
-    for path in ("/", "/api/events", "/api/briefings", "/api/correlations", "/api/stats", "/api/meta"):
+    for path in ("/", "/api/events", "/api/briefings", "/api/correlations", "/api/trends", "/api/stats", "/api/meta"):
         st, _b = _get(port, path, token=tok)
         assert st == 200, f"{path} authed status {st}"
 

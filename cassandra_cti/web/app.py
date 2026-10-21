@@ -135,6 +135,24 @@ def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub,
         cors = store.cve_correlations(lookback_days=days)
         return web.json_response({"correlations": cors})
 
+    async def api_trends(request: web.Request) -> web.Response:
+        if not _check_auth(request, app[TOKEN_KEY]):
+            raise web.HTTPUnauthorized(text="missing or invalid token")
+        store: Optional[Store] = app[STORE_KEY]
+        if not store:
+            return web.json_response({"trends": {}, "note": "no history database configured"})
+        try:
+            days = min(max(int(request.query.get("days", 7)), 1), 90)
+        except (TypeError, ValueError):
+            days = 7
+        return web.json_response({
+            "days": days,
+            "trends": {
+                "groups": store.rising("group_name", days=days),
+                "sectors": store.rising("activity", days=days),
+            },
+        })
+
     async def api_stats(request: web.Request) -> web.Response:
         if not _check_auth(request, app[TOKEN_KEY]):
             raise web.HTTPUnauthorized(text="missing or invalid token")
@@ -218,6 +236,7 @@ def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub,
     app.router.add_get("/api/events", api_events)
     app.router.add_get("/api/briefings", api_briefings)
     app.router.add_get("/api/correlations", api_correlations)
+    app.router.add_get("/api/trends", api_trends)
     app.router.add_get("/api/stats", api_stats)
     app.router.add_get("/api/stream", api_stream)
     app.router.add_get("/api/meta", api_meta)

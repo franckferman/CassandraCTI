@@ -307,6 +307,42 @@ class Store:
                  "count": a["count"], "latest": a["latest"], "titles": a["titles"]}
                 for a in picked[:limit]]
 
+    def rising(self, field: str, days: int = 7, limit: int = 15) -> List[Dict[str, Any]]:
+        """This-period vs previous-period counts for a meta field, most active
+        first. Surfaces week-over-week trends: a ransomware group (group_name) or
+        a targeted sector (activity) ramping up. `new` marks a value absent from
+        the previous period (prev == 0), i.e. first seen this week.
+        """
+        now = datetime.now(timezone.utc)
+
+        def iso(dt):
+            return dt.isoformat(timespec="seconds").replace("+00:00", "Z")
+
+        cur_lo = iso(now - timedelta(days=days))
+        prev_lo = iso(now - timedelta(days=2 * days))
+        cur: Dict[str, int] = {}
+        prev: Dict[str, int] = {}
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT meta, COALESCE(published_at, first_seen_at) AS ts FROM events "
+                "WHERE COALESCE(published_at, first_seen_at) >= ?", (prev_lo,)).fetchall()
+        for meta_json, ts in rows:
+            if not meta_json or not ts:
+                continue
+            try:
+                meta = json.loads(meta_json)
+            except (ValueError, TypeError):
+                continue
+            v = meta.get(field)
+            if not isinstance(v, str) or v.strip().lower() in ("", "unknown", "n/a", "none", "null"):
+                continue
+            bucket = cur if ts >= cur_lo else prev
+            bucket[v] = bucket.get(v, 0) + 1
+        out = [{"value": v, "cur": c, "prev": prev.get(v, 0), "new": prev.get(v, 0) == 0}
+               for v, c in cur.items()]
+        out.sort(key=lambda r: (r["cur"], r["cur"] - r["prev"]), reverse=True)
+        return out[:limit]
+
     def stats(self) -> Dict[str, Any]:
         """Aggregate counters for the web dashboard. Read-only.
 
