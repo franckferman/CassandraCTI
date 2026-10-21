@@ -232,6 +232,15 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
     border: 1px solid color-mix(in srgb, var(--tone) 40%, var(--border)); background: color-mix(in srgb, var(--tone) 12%, var(--panel)); border-radius: 3px; padding: 1px 5px; }
   .corr-t { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .corr-m { font-size: 10px; color: var(--faint); margin-top: 2px; }
+  .tgrid { display: grid; grid-template-columns: 1fr 1fr; }
+  .tcol + .tcol { border-left: 1px solid var(--border); }
+  .tcol-h { padding: 8px 14px; font-size: 9.5px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; color: var(--faint); border-bottom: 1px solid var(--border); background: var(--panel2); }
+  .trow { display: flex; align-items: center; gap: 8px; padding: 7px 14px; border-bottom: 1px solid var(--border); }
+  .trow:last-child { border-bottom: 0; }
+  .tval { flex: 1; min-width: 0; font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tnum { font-size: 12px; font-weight: 600; color: var(--text); }
+  .tempty { padding: 12px 14px; font-size: 11px; color: var(--faint); }
+  @media (max-width: 560px) { .tgrid { grid-template-columns: 1fr; } .tcol + .tcol { border-left: 0; border-top: 1px solid var(--border); } }
 
   .sk { background: linear-gradient(90deg, var(--panel2) 25%, var(--hover) 37%, var(--panel2) 63%); background-size: 400% 100%; animation: shimmer 1.3s infinite; border-radius: 3px; }
   @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
@@ -712,21 +721,40 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
       ' corroborated across sources (KEV, news, ransomware)</div></div></div>' +
       '<div class="corr-list">' + cors.map(corrRow).join("") + "</div></div>";
   }
+  // Week-over-week trends: which ransomware groups and targeted sectors are
+  // ramping up versus the previous week. deltaChip renders "new" when prev is 0.
+  function trendRow(t) {
+    return '<div class="trow"><span class="tval">' + esc(t.value) + '</span>' +
+      '<span class="tnum mono">' + t.cur + "</span>" + deltaChip(t.cur, t.prev) + "</div>";
+  }
+  function trendCol(title, rows) {
+    var body = rows.length ? rows.map(trendRow).join("") : '<div class="tempty">nothing this week</div>';
+    return '<div class="tcol"><div class="tcol-h">' + title + "</div>" + body + "</div>";
+  }
+  function trendsPanel(tr) {
+    var groups = (tr && tr.groups) || [], sectors = (tr && tr.sectors) || [];
+    if (!groups.length && !sectors.length) return "";
+    return '<div class="panel brf"><div class="brf-h">' + svg("up") +
+      '<div class="brf-ht"><div class="brf-t">Trending this week</div>' +
+      '<div class="brf-m mono">ransomware groups and targeted sectors, versus the previous week</div></div></div>' +
+      '<div class="tgrid">' + trendCol("Rising groups", groups) + trendCol("Targeted sectors", sectors) + "</div></div>";
+  }
   function renderAnalyses() {
     view.innerHTML = '<div class="anwrap"><div class="panel" style="padding:16px"><div class="sk" style="height:84px"></div></div></div>';
-    Promise.all([
-      fetch(withToken("/api/correlations")).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-      fetch(withToken("/api/briefings?limit=100")).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
-    ]).then(function (res) {
+    function get(p) { return fetch(withToken(p)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }
+    Promise.all([get("/api/correlations"), get("/api/trends"), get("/api/briefings?limit=100")]).then(function (res) {
       if (S.tab !== "analyses") return;
-      var cors = (res[0] && res[0].correlations) || [], briefs = (res[1] && res[1].briefings) || [];
-      if (!cors.length && !briefs.length) {
+      var cors = (res[0] && res[0].correlations) || [];
+      var tr = (res[1] && res[1].trends) || {};
+      var briefs = (res[2] && res[2].briefings) || [];
+      var trHtml = trendsPanel(tr);
+      if (!cors.length && !trHtml && !briefs.length) {
         view.innerHTML = '<div class="empty">' + svg("ai") + '<span class="big">No analyses yet</span>' +
-          'LLM briefings (ranked Top-N digests) and cross-source CVE correlations land here once events and ' +
-          'briefings run. Configure <code>briefings:</code> and enable the <code>llm:</code> layer.</div>';
+          'LLM briefings (ranked Top-N digests), cross-source CVE correlations and week-over-week trends land ' +
+          'here once events and briefings run. Configure <code>briefings:</code> and enable the <code>llm:</code> layer.</div>';
         return;
       }
-      view.innerHTML = '<div class="anwrap">' + corrPanel(cors) + briefs.map(briefCard).join("") + "</div>";
+      view.innerHTML = '<div class="anwrap">' + corrPanel(cors) + trHtml + briefs.map(briefCard).join("") + "</div>";
     });
   }
 
