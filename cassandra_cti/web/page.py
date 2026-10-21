@@ -211,6 +211,16 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
   .empty { text-align: center; color: var(--faint); padding: 54px 0; }
   .empty svg { width: 40px; height: 40px; opacity: .45; margin-bottom: 10px; }
   .empty .big { display: block; color: var(--dim); font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .empty code { font-family: var(--mono); font-size: 11.5px; color: var(--accent); background: var(--panel2); padding: 1px 5px; border-radius: 3px; }
+  /* Analyses tab: persisted LLM briefing cards */
+  .anwrap { display: grid; gap: 12px; }
+  .brf { padding: 0; overflow: hidden; }
+  .brf-h { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--border); background: var(--panel2); }
+  .brf-h > svg { width: 16px; height: 16px; color: var(--accent); flex: none; margin-top: 1px; }
+  .brf-t { font-size: 13px; font-weight: 600; color: var(--text); }
+  .brf-m { font-size: 10.5px; color: var(--faint); margin-top: 2px; }
+  .brf-b { padding: 12px 15px; font-size: 12.5px; line-height: 1.55; color: var(--text); }
+  .brf-b ul { margin: 0; padding-left: 18px; } .brf-b li { margin: 3px 0; } .brf-b p { margin: 6px 0; }
 
   .sk { background: linear-gradient(90deg, var(--panel2) 25%, var(--hover) 37%, var(--panel2) 63%); background-size: 400% 100%; animation: shimmer 1.3s infinite; border-radius: 3px; }
   @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
@@ -403,6 +413,7 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
 
   var TABS = [
     { id: "overview", label: "Overview", ic: "overview" },
+    { id: "analyses", label: "Analyses", ic: "ai" },
     { id: "all", label: "Live feed", ic: "all", kinds: null, filters: [{ id: "source", label: "Source", get: function (e) { return e.source; }, exclude: true }] },
     { id: "ransomware", label: "Ransomware", ic: "ransomware", kinds: ["ransomware"], filters: [
       { id: "group", label: "Group", get: function (e) { return e.meta.group_name; } },
@@ -450,7 +461,7 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
   soundBtn.onclick = function () { S.sound = !S.sound; soundBtn.classList.toggle("on", S.sound); if (S.sound) beep(); writeURL(); };
 
   function renderTabs() { tabsEl.innerHTML = ""; TABS.forEach(function (t) { var b = document.createElement("button");
-    b.className = "tab" + (S.tab === t.id ? " active" : ""); var cnt = t.id === "overview" ? "" : ' <span class="cnt">' + tabCount(t) + "</span>";
+    b.className = "tab" + (S.tab === t.id ? " active" : ""); var cnt = (t.id === "overview" || t.id === "analyses") ? "" : ' <span class="cnt">' + tabCount(t) + "</span>";
     b.innerHTML = svg(t.ic) + "<span>" + t.label + "</span>" + cnt; b.onclick = function () { S.tab = t.id; scrollTo(0, 0); render(); }; tabsEl.appendChild(b); }); }
 
   // Overview
@@ -642,11 +653,42 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") { if (!modal.hidden) closeDetail(); return; }
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || "")) return;
     if (e.key === "/") { var q = document.getElementById("q"); if (q) { e.preventDefault(); q.focus(); } return; }
-    if (e.key >= "1" && e.key <= "7") { var i = +e.key - 1; if (TABS[i]) { S.tab = TABS[i].id; render(); } return; }
+    if (e.key >= "1" && e.key <= "8") { var i = +e.key - 1; if (TABS[i]) { S.tab = TABS[i].id; render(); } return; }
     if (e.key.toLowerCase() === "e") { var t = tabDef(S.tab); if (t.kinds !== undefined) exportCSV(currentItems(t)); } });
 
+  // Analyses tab: the persisted LLM briefings (ranked Top-N digests), newest
+  // first. Fetched on demand; the body is escaped through renderBrief so LLM
+  // text can never inject markup.
+  function briefMeta(b) {
+    var parts = [esc(b.name)];
+    if (b.item_count) parts.push(b.item_count + " items");
+    if (b.period_label) parts.push("last " + esc(b.period_label));
+    var when = relTime(b.created_at); if (when) parts.push(when + " ago");
+    return parts.join(" · ");
+  }
+  function briefCard(b) {
+    return '<div class="panel brf"><div class="brf-h">' + svg("ai") +
+      '<div class="brf-ht"><div class="brf-t">' + esc(b.title || b.name) + '</div>' +
+      '<div class="brf-m mono">' + briefMeta(b) + '</div></div></div>' +
+      '<div class="brf-b">' + renderBrief(b.body) + "</div></div>";
+  }
+  function renderAnalyses() {
+    view.innerHTML = '<div class="anwrap"><div class="panel" style="padding:16px"><div class="sk" style="height:84px"></div></div></div>';
+    fetch(withToken("/api/briefings?limit=100")).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (S.tab !== "analyses") return;
+      var list = (j && j.briefings) || [];
+      if (!list.length) {
+        view.innerHTML = '<div class="empty">' + svg("ai") + '<span class="big">No analyses yet</span>' +
+          'LLM briefings (ranked Top-N digests of CVEs, ransomware and news) land here once they run. ' +
+          'Configure them under <code>briefings:</code> and enable the <code>llm:</code> layer.</div>';
+        return;
+      }
+      view.innerHTML = '<div class="anwrap">' + list.map(briefCard).join("") + "</div>";
+    }).catch(function () { if (S.tab === "analyses") view.innerHTML = '<div class="empty"><span class="big">Could not load analyses.</span></div>'; });
+  }
+
   var pf = false; function scheduleRender() { if (pf) return; pf = true; requestAnimationFrame(function () { pf = false; render(); }); }
-  function render() { renderTabs(); writeURL(); var t = tabDef(S.tab); if (t.id === "overview") renderOverview(); else renderFeed(t); }
+  function render() { renderTabs(); writeURL(); var t = tabDef(S.tab); if (t.id === "overview") renderOverview(); else if (t.id === "analyses") renderAnalyses(); else renderFeed(t); }
 
   var qs = new URLSearchParams(location.search), token = qs.get("token"), tokenQ = token ? "?token=" + encodeURIComponent(token) : "";
   function withToken(p) { return p + (token ? (p.indexOf("?") === -1 ? "?" : "&") + "token=" + encodeURIComponent(token) : ""); }

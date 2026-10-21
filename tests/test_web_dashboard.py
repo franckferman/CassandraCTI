@@ -295,6 +295,15 @@ def test_api_briefings_without_store_is_graceful():
     assert st == 200 and j["briefings"] == [] and "note" in j
 
 
+def test_dashboard_page_has_analyses_tab_wired():
+    # The Analyses tab exists and is wired to the /api/briefings data path
+    # through renderAnalyses, rendering each brief with the escaping renderer.
+    assert 'id: "analyses"' in DASHBOARD_PAGE
+    assert "renderAnalyses" in DASHBOARD_PAGE
+    assert "/api/briefings" in DASHBOARD_PAGE
+    assert "briefCard" in DASHBOARD_PAGE
+
+
 def test_api_stats_categories_and_deliveries(tmp_path):
     db = str(tmp_path / "s.db")
     _seed(Store(db))
