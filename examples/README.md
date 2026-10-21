@@ -22,7 +22,7 @@ cassandra run --loop --interval 300 \
 |--------|--------------|--------------|-----------------|
 | [`discord-quickstart`](discord-quickstart/) | A few news feeds + ransomware.live → one Discord channel. Simplest real setup. | Discord | `DISCORD_WEBHOOK_URL` |
 | [`teams-soc-multichannel`](teams-soc-multichannel/) | Route by topic to separate Teams channels (CERT alerts / CERT-FR advisories / vendor / news / ransomware / domains). | Teams ×6 | `MSTEAMS_WEBHOOK_CERT`, `…_AVIS`, `…_VENDOR`, `…_NEWS`, `…_RANSOMWARE`, `…_DOMAINS` |
-| [`teams-soc-briefings`](teams-soc-briefings/) | The six channels above **plus** a seventh that carries nothing but the daily points of situation: one briefing per source at a fixed time, one across everything, one weekly. | Teams ×7 | the six above + `MSTEAMS_WEBHOOK_SYNTHESE` |
+| [`teams-soc-briefings`](teams-soc-briefings/) | The six channels above **plus** a seventh that carries nothing but the points of situation: a daily briefing for the main channels (CERT, advisories, vendor, news, ransomware), one cross-category debrief, and a weekly recap. | Teams ×7 | the six above + `MSTEAMS_WEBHOOK_SYNTHESE` (+ Ollama or an LLM key for the briefings) |
 | [`telegram-channel`](telegram-channel/) | News + ransomware → a Telegram channel, with the HTML `telegram_*` cards. | Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` |
 | [`email-digest`](email-digest/) | Batched roundup email instead of one message per item. | SMTP | `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_TO` |
 | [`vuln-ioc-watch`](vuln-ioc-watch/) | CISA KEV + abuse.ch only → Discord, with the `vuln_card` / `ioc_card` layouts. | Discord | `DISCORD_WEBHOOK_URL` (opt. `ABUSECH_API_KEY`) |
@@ -36,7 +36,7 @@ cassandra run --loop --interval 300 \
 | [`daily-cti-briefing`](daily-cti-briefing/) | Live alerts + a periodic **LLM briefing** that prioritises + links what came in. | Discord ×2 | `DISCORD_WEBHOOK_ALERTS`, `DISCORD_WEBHOOK_BRIEF` (+ Ollama or LLM key) |
 | [`category-digests`](category-digests/) | **Top-N digests per category** in separate channels (6h news, daily ransomware, daily+weekly CVE) **+ a cross-category general debrief**. | Discord ×4 | `DISCORD_WEBHOOK_NEWS`, `…_RANSOMWARE`, `…_CVE`, `…_DEBRIEF` (+ Ollama/LLM key) |
 | [`intel-digests-dashboard`](intel-digests-dashboard/) | Live feed **plus dashboard-only Top-N digests** (CVEs, ransomware, news) that land in the dashboard's **Analyses** tab, alongside cross-source CVE correlations and weekly trends. | Web | *(none; opt. Ollama or an LLM key)* |
-| [`entity-watch`](entity-watch/) | **Alert** when a company/entity name hits any feed (`include_terms`) + **highlight** it on the dashboard (`inventory`). | Discord + Web | `DISCORD_WEBHOOK_URL` |
+| [`entity-watch`](entity-watch/) | **Alert** when a company/entity name hits any feed (`include_terms`) + **highlight** it on the dashboard (`inventory`). | Discord + Web (`--web`) | `DISCORD_WEBHOOK_URL` |
 | [`signal-critical`](signal-critical/) | Exploited CVEs + ransomware → **Signal** (number and/or group) via a self-hosted bridge. | Signal | `SIGNAL_NUMBER` |
 
 ## How the two files relate

@@ -381,7 +381,7 @@ def import_feeds(file: Path = typer.Argument(..., help="Path to CSV file (Name,U
 
 @app.command()
 def add_connector(id: str = typer.Option(..., "--id", help="Unique connector id"),
-                  type: str = typer.Option("teams", "--type", help="teams|discord|telegram|smtp"),
+                  type: str = typer.Option("teams", "--type", help="teams|discord|telegram|smtp|web|signal"),
                   webhook_url: Optional[str] = typer.Option(None, help="Incoming webhook URL (teams, discord)"),
                   bot_token: Optional[str] = typer.Option(None, help="Bot token (telegram)"),
                   chat_id: Optional[str] = typer.Option(None, help="Chat id (telegram)"),

@@ -19,12 +19,14 @@
   <a href="#configuration">Configuration</a> ·
   <a href="#sources">Sources</a> ·
   <a href="#transports">Transports</a> ·
+  <a href="#routing">Routing</a> ·
   <a href="#briefings">Briefings</a> ·
   <a href="#cli-reference">CLI Reference</a> ·
+  <a href="#templates">Templates</a> ·
+  <a href="#running-continuously">Running</a> ·
   <a href="#gui">GUI</a> ·
   <a href="#prebuilt-binaries">Binaries</a> ·
   <a href="#docker">Docker</a> ·
-  <a href="#templates">Templates</a> ·
   <a href="#security--tls">Security</a>
 </p>
 
@@ -303,7 +305,7 @@ metrics:
   port: 9108
 ```
 
-> The bundled `config.example.yaml` ships 30+ RSS feeds, the multi-backend `ransomware_live` source, and its three **ransomware.live PRO** feeds (`ransomware_press`, `ransomware_8k`, `ransomware_stats`) pre-wired but disabled, enable them and supply a `RANSOMWARE_API_KEY` to use them.
+> The bundled `config.example.yaml` ships 40+ RSS feeds, the multi-backend `ransomware_live` source, and its three **ransomware.live PRO** feeds (`ransomware_press`, `ransomware_8k`, `ransomware_stats`) pre-wired but disabled, enable them and supply a `RANSOMWARE_API_KEY` to use them.
 
 ### connectors.yaml
 
@@ -358,7 +360,7 @@ sources:
 |---|---|
 | CERTs | CERT-FR Alertes, CERT-FR Avis, CERT-FR CTI, US-CERT CISA, CISA ICS, NCSC UK, EU-ENISA |
 | Microsoft | Microsoft Security, Microsoft Sentinel, MSRC Update Guide |
-| Vendors | Cisco, Cisco Talos, Cisco PSIRT, Fortinet PSIRT, Trend Micro, Proofpoint, Checkpoint Research, Securelist (Kaspersky), Recorded Future, PaloAlto Unit42, Rapid7, Huntress, Volexity, Sekoia.io, Google TAG |
+| Vendors | Cisco, Cisco Talos, Cisco PSIRT, Fortinet PSIRT, Trend Micro, Proofpoint, Checkpoint Research, Securelist (Kaspersky), Recorded Future, PaloAlto Unit42, Rapid7, Huntress, Volexity, Sekoia.io |
 | News | Krebs on Security, Bleeping Computer, Dark Reading, The Hacker News, SANS ISC, Graham Cluley, Schneier on Security, InfoSecurity Mag |
 | Research | Adam Chester (XPN), Google Project Zero, watchTowr Labs, The DFIR Report, Quarkslab |
 
@@ -374,7 +376,7 @@ CTI_SINCE=2026-09-01 cassandra run --config config.yaml --connectors connectors.
 Entries with no date at all are kept. Combine it with `filters.max_items_per_source` on the
 first run, then drop both: the SQLite store takes over and only new items are sent.
 
-Feed URLs rot. Checked on 2026-09-29, 8 of the 32 active feeds of `config.example.yaml` were
+Feed URLs rot. Checked on 2026-09-29, 8 feeds of `config.example.yaml` were
 unusable: three URLs gone (404), three refused by anti-bot filtering (403, depends on the
 network you call from), two no longer serving a parsable feed. Those are commented or flagged
 in the file. Run `cassandra doctor config` after editing your own list.
@@ -411,13 +413,13 @@ Regardless of the backend that served the data, every event is normalized to the
 
 - **Title:** `{Victim} by {Group}`
 - **Tags:** `["ransomware"]`
-- **Raw fields:** `victim`, `group_name`, `country`, `country_display`, `country_flag`, `activity`, `website`, `discovered`, `attackdate`, `description`, `infostealer`, `infostealer_summary`, `infostealer_stealers`, `data_size`, `leak_url`, `backend`
+- **Raw fields:** `victim`, `group_name`, `country`, `country_display`, `country_flag`, `activity`, `website`, `discovered`, `attackdate`, `description`, `infostealer`, `infostealer_summary`, `infostealer_stealers`, `data_size`, `press`, `leak_url`, `backend`
 - **Country enrichment:** `country_display` = `"France (FR)"` and `country_flag` = 🇫🇷, derived from the ISO-2 `country` code via `cassandra_cti/countries.py` (full ISO-3166 name map + computed regional-indicator flag).
 - **Infostealer enrichment:** ransomware.live's `infostealer` object is summarized into `infostealer_summary` (e.g. `"886 users, 32 employees, 251 third-parties"`, empty when all counts are zero, so no false positive) and `infostealer_stealers` (top stealer families from `infostealer_stats`, e.g. `"Lumma (137), RedLine (132)"`).
 - **Leak link:** `leak_url` is the group's onion leak site when the backend provides it; the cards link both it and the stable ransomware.live permalink.
 - **Emoji:** Auto-detects victim country flag (🇫🇷 🇬🇧 🇩🇪 🇺🇸 ...)
 
-The `backend` field records which source (`pro` / `v2` / `posts`) produced the event. The stable ransomware.live permalink is used as the event URL so deduplication identity does not shift when a fallback occurs.
+The `backend` field records which source (`pro` / `v2` / `posts`) produced the event. Deduplication identity is an explicit `victim@group` key, not the URL, so the same victim is recognised across backends even though `posts.json` carries no permalink; the stable ransomware.live permalink is still used as the event's display URL.
 
 > **Same provider, more feeds.** ransomware.live's **PRO tier** also powers the three feeds below, Cyber Press, SEC 8-K and Tracker Stats, all from `api-pro.ransomware.live` and authenticated with the same `RANSOMWARE_API_KEY`. (Red Flag Domains, further down, is an unrelated provider, malicious domains, not ransomware.)
 
@@ -494,9 +496,10 @@ Fetches daily malicious domain lists from [red.flag.domains](https://red.flag.do
 sources:
   red_flag_domains:
     enabled: true
+    lookback_days: 3    # catch up daily lists missed during downtime (default 3)
 ```
 
-Each run generates one event with:
+Each daily list file within `lookback_days` (default `3`) becomes one event, so a run that catches up after downtime can emit several; in steady state it is one per day:
 - **Title:** `Red Flag Domains, {YYYY-MM-DD}`
 - **Summary:** Full domain list (newline-separated)
 - **Tags:** `["domains"]`
@@ -536,7 +539,7 @@ sources:
     max_items: 60
 ```
 
-A **single free Auth-Key** ([auth.abuse.ch](https://auth.abuse.ch)) unlocks ThreatFox and MalwareBazaar; without it, only the public feeds (Feodo, URLhaus) run. Set it via the `ABUSECH_API_KEY` environment variable. Each event carries `raw` fields `ioc`, `ioc_type`, `malware`, `status`, `feed`; tags start with `["ioc", …]`.
+A **single free Auth-Key** ([auth.abuse.ch](https://auth.abuse.ch)) unlocks ThreatFox and MalwareBazaar; without it, only the public feeds (Feodo, URLhaus) run. Set it via the `ABUSECH_API_KEY` environment variable. Each event carries `raw` fields `ioc`, `ioc_type`, `malware` and `feed`, plus feed-specific extras (`status` and `country` on Feodo, `status` on URLhaus, `confidence` on ThreatFox); tags start with `["ioc", …]`.
 
 ---
 
@@ -923,7 +926,7 @@ briefings:
 | `min_items` | `1` | don't send a brief with fewer than N new items (accumulates instead) |
 | `max_items` | `40` | cap on items fed to the LLM |
 | `top_n` | `0` | `0` = a short 2-4 highlight narrative; `N` = a ranked, numbered **Top N** digest (e.g. "Top 10 CVEs of the week") |
-| `template` | `briefing_default.j2` | Markdown for Discord/Teams; `briefing_telegram.j2` for Telegram |
+| `template` | *(inline default)* | Omitted gives a built-in one-line layout; assign `briefing_default.j2` (Markdown, Discord/Teams) or `briefing_telegram.j2` (Telegram) for the full card. `briefing-add` writes `briefing_default.j2` for you |
 
 **How it works**: every collection cycle, after delivery, each briefing checks
 whether its `schedule` has elapsed. If so it gathers the events **ingested since
@@ -1034,8 +1037,8 @@ cassandra run --loop --interval 600 --verbose
 # Only fetch ransomware and CERT feeds
 cassandra run --sources "ransomware.live,rss:CERT-FR Alertes"
 
-# Backfill events from the past week, no dedup
-cassandra run --since 2025-03-12 --no-dedupe
+# Reprocess events from a chosen start date, skipping dedup
+cassandra run --since 2026-10-14 --no-dedupe
 
 # Dry run to test a new config
 cassandra run --dry-run --verbose
@@ -1347,7 +1350,7 @@ cassandra list
 Replay past events to a specific transport.
 
 ```bash
-cassandra backfill --to teams-soc --since 2025-03-01
+cassandra backfill --to teams-soc --since 2026-10-01
 ```
 
 ---
@@ -1372,10 +1375,10 @@ Selectively clear dedup history without resetting the whole database.
 cassandra seen-clear --source-prefix "rss:Bleeping Computer"
 
 # Clear events seen before a date
-cassandra seen-clear --before 2025-01-01
+cassandra seen-clear --before 2026-01-01
 
 # Clear events from a source after a date
-cassandra seen-clear --source-prefix "ransomware.live" --since 2025-03-01
+cassandra seen-clear --source-prefix "ransomware.live" --since 2026-10-01
 ```
 
 ---
@@ -1396,6 +1399,7 @@ cassandra service uninstall                    # stop, disable, remove
 | Option | Description |
 |---|---|
 | `--command` | The `cassandra ...` command the service runs (default `run --loop --interval 300`) |
+| `--name` | Service and unit name (default `cassandra-cti`) |
 | `--system` / `--user` | System service (needs root) or per-user systemd service |
 | `--init` | `auto` (default), `systemd`, or `openrc` |
 | `--env-file` | systemd `EnvironmentFile` holding your secrets |
@@ -1483,7 +1487,7 @@ The single most important thing to understand: **deduplication is what makes "on
 reload config → fetch all sources → filter → DEDUP (SQLite) → route → deliver
 ```
 
-The store keeps this delivery history for `store.seen_ttl_days` (default 90) before purging old entries.
+The store keeps this delivery history for `store.seen_ttl_days` days before purging old entries. `config.example.yaml` ships `90`; omit the key (or set `0`) to keep history indefinitely.
 
 ### One-shot vs. loop
 
@@ -1585,9 +1589,10 @@ pip install '.[gui]'    # adds PySide6
 cassandra gui           # or: cassandra-gui, or: python -m cassandra_cti.gui
 ```
 
-Pick a subcommand on the left, fill the form, press Run (Ctrl+G). The command
-it runs is shown above the output pane; stdout goes to Output, the command line
-and stderr to Log.
+Pick a subcommand on the left, fill the form, and press **Run once** (or **Run
+and watch** to keep the pipeline streaming). The command it runs is shown above
+the output pane; stdout goes to Output, the command line and stderr to Log, and
+`Ctrl+R` reloads the config from disk.
 
 By design the GUI talks to the pipeline only by running the `cassandra` CLI as
 a subprocess, never by importing the core, so the CLI remains the single source

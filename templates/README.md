@@ -66,8 +66,9 @@ card sent to SMTP would show literal `**` and `[](…)`.
 - **`red.flag.domains`** - `count`, `date`.
 - **`cisa.kev`** - `cve`, `vendor`, `product`, `due_date`,
   `ransomware_use` (bool), `required_action`, `date_added`.
-- **`abuse.ch`** - `ioc`, `ioc_type`, `malware`, `country`, `status`,
-  `confidence`, `feed` (`feodo` / `threatfox` / `urlhaus` / `malwarebazaar`).
+- **`abuse.ch`** - `ioc`, `ioc_type`, `malware`, `feed`, plus feed-specific
+  `status` (feodo/urlhaus), `country` (feodo) and `confidence` (threatfox).
+  `feed` is one of `feodo` / `threatfox` / `urlhaus` / `malwarebazaar`.
 
 Missing fields render as empty - every card guards optional lines with
 `{% if raw.x %}`, so an incomplete event never crashes the template.
