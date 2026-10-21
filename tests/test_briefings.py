@@ -200,3 +200,33 @@ def test_dry_run_does_not_persist_output(tmp_path):
     llm, rec = FakeLLM(), Rec()
     asyncio.run(run_briefings(_S([_brief(min_items=1)]), st, {"d1": rec}, llm=llm, dry=True))
     assert st.recent_briefings() == []
+
+
+def test_dashboard_only_briefing_persists_and_marks_sent(tmp_path):
+    # No external transport: the briefing is produced for the dashboard only,
+    # persisted and marked sent so it follows its schedule (no regenerate loop).
+    st = _store(tmp_path, ["cisa.kev", "cisa.kev"])
+    llm = FakeLLM(text="DASHBOARD BRIEF")
+    n = asyncio.run(run_briefings(_S([_brief(min_items=1, top_n=10, transports=[])]), st, {}, llm=llm))
+    assert n == 1
+    rows = st.recent_briefings()
+    assert len(rows) == 1 and rows[0]["body"] == "DASHBOARD BRIEF"
+    assert st.briefing_last_sent("vuln-brief")      # marked -> will not regenerate next cycle
+
+
+def test_failed_delivery_is_not_persisted_and_retries(tmp_path):
+    # A briefing with a transport that fails is neither persisted nor marked, so
+    # it retries next cycle instead of leaving a stale copy on the dashboard.
+    st = _store(tmp_path, ["cisa.kev"])
+
+    class Boom:
+        async def send(self, *a, **k):
+            raise RuntimeError("transport down")
+
+        async def aclose(self):
+            pass
+
+    n = asyncio.run(run_briefings(_S([_brief(min_items=1)]), st, {"d1": Boom()}, llm=FakeLLM()))
+    assert n == 0
+    assert st.recent_briefings() == []
+    assert st.briefing_last_sent("vuln-brief") is None

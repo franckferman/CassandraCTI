@@ -1,0 +1,84 @@
+schema_version: 1
+
+# ----------------------------------------------------------------------------
+# Scenario: Intel digests on the web dashboard - live feed + LLM Top-N analyses.
+# Everything streams into the local dashboard (live feed), and the LLM produces
+# ranked Top-N digests (CVEs, ransomware, news) that land in the "Analyses" tab.
+# Nothing is sent to any external chat: the briefings have no transport, so they
+# are dashboard-only (persisted and shown, never pushed out).
+#
+# Needs the llm: layer to resolve a provider - a local Ollama (free/offline) or
+# a cloud key (ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY). Without a
+# provider the live feed still works; only the Analyses tab stays empty.
+#
+# Run, then open http://127.0.0.1:8080 (the Analyses tab fills as briefings run):
+#   cassandra run --loop --interval 600 \
+#     --config examples/intel-digests-dashboard/config.yaml \
+#     --connectors examples/intel-digests-dashboard/connectors.yaml
+#
+# Force the digests immediately (ignores schedule), then reload the dashboard:
+#   cassandra briefing-run --all \
+#     --config examples/intel-digests-dashboard/config.yaml \
+#     --connectors examples/intel-digests-dashboard/connectors.yaml
+# ----------------------------------------------------------------------------
+
+sources:
+  cisa_kev:
+    enabled: true
+    lookback_days: 365
+  ransomware_live:
+    enabled: true
+    lookback_days: 14
+  rss:
+    enabled: true
+    feeds:
+      - { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/", tags: ["news"] }
+      - { name: "The Hacker News", url: "https://feeds.feedburner.com/TheHackersNews", tags: ["news"] }
+
+transports:
+  use: ["web"]
+
+routes:
+  # Live feed: every event streams into the dashboard as it arrives.
+  - name: dashboard
+    include_regex: "."
+    transports: ["web"]
+
+briefings:
+  # Dashboard-only digests: no transports -> persisted for the Analyses tab,
+  # never pushed to an external chat. Each is a ranked Top-N over its window.
+  - name: cve-top10-weekly
+    transports: []
+    schedule: "168h"
+    include_sources: ["cisa.kev"]
+    top_n: 10
+    focus: "Rank actively-exploited and widely-deployed products first."
+    title: "Top 10 CVEs this week"
+
+  - name: ransomware-top10-weekly
+    transports: []
+    schedule: "168h"
+    include_sources: ["ransomware.live"]
+    top_n: 10
+    focus: "Rank by victim sector sensitivity and organisation size."
+    title: "Top 10 ransomware victims this week"
+
+  - name: news-top10-daily
+    transports: []
+    schedule: "24h"
+    include_tags: ["news"]
+    min_items: 5
+    top_n: 10
+    focus: "Rank by real-world impact and novelty for a CTI audience."
+    title: "Top 10 security news today"
+
+# The optional LLM layer. provider "auto" tries a local Ollama first, else the
+# first cloud key set in the environment. Without either, briefings are skipped
+# and only the live feed is populated.
+llm:
+  enabled: true
+  provider: auto
+  max_tokens: 500
+
+store:
+  sqlite_path: ".cassandra_cti.db"

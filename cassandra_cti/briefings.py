@@ -268,14 +268,6 @@ async def run_briefings(settings, store, transports_by_id: Dict[str, Any],
         ev = Event(source=b.name, title=title, url=None, summary=text,
                    tags=["briefing"], raw={"kind": "briefing", "count": len(events)})
 
-        # Persist the analysis so the web dashboard can show it. Done before
-        # delivery so a flaky transport does not lose the generated brief.
-        try:
-            store.save_briefing_output(b.name, title, text, len(events), label)
-        except Exception as e:  # noqa: BLE001 - persistence must not sink delivery
-            if log:
-                log.warning(f"briefing '{b.name}': could not persist output: {e}")
-
         delivered = False
         for tid in b.transports:
             tr = transports_by_id.get(tid)
@@ -290,7 +282,17 @@ async def run_briefings(settings, store, transports_by_id: Dict[str, Any],
                 if log:
                     log.error(f"briefing '{b.name}' -> {tid} failed: {e}")
 
-        if delivered:
+        # A briefing is done once it reaches a target. The dashboard is always a
+        # target: the brief is persisted for the Analyses panel. So a briefing
+        # with no external transport is done as soon as it is produced; one with
+        # transports is done when a transport accepts it, which keeps the retry
+        # on a transient outage and avoids persisting the same brief twice.
+        if delivered or not b.transports:
+            try:
+                store.save_briefing_output(b.name, title, text, len(events), label)
+            except Exception as e:  # noqa: BLE001 - persistence must not sink the run
+                if log:
+                    log.warning(f"briefing '{b.name}': could not persist output: {e}")
             store.mark_briefing_sent(b.name, _iso(now))
             sent += 1
 
