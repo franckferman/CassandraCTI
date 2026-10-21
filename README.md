@@ -36,7 +36,7 @@
 
 ## About
 
-**CassandraCTI** (named after the Trojan prophetess condemned to warn of future dangers without being believed) is a modular, asynchronous CTI pipeline (it does the opposite: it makes sure your threat intel actually reaches the people who need it).
+**CassandraCTI** is a modular, asynchronous CTI pipeline. The name is Cassandra, the Trojan prophetess condemned to warn of real danger and never be believed; the tool is built to do the opposite, to make sure your threat intel actually reaches the people who need to act on it.
 
 Built from tooling I developed for enterprise security needs, it is released as open source: composable and adaptable to any security team's workflow.
 
