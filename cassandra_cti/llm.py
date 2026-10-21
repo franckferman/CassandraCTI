@@ -14,6 +14,7 @@
 # Design ported from the Bikochu recon platform's llm layer, adapted to
 # aiohttp (already a CassandraCTI dependency) and current Claude model IDs.
 from __future__ import annotations
+import asyncio
 import os
 import socket
 from typing import Any, Dict, Optional
@@ -118,9 +119,16 @@ class LLM:
         if not provider:
             raise LLMError("no LLM provider available; start Ollama with a model, "
                            "or set a cloud API key (ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY)")
-        if provider == "ollama":
-            return await self._ollama(model, prompt, system)
-        return await self._cloud(provider, model, prompt, system)
+        # Turn a transport failure (connection refused, or slow generation that
+        # hits the timeout) into an LLMError so a caller like run_briefings skips
+        # this one brief instead of crashing the whole run. The type name carries
+        # no URL or API key, so nothing sensitive reaches a log.
+        try:
+            if provider == "ollama":
+                return await self._ollama(model, prompt, system)
+            return await self._cloud(provider, model, prompt, system)
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            raise LLMError(f"{provider} unreachable or too slow ({type(e).__name__})") from e
 
     async def _ollama(self, model: str, prompt: str, system: Optional[str]) -> str:
         body: Dict[str, Any] = {"model": model, "prompt": prompt, "stream": False,

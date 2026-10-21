@@ -230,3 +230,21 @@ def test_failed_delivery_is_not_persisted_and_retries(tmp_path):
     assert n == 0
     assert st.recent_briefings() == []
     assert st.briefing_last_sent("vuln-brief") is None
+
+
+def test_llm_failure_skips_briefing_without_crashing(tmp_path):
+    # A failing LLM (e.g. a timing-out local Ollama) must skip that briefing,
+    # not crash the whole run: the LLM layer raises LLMError and run_briefings
+    # catches it. Nothing is persisted or delivered for the skipped brief.
+    from cassandra_cti.llm import LLMError
+    st = _store(tmp_path, ["cisa.kev"])
+
+    class FailLLM:
+        async def complete(self, prompt, system=None):
+            raise LLMError("ollama unreachable or too slow (TimeoutError)")
+
+    rec = Rec()
+    n = asyncio.run(run_briefings(_S([_brief(min_items=1)]), st, {"d1": rec}, llm=FailLLM()))
+    assert n == 0
+    assert st.recent_briefings() == []
+    assert rec.sent == []

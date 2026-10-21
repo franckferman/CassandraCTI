@@ -113,3 +113,22 @@ def test_summarize_event_builds_prompt(monkeypatch):
     # System prompt pins the plain-prose, no-Markdown contract the UI relies on.
     assert "SOC analyst" in captured["system"]
     assert "no Markdown" in captured["system"]
+
+
+def test_complete_wraps_transport_error_as_llmerror(monkeypatch):
+    # A timeout or connection error from the provider must surface as LLMError
+    # so callers (briefings, dashboard) handle it uniformly, not a raw aiohttp
+    # or asyncio error that would crash a whole briefing run.
+    llm = LLM({"provider": "ollama"})
+
+    async def fake_resolve(self):
+        return {"provider": "ollama", "model": "m", "available": True,
+                "providers": {}, "configured": "ollama"}
+
+    async def fake_ollama(self, model, prompt, system):
+        raise asyncio.TimeoutError()
+
+    monkeypatch.setattr(LLM, "resolve", fake_resolve)
+    monkeypatch.setattr(LLM, "_ollama", fake_ollama)
+    with pytest.raises(LLMError):
+        asyncio.run(llm.complete("hi"))
