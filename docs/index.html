@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CassandraCTI, Modular Cyber Threat Intelligence Aggregator</title>
-  <meta name="description" content="CassandraCTI aggregates threat intelligence from RSS feeds, ransomware trackers, malicious domains, CISA KEV vulnerabilities and abuse.ch IOCs, then routes it to Microsoft Teams, Discord, Telegram, email or a live web dashboard, with optional AI briefings." />
+  <meta name="description" content="CassandraCTI aggregates threat intelligence from RSS feeds, ransomware trackers, malicious domains, CISA KEV vulnerabilities and abuse.ch IOCs, then routes it to Microsoft Teams, Discord, Telegram, Signal, email or a live web dashboard, with optional LLM briefings and cross-source analyses." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
@@ -1082,7 +1082,7 @@
     <div class="ticker-item"><div class="dot"></div>Red Flag Domains</div>
     <div class="ticker-item"><div class="dot"></div>Microsoft Security</div>
     <div class="ticker-item"><div class="dot"></div>Krebs on Security</div>
-    <div class="ticker-item"><div class="dot"></div>Google TAG</div>
+    <div class="ticker-item"><div class="dot"></div>Sekoia.io</div>
     <div class="ticker-item"><div class="dot"></div>Cisco Talos</div>
     <div class="ticker-item"><div class="dot"></div>SANS ISC Diary</div>
     <div class="ticker-item"><div class="dot"></div>Dark Reading</div>
@@ -1095,7 +1095,7 @@
     <div class="ticker-item"><div class="dot"></div>Red Flag Domains</div>
     <div class="ticker-item"><div class="dot"></div>Microsoft Security</div>
     <div class="ticker-item"><div class="dot"></div>Krebs on Security</div>
-    <div class="ticker-item"><div class="dot"></div>Google TAG</div>
+    <div class="ticker-item"><div class="dot"></div>Sekoia.io</div>
     <div class="ticker-item"><div class="dot"></div>Cisco Talos</div>
     <div class="ticker-item"><div class="dot"></div>SANS ISC Diary</div>
     <div class="ticker-item"><div class="dot"></div>Dark Reading</div>
@@ -1132,9 +1132,9 @@
       <div class="feed-header">
         <div class="feed-header-left">
           <div class="status-dot" style="width:6px;height:6px;"></div>
-          LIVE INTEL FEED
+          SAMPLE INTEL FEED
         </div>
-        <div class="feed-header-right" id="feed-clock">,</div>
+        <div class="feed-header-right" id="feed-clock">--:--:--</div>
       </div>
       <div class="feed-body">
         <div class="feed-stream" id="feed-stream">
@@ -1145,7 +1145,7 @@
         <div class="feed-counter">
           <span><span class="counter-val">41</span> FEEDS</span>
           <span><span class="counter-val">0</span> DUPES</span>
-          <span><span class="counter-val" id="evt-count">,</span> EVENTS</span>
+          <span><span class="counter-val" id="evt-count">0</span> EVENTS</span>
         </div>
         <span>DEDUP: ON · SQLITE</span>
       </div>
@@ -1189,7 +1189,8 @@
         RSS / Atom feeds<br>
         Ransomware.live (PRO→v2)<br>
         SEC 8-K · Press · Stats<br>
-        Red Flag Domains
+        Red Flag Domains<br>
+        CISA KEV · abuse.ch
       </div>
       <div class="pipe-arrow">›</div>
     </div>
@@ -1221,7 +1222,8 @@
       <div class="pipe-title">Transports</div>
       <div class="pipe-items">
         Teams · Discord<br>
-        Telegram · Email<br>
+        Telegram · Signal<br>
+        Email · Web<br>
         Retry + throttle
       </div>
     </div>
@@ -1260,15 +1262,15 @@
           <span class="rss-tag">Cisco Talos</span><span class="rss-tag">Trend Micro</span><span class="rss-tag">Proofpoint</span>
           <span class="rss-tag">Checkpoint Research</span><span class="rss-tag">SentinelOne</span><span class="rss-tag">RedCanary</span>
           <span class="rss-tag">Palo Alto Unit 42</span><span class="rss-tag">Kaspersky Securelist</span>
-          <span class="rss-tag">Recorded Future</span><span class="rss-tag">Google TAG</span><span class="rss-tag">ATT LevelBlue</span>
+          <span class="rss-tag">Recorded Future</span><span class="rss-tag">Fortinet PSIRT</span><span class="rss-tag">Sekoia.io</span>
           <span class="rss-cat">News</span>
           <span class="rss-tag">Krebs on Security</span><span class="rss-tag">Bleeping Computer</span>
           <span class="rss-tag">Dark Reading</span><span class="rss-tag">Hacker News</span>
           <span class="rss-tag">SANS ISC Diary</span><span class="rss-tag">Schneier on Security</span>
           <span class="rss-tag">Graham Cluley</span><span class="rss-tag">VirusBulletin</span>
-          <span class="rss-tag">InfoSecurity Magazine</span><span class="rss-tag">Cyber-News.fr</span>
+          <span class="rss-tag">InfoSecurity Magazine</span>
           <span class="rss-cat">Technical</span>
-          <span class="rss-tag">Adam Chester (XPN)</span><span class="rss-tag">watchTowr Labs</span><span class="rss-tag">The DFIR Report</span>
+          <span class="rss-tag">Adam Chester (XPN)</span><span class="rss-tag">watchTowr Labs</span><span class="rss-tag">The DFIR Report</span><span class="rss-tag">Google Project Zero</span><span class="rss-tag">Quarkslab</span>
           <span class="rss-tag" style="color:var(--amber);border-color:rgba(245,158,11,.3)">+ custom feeds</span>
         </div>
       </div>
@@ -1310,7 +1312,7 @@
         </div>
       </div>
       <div class="source-body">
-        <p class="source-desc">Downloads the daily malicious domain list. One event per run with a 50-domain preview and a direct link to the full list.</p>
+        <p class="source-desc">Downloads the daily malicious domain list. One event per daily list file (it catches up any days missed during downtime), each with a 50-domain preview and a direct link to the full list.</p>
         <div class="source-fields">
           <span class="field-chip">daily .txt file</span>
           <span class="field-chip">domain count</span>
@@ -1529,8 +1531,8 @@
         <div class="param-row"><span class="pk">host · port</span><span class="pv">127.0.0.1 · 8080</span></div>
         <div class="param-row"><span class="pk">token</span><span class="pv">Optional Bearer / ?token=</span></div>
         <div class="param-row"><span class="pk">stream</span><span class="pv">Server-Sent Events · live</span></div>
-        <div class="param-row"><span class="pk">tabs</span><span class="pv">Overview · Ransomware · RSS · Vulns · IOCs</span></div>
-        <div class="param-row"><span class="pk">extras</span><span class="pv">Filters · export · inventory · AI briefs</span></div>
+        <div class="param-row"><span class="pk">tabs</span><span class="pv">Overview · Analyses · Live feed · Ransomware · RSS · Red flags · Vulns · IOCs</span></div>
+        <div class="param-row"><span class="pk">extras</span><span class="pv">Cross-source CVE correlations · weekly trends · LLM briefings · filters · export · inventory</span></div>
         <div class="param-row"><span class="pk">shortcut</span><span class="pv">cassandra run --web</span></div>
       </div>
     </div>
@@ -1641,7 +1643,7 @@
         <div class="tl-num">01</div>
         <div class="tl-content">
           <div class="tl-title">Install</div>
-          <p class="tl-desc">Clone and install. The <code style="font-family:monospace;font-size:.85em;color:var(--amber)">cassandra</code> CLI entry point is available globally after install.</p>
+          <p class="tl-desc">Clone and install. The <code style="font-family:monospace;font-size:.85em;color:var(--amber)">cassandra</code> CLI entry point is available globally after install. No Python toolchain? Each release also ships self-contained, double-click binaries for Linux, macOS and Windows.</p>
           <div class="code-win">
             <pre><span class="co">$</span> git clone https://github.com/franckferman/CassandraCTI.git
 <span class="co">$</span> cd CassandraCTI && pip install .
@@ -1884,7 +1886,7 @@ const items = [
   {time:'14:29:03',source:'red.flag.domains',title:'Red Flag Domains, 2026-03-19 (12,847 domains)',badge:'domains',bl:'b-domain'},
   {time:'14:28:21',source:'rss:Cisco Talos',title:'New campaign targeting ICS systems in Europe',badge:'vendor',bl:'b-vendor'},
   {time:'14:27:44',source:'ransomware.live',title:'LockBit 3.0, Victim: LogisticsGmbH 🇩🇪',badge:'ransomware',bl:'b-ransomware'},
-  {time:'14:26:18',source:'rss:Google TAG',title:'APT29 infrastructure update, credential phishing wave',badge:'vendor',bl:'b-vendor'},
+  {time:'14:26:18',source:'rss:Sekoia.io',title:'APT29 infrastructure update, credential phishing wave',badge:'vendor',bl:'b-vendor'},
   {time:'14:25:09',source:'rss:Krebs on Security',title:'Inside the leak that exposed 50M health records',badge:'news',bl:'b-news'},
   {time:'14:24:33',source:'rss:SANS ISC Diary',title:'CVE-2026-0831: Apache RCE under active exploitation',badge:'cert',bl:'b-cert'},
   {time:'14:23:11',source:'rss:Palo Alto Unit 42',title:'Scattered Spider pivots to cloud-native intrusion path',badge:'vendor',bl:'b-vendor'},
