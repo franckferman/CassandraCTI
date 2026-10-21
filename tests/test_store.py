@@ -47,3 +47,47 @@ def test_briefing_outputs_survive_reopen(tmp_path):
     Store(db).save_briefing_output("x", "T", "persisted", item_count=1, period_label="24h")
     # A fresh Store on the same file (the dashboard opens its own) sees it.
     assert Store(db).recent_briefings()[0]["body"] == "persisted"
+
+
+def test_cve_correlations_cross_source(tmp_path):
+    s = Store(str(tmp_path / "c.db"))
+    CVE = "CVE-2026-1234"
+    # KEV: structured meta.cve (kind vuln).
+    s.upsert_event("k1", "cisa.kev", "https://nvd/1234", f"{CVE}: FortiOS RCE",
+                   "patch now", None, tags=["kev"], meta={"cve": CVE})
+    # News: CVE only in the title text (kind rss).
+    s.upsert_event("n1", "rss:BleepingComputer", "https://bc/x",
+                   f"Hackers exploit {CVE} in the wild", "mass scanning", None,
+                   tags=["news"], meta={})
+    # Ransomware: CVE in the summary text (kind ransomware).
+    s.upsert_event("r1", "ransomware.live", "https://rw/x", "ACME breached by qilin",
+                   f"entry names {CVE} as the initial vector", None,
+                   tags=["ransomware"], meta={})
+    # Single-source CVE -> excluded (min_sources=2).
+    s.upsert_event("k2", "cisa.kev", "https://nvd/9999", "CVE-2026-9999: minor",
+                   "low", None, tags=["kev"], meta={"cve": "CVE-2026-9999"})
+
+    cors = s.cve_correlations(min_sources=2)
+    cves = {c["cve"] for c in cors}
+    assert CVE in cves
+    assert "CVE-2026-9999" not in cves
+    top = next(c for c in cors if c["cve"] == CVE)
+    assert set(top["kinds"]) == {"vuln", "rss", "ransomware"}
+    assert top["count"] == 3
+    assert len(top["sources"]) == 3
+    assert top["titles"]                       # a few sample titles kept
+
+
+def test_cve_correlations_sorted_by_breadth(tmp_path):
+    s = Store(str(tmp_path / "c.db"))
+    # Wide: 3 kinds mention CVE-2026-1001.
+    s.upsert_event("a1", "cisa.kev", "u1", "CVE-2026-1001: x", "", None, meta={"cve": "CVE-2026-1001"})
+    s.upsert_event("a2", "rss:news", "u2", "news on CVE-2026-1001", "", None, meta={})
+    s.upsert_event("a3", "ransomware.live", "u3", "victim", "uses CVE-2026-1001", None, meta={})
+    # Narrow: 2 news outlets mention CVE-2026-2002 (2 sources, 1 kind).
+    s.upsert_event("b1", "rss:A", "u4", "CVE-2026-2002 covered", "", None, meta={})
+    s.upsert_event("b2", "rss:B", "u5", "more on CVE-2026-2002", "", None, meta={})
+
+    cors = s.cve_correlations(min_sources=2)
+    assert cors[0]["cve"] == "CVE-2026-1001"       # widest breadth (3 kinds) first
+    assert "CVE-2026-2002" in {c["cve"] for c in cors}   # multi-outlet still surfaced

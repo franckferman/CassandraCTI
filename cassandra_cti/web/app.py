@@ -122,6 +122,19 @@ def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub,
         briefings = store.recent_briefings(limit=limit, name=request.query.get("name") or None)
         return web.json_response({"briefings": briefings})
 
+    async def api_correlations(request: web.Request) -> web.Response:
+        if not _check_auth(request, app[TOKEN_KEY]):
+            raise web.HTTPUnauthorized(text="missing or invalid token")
+        store: Optional[Store] = app[STORE_KEY]
+        if not store:
+            return web.json_response({"correlations": [], "note": "no history database configured"})
+        try:
+            days = min(max(int(request.query.get("days", 14)), 1), 90)
+        except (TypeError, ValueError):
+            days = 14
+        cors = store.cve_correlations(lookback_days=days)
+        return web.json_response({"correlations": cors})
+
     async def api_stats(request: web.Request) -> web.Response:
         if not _check_auth(request, app[TOKEN_KEY]):
             raise web.HTTPUnauthorized(text="missing or invalid token")
@@ -204,6 +217,7 @@ def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub,
     app.router.add_get("/", index)
     app.router.add_get("/api/events", api_events)
     app.router.add_get("/api/briefings", api_briefings)
+    app.router.add_get("/api/correlations", api_correlations)
     app.router.add_get("/api/stats", api_stats)
     app.router.add_get("/api/stream", api_stream)
     app.router.add_get("/api/meta", api_meta)

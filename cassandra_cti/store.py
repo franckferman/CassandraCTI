@@ -6,6 +6,8 @@ from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+from .util import extract_cves
+
 SCHEMA = """
 PRAGMA journal_mode=WAL;
 
@@ -252,6 +254,58 @@ class Store:
             cur = db.execute(sql, params)
             cols = [c[0] for c in cur.description]
             return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def cve_correlations(self, lookback_days: int = 14, min_sources: int = 2,
+                         limit: int = 50) -> List[Dict[str, Any]]:
+        """CVEs corroborated by more than one source in the recent window.
+
+        A CVE that shows up in the KEV catalog and in the news and next to a
+        ransomware group is higher signal than any single mention. Each CVE is
+        collected from the structured meta (KEV) and from the title/summary text
+        (everyone else), then grouped: the distinct source kinds and sources
+        that mention it, the event count, the latest timestamp and a few sample
+        titles. Only CVEs spanning at least `min_sources` distinct sources are
+        returned, widest cross-kind breadth first.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+        cutoff_iso = cutoff.isoformat(timespec="seconds").replace("+00:00", "Z")
+        agg: Dict[str, Dict[str, Any]] = {}
+        with closing(self._connect()) as db:
+            cur = db.execute(
+                "SELECT source, title, summary, meta, "
+                "COALESCE(published_at, first_seen_at) AS ts "
+                "FROM events WHERE first_seen_at >= ?", (cutoff_iso,))
+            rows = cur.fetchall()
+        for source, title, summary, meta_json, ts in rows:
+            meta = {}
+            if meta_json:
+                try:
+                    meta = json.loads(meta_json)
+                except (ValueError, TypeError):
+                    meta = {}
+            cves = set(extract_cves(title, summary))
+            mc = meta.get("cve")
+            if mc:
+                cves.add(str(mc).upper())
+            if not cves:
+                continue
+            k = _kind(source)
+            for cve in cves:
+                a = agg.setdefault(cve, {"cve": cve, "kinds": set(), "sources": set(),
+                                         "count": 0, "latest": "", "titles": []})
+                a["kinds"].add(k)
+                a["sources"].add(source)
+                a["count"] += 1
+                if ts and ts > a["latest"]:
+                    a["latest"] = ts
+                if title and title not in a["titles"] and len(a["titles"]) < 3:
+                    a["titles"].append(title)
+        picked = [a for a in agg.values() if len(a["sources"]) >= min_sources]
+        picked.sort(key=lambda a: (len(a["kinds"]), len(a["sources"]), a["count"], a["latest"]),
+                    reverse=True)
+        return [{"cve": a["cve"], "kinds": sorted(a["kinds"]), "sources": sorted(a["sources"]),
+                 "count": a["count"], "latest": a["latest"], "titles": a["titles"]}
+                for a in picked[:limit]]
 
     def stats(self) -> Dict[str, Any]:
         """Aggregate counters for the web dashboard. Read-only.

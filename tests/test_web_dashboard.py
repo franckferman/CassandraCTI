@@ -295,6 +295,28 @@ def test_api_briefings_without_store_is_graceful():
     assert st == 200 and j["briefings"] == [] and "note" in j
 
 
+def test_api_correlations_cross_source(tmp_path):
+    db = str(tmp_path / "c.db")
+    store = Store(db)
+    cve = "CVE-2026-7777"
+    store.upsert_event("k", "cisa.kev", "https://nvd/7777", f"{cve}: RCE", "patch",
+                       ISO, tags=["kev"], meta={"cve": cve})
+    store.upsert_event("n", "rss:News", "https://n/x", f"exploit for {cve} seen", "",
+                       ISO, tags=["news"], meta={})
+    _, port = _serve(db_path=db)
+
+    st, j = _jget(port, "/api/correlations")
+    assert st == 200
+    hit = next(c for c in j["correlations"] if c["cve"] == cve)
+    assert set(hit["kinds"]) == {"vuln", "rss"} and len(hit["sources"]) == 2
+
+
+def test_api_correlations_without_store_is_graceful():
+    _, port = _serve(db_path=None)
+    st, j = _jget(port, "/api/correlations")
+    assert st == 200 and j["correlations"] == [] and "note" in j
+
+
 def test_dashboard_page_has_analyses_tab_wired():
     # The Analyses tab exists and is wired to the /api/briefings data path
     # through renderAnalyses, rendering each brief with the escaping renderer.
@@ -354,14 +376,14 @@ def test_auth_required_on_every_endpoint(tmp_path):
 
     # No token: every endpoint refuses. /api/stream rejects before it streams,
     # so the GET returns promptly rather than hanging.
-    for path in ("/", "/api/events", "/api/briefings", "/api/stats", "/api/meta", "/api/stream"):
+    for path in ("/", "/api/events", "/api/briefings", "/api/correlations", "/api/stats", "/api/meta", "/api/stream"):
         st, _b = _get(port, path)
         assert st == 401, f"{path} unauth status {st}"
     st, _b = _post(port, "/api/ai/summarize", {"event": {"title": "x"}})
     assert st == 401
 
     # A Bearer header opens the data endpoints (not /api/stream: it would block).
-    for path in ("/", "/api/events", "/api/briefings", "/api/stats", "/api/meta"):
+    for path in ("/", "/api/events", "/api/briefings", "/api/correlations", "/api/stats", "/api/meta"):
         st, _b = _get(port, path, token=tok)
         assert st == 200, f"{path} authed status {st}"
 
