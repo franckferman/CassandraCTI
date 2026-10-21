@@ -1473,8 +1473,9 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
 
       <h3>The UI</h3>
       <ul>
-        <li><strong>Tabbed</strong>: Overview, Live feed, and one tab per category: Ransomware, RSS, Red flags, Vulnerabilities (CISA KEV), IOCs (abuse.ch).</li>
+        <li><strong>Tabbed</strong>: Overview, Analyses, Live feed, and one tab per category: Ransomware, RSS, Red flags, Vulnerabilities (CISA KEV), IOCs (abuse.ch).</li>
         <li><strong>Overview</strong>: live clock, a stat strip (totals, 24h/7d/30d deltas, critical count, active sources, alerts sent), an activity chart, top sources, by-category and top ransomware groups, source health and a latest-critical list.</li>
+        <li><strong>Analyses</strong>: the LLM and correlation layer, read-only. Cross-source CVEs (a CVE corroborated across KEV, news and ransomware, with its source kinds and an NVD link), Trending this week (ransomware groups and targeted sectors rising versus the previous week, with a <code>new</code> marker), and the persisted LLM briefings. A briefing with no transport is dashboard-only and lands here.</li>
         <li><strong>Feed tabs</strong>: a log-style table with per-category filters, date range, sort, result count, and per-row actions: copy the IOC/CVE, an <strong>AI brief</strong>, and a details modal.</li>
         <li><strong>Actionable</strong>: export the current view to CSV/JSON, deep-link tab + filters + search in the URL, keyboard shortcuts, optional sound on critical events.</li>
         <li><strong>Inventory</strong> (opt-in) and <strong>AI briefs</strong> (opt-in): see below.</li>
@@ -1594,7 +1595,7 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
       <table class="doc-table">
         <tr><th>Key</th><th>Default</th><th>Meaning</th></tr>
         <tr><td>include_sources / include_tags / include_regex / include_terms</td><td>none</td><td>select events like a route (OR across them; none = all)</td></tr>
-        <tr><td>transports</td><td>none</td><td>connector id(s) that receive the brief</td></tr>
+        <tr><td>transports</td><td>none</td><td>connector id(s) that receive the brief; empty <code>[]</code> makes it <strong>dashboard-only</strong> (persisted to the Analyses tab, never pushed to a chat)</td></tr>
         <tr><td>schedule</td><td><code>24h</code></td><td>how often it may fire</td></tr>
         <tr><td>min_items</td><td><code>1</code></td><td>don't send with fewer than N new items</td></tr>
         <tr><td>max_items</td><td><code>40</code></td><td>cap on items fed to the LLM</td></tr>
@@ -1603,6 +1604,7 @@ cassandra run --loop --web --web-port 9000 --web-host 0.0.0.0</code></pre>
       </table>
 
       <p>Each cycle, after delivery, a briefing checks whether its <code>schedule</code> elapsed; if so it gathers the events <strong>ingested since its last run</strong> that match its selectors, has the LLM prioritise them (KEV / ransomware-linked / high-confidence IOCs first) and narrate them with links, sends one message and records the timestamp.</p>
+      <p>Every briefing that is produced is <strong>persisted and shown in the dashboard's Analyses tab</strong> (newest first), next to the cross-source CVE correlations and the weekly trends, so the analyses are in the UI even without a chat connector. A briefing with <code>transports: []</code> is dashboard-only. The <code>intel-digests-dashboard</code> example wires a live feed plus dashboard-only Top-N digests.</p>
       <p>Briefings <strong>compose into per-category digests</strong>: define one per topic, each scoped to its sources, pointed at its own channel, with its own cadence + <code>top_n</code>: e.g. a 6h Top 10 news recap, a daily Top 10 ransomware recap, and a daily + weekly Top 10 CVE recap (the <code>category-digests</code> example wires exactly that). Ranking is the LLM's judgment (exploited/critical first), not CVSS. For a single <strong>cross-category overview</strong>, add a <code>general-debrief</code> briefing with <strong>no selectors</strong> (a catch-all over the whole event pool) pointed at a dedicated channel. Trigger manually with <code>briefing-run</code>:</p>
       <pre><code>cassandra briefing-run --all            # force every briefing now
 cassandra briefing-run --name vuln-daily

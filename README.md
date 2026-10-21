@@ -54,7 +54,7 @@ Built from tooling I developed for enterprise security needs, it is released as 
 |---|---|
 | **Modular sources** | RSS/Atom feeds, the **ransomware.live** family (victims free; plus Cyber Press, SEC 8-K and Stats on its PRO tier), Red Flag Domains, **CISA KEV** vulnerabilities, **abuse.ch** IOCs (Feodo/ThreatFox/URLhaus/MalwareBazaar) |
 | **Modular transports** | Microsoft Teams, Discord, Telegram, Email (SMTP), Signal, and a live web dashboard (extensible) |
-| **Live web dashboard** | Dependency-free SOC command center: real-time SSE feed, per-category tabs, filters, export, optional AI briefs |
+| **Live web dashboard** | Dependency-free SOC command center: real-time SSE feed, per-category tabs, filters, export, optional AI briefs, and an *Analyses* tab (cross-source CVE correlations, weekly trends, persisted LLM briefings) |
 | **Desktop GUI and binaries** | Optional PySide6 desktop app (`cassandra gui`); self-signed, double-click bundles for Linux, macOS and Windows on every release |
 | **LLM briefings** | Optional periodic recap per category, prioritised, with links, sent after the alerts (local Ollama or a cloud key) |
 | **Entity/company watch** | Alert when a name you care about shows up in any feed (`include_terms`, accent/case-insensitive) |
@@ -151,7 +151,7 @@ cassandra quickstart --no-web     # just create the config files
 
 The shipped `config.example.yaml` already enables RSS, ransomware.live and Red Flag Domains, so the dashboard fills up on the first pass. CISA KEV and abuse.ch ship disabled; flip their `enabled: true` to add them. To also push alerts to Teams/Discord/Telegram/Email, wire a connector and a route as below.
 
-> **Prefer a worked example?** The [`examples/`](examples/) directory has ready-to-run `config.yaml` + `connectors.yaml` pairs, one per scenario (Discord quickstart, multi-channel Teams SOC, Telegram channel, email digest, vulnerability/IOC watch, dashboard-only). Copy the closest folder, set its env vars, and run. See [`examples/README.md`](examples/README.md).
+> **Prefer a worked example?** The [`examples/`](examples/) directory has ready-to-run `config.yaml` + `connectors.yaml` pairs, one per scenario (Discord quickstart, multi-channel Teams SOC, Telegram channel, email digest, vulnerability/IOC watch, dashboard-only, intel digests on the dashboard). Copy the closest folder, set its env vars, and run. See [`examples/README.md`](examples/README.md).
 
 ### Quick Start
 
@@ -749,11 +749,12 @@ routes:
 
 **UI, a dense, terminal-grade SOC command center** (light/dark, monospace data, self-contained, no CDN):
 
-- **Tabbed**: *Overview*, *Live feed*, and one tab per category: *Ransomware*, *RSS*, *Red flags*, *Vulnerabilities* (CISA KEV), *IOCs* (abuse.ch).
+- **Tabbed**: *Overview*, *Analyses*, *Live feed*, and one tab per category: *Ransomware*, *RSS*, *Red flags*, *Vulnerabilities* (CISA KEV), *IOCs* (abuse.ch).
 - **Overview**: a live clock and a stat strip (total, new over 24h/7d/30d with a delta vs the previous period, critical count, active sources, alerts sent, live clients), an interactive activity chart, a top-sources and by-category breakdown, a most-active ransomware-groups table, source health (last event per source), and a latest-critical list.
+- **Analyses**: the LLM and correlation layer in one place, read-only. **Cross-source CVEs** (a CVE corroborated across the KEV catalog, the news and ransomware activity, with its source kinds, a sample headline and a link to NVD), **Trending this week** (ransomware groups and targeted sectors ramping up versus the previous week, with a `new` marker for first-seen), and the persisted **LLM briefings** (ranked Top-N digests). A briefing with no transport is dashboard-only: it lands here instead of being pushed to a chat.
 - **Feed tabs**: a log-style table (time · source · event) with per-category filters (group/country/sector, vendor + ransomware-linked, malware/IOC-type, feed/tag…), a date-range and sort (newest / oldest / criticality), a result count, and per-row actions: **copy** the IOC/CVE, an **AI brief**, and a **details** view.
 - **Details**: a modal per event with all fields, links (open source · NVD · VirusTotal · leak site) and copy.
-- **Actionable**: copy indicators, **export the current view to CSV or JSON**, deep-link the tab + filters + search in the URL, keyboard shortcuts (`1`-`7` tabs, `/` search, `e` export, `Esc` close), and optional sound alerts on critical events.
+- **Actionable**: copy indicators, **export the current view to CSV or JSON**, deep-link the tab + filters + search in the URL, keyboard shortcuts (`1`-`8` tabs, `/` search, `e` export, `Esc` close), and optional sound alerts on critical events.
 - **Inventory** (opt-in): filter/highlight only events that concern your stack (see the `inventory` config section).
 - **AI brief** (opt-in): a SOC-oriented summary per event via the optional `llm` layer (local Ollama or a cloud key).
 
@@ -917,7 +918,7 @@ briefings:
 | Key | Default | Meaning |
 |---|---|---|
 | `include_sources` / `include_tags` / `include_regex` | n/a | select events, exactly like a route (OR across them; none = all) |
-| `transports` | n/a | connector id(s) that receive the brief (must be in `transports.use`) |
+| `transports` | n/a | connector id(s) that receive the brief (must be in `transports.use`); **empty `[]` makes it dashboard-only** (persisted to the *Analyses* tab, never pushed to a chat) |
 | `schedule` | `24h` | how often it may fire (`24h`, `6h`, `30m`, `2d`) |
 | `min_items` | `1` | don't send a brief with fewer than N new items (accumulates instead) |
 | `max_items` | `40` | cap on items fed to the LLM |
@@ -931,6 +932,14 @@ ransomware-linked / high-confidence IOCs first) and narrate them with links, the
 sends one message and records the timestamp. In `--loop` mode this happens on its
 own; the window is keyed on *when CassandraCTI saw* each item, so a brief reflects
 "what's new," not original publish dates.
+
+**On the dashboard**: every briefing that is produced is persisted and shown in
+the dashboard's *Analyses* tab (newest first), next to the cross-source CVE
+correlations and the weekly trends, so the analyses are in the UI even without a
+chat connector. A briefing with `transports: []` is **dashboard-only**: it is
+produced and persisted but never pushed out. The
+[`intel-digests-dashboard`](examples/intel-digests-dashboard/) example wires a
+live feed plus dashboard-only Top-N digests.
 
 **Per-category digests in separate channels**: briefings compose: define one per
 topic, each scoped to its sources and pointed at its own channel, with its own
