@@ -109,6 +109,19 @@ def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub,
                                      q=request.query.get("q") or None)
         return web.json_response({"events": events})
 
+    async def api_briefings(request: web.Request) -> web.Response:
+        if not _check_auth(request, app[TOKEN_KEY]):
+            raise web.HTTPUnauthorized(text="missing or invalid token")
+        store: Optional[Store] = app[STORE_KEY]
+        if not store:
+            return web.json_response({"briefings": [], "note": "no history database configured"})
+        try:
+            limit = min(int(request.query.get("limit", 50)), 200)
+        except (TypeError, ValueError):
+            limit = 50
+        briefings = store.recent_briefings(limit=limit, name=request.query.get("name") or None)
+        return web.json_response({"briefings": briefings})
+
     async def api_stats(request: web.Request) -> web.Response:
         if not _check_auth(request, app[TOKEN_KEY]):
             raise web.HTTPUnauthorized(text="missing or invalid token")
@@ -190,6 +203,7 @@ def create_app(db_path: Optional[str], token: Optional[str], hub: DashboardHub,
 
     app.router.add_get("/", index)
     app.router.add_get("/api/events", api_events)
+    app.router.add_get("/api/briefings", api_briefings)
     app.router.add_get("/api/stats", api_stats)
     app.router.add_get("/api/stream", api_stream)
     app.router.add_get("/api/meta", api_meta)

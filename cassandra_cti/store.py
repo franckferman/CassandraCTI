@@ -4,7 +4,7 @@ import json
 import sqlite3
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -40,6 +40,18 @@ CREATE TABLE IF NOT EXISTS briefings (
   name TEXT PRIMARY KEY,
   last_sent_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS briefing_outputs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  title TEXT,
+  body TEXT NOT NULL,
+  item_count INTEGER NOT NULL DEFAULT 0,
+  period_label TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_briefing_outputs_created ON briefing_outputs(id);
 """
 
 
@@ -212,6 +224,34 @@ class Store:
                 "INSERT INTO briefings(name, last_sent_at) VALUES(?, ?) "
                 "ON CONFLICT(name) DO UPDATE SET last_sent_at=excluded.last_sent_at",
                 (name, when_iso))
+
+    def save_briefing_output(self, name: str, title: Optional[str], body: str,
+                             item_count: int = 0, period_label: Optional[str] = None) -> None:
+        """Persist one generated briefing so the web dashboard can show it.
+
+        Append-only history: each run keeps its own row, so the dashboard shows
+        how an analysis evolved over time, not only the latest one.
+        """
+        with closing(self._connect()) as db, db:
+            db.execute(
+                "INSERT INTO briefing_outputs(name, title, body, item_count, period_label, created_at) "
+                "VALUES(?, ?, ?, ?, ?, ?)",
+                (name, title, body, int(item_count or 0), period_label, _now()))
+
+    def recent_briefings(self, limit: int = 50, name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Most recently generated briefings first. Read-only, used by the dashboard."""
+        sql = ("SELECT id, name, title, body, item_count, period_label, created_at "
+               "FROM briefing_outputs")
+        params: List[Any] = []
+        if name:
+            sql += " WHERE name = ?"
+            params.append(name)
+        sql += " ORDER BY id DESC LIMIT ?"
+        params.append(int(limit))
+        with closing(self._connect()) as db:
+            cur = db.execute(sql, params)
+            cols = [c[0] for c in cur.description]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
 
     def stats(self) -> Dict[str, Any]:
         """Aggregate counters for the web dashboard. Read-only.

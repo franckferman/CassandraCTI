@@ -176,3 +176,27 @@ def test_dry_run_calls_no_llm_and_marks_nothing(tmp_path):
     assert llm.calls == 0              # but no LLM call
     assert rec.sent == []              # and no delivery
     assert st.briefing_last_sent("vuln-brief") is None   # and no state change
+
+
+def test_persists_output_for_dashboard(tmp_path):
+    # A generated briefing is saved so the web dashboard can show it.
+    st = _store(tmp_path, ["cisa.kev", "cisa.kev", "rss:news"])
+    llm, rec = FakeLLM(text="RANKED TOP 10"), Rec()
+    n = asyncio.run(run_briefings(_S([_brief(min_items=1, top_n=10)]), st, {"d1": rec}, llm=llm))
+    assert n == 1
+    rows = st.recent_briefings()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["name"] == "vuln-brief"
+    assert row["body"] == "RANKED TOP 10"
+    assert row["item_count"] == 2          # only the 2 cisa.kev events matched
+    assert row["title"]
+    assert row["created_at"]
+
+
+def test_dry_run_does_not_persist_output(tmp_path):
+    # Dry-run never calls the LLM, so there is nothing to persist.
+    st = _store(tmp_path, ["cisa.kev"])
+    llm, rec = FakeLLM(), Rec()
+    asyncio.run(run_briefings(_S([_brief(min_items=1)]), st, {"d1": rec}, llm=llm, dry=True))
+    assert st.recent_briefings() == []

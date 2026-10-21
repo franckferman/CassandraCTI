@@ -268,6 +268,14 @@ async def run_briefings(settings, store, transports_by_id: Dict[str, Any],
         ev = Event(source=b.name, title=title, url=None, summary=text,
                    tags=["briefing"], raw={"kind": "briefing", "count": len(events)})
 
+        # Persist the analysis so the web dashboard can show it. Done before
+        # delivery so a flaky transport does not lose the generated brief.
+        try:
+            store.save_briefing_output(b.name, title, text, len(events), label)
+        except Exception as e:  # noqa: BLE001 - persistence must not sink delivery
+            if log:
+                log.warning(f"briefing '{b.name}': could not persist output: {e}")
+
         delivered = False
         for tid in b.transports:
             tr = transports_by_id.get(tid)

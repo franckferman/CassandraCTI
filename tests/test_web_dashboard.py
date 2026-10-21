@@ -265,6 +265,36 @@ def test_api_events_without_store_is_graceful():
     assert st == 200 and j["events"] == [] and "note" in j
 
 
+def test_api_briefings_history_and_filters(tmp_path):
+    db = str(tmp_path / "b.db")
+    store = Store(db)
+    store.save_briefing_output("cve-weekly", "CVE Top 10", "1. CVE-2025-1 ...",
+                               item_count=12, period_label="7d")
+    store.save_briefing_output("ransomware", "Ransomware Top 10", "1. ACME by qilin ...",
+                               item_count=8, period_label="24h")
+    store.save_briefing_output("cve-weekly", "CVE Top 10", "newest cve brief",
+                               item_count=15, period_label="7d")
+    _, port = _serve(db_path=db)
+
+    st, j = _jget(port, "/api/briefings")
+    assert st == 200 and len(j["briefings"]) == 3
+    assert j["briefings"][0]["body"] == "newest cve brief"          # newest first
+    assert j["briefings"][0]["name"] == "cve-weekly"
+    assert j["briefings"][0]["item_count"] == 15
+
+    _, only = _jget(port, "/api/briefings?name=cve-weekly")
+    assert [b["body"] for b in only["briefings"]] == ["newest cve brief", "1. CVE-2025-1 ..."]
+
+    _, lim = _jget(port, "/api/briefings?limit=1")
+    assert len(lim["briefings"]) == 1
+
+
+def test_api_briefings_without_store_is_graceful():
+    _, port = _serve(db_path=None)
+    st, j = _jget(port, "/api/briefings")
+    assert st == 200 and j["briefings"] == [] and "note" in j
+
+
 def test_api_stats_categories_and_deliveries(tmp_path):
     db = str(tmp_path / "s.db")
     _seed(Store(db))
@@ -315,14 +345,14 @@ def test_auth_required_on_every_endpoint(tmp_path):
 
     # No token: every endpoint refuses. /api/stream rejects before it streams,
     # so the GET returns promptly rather than hanging.
-    for path in ("/", "/api/events", "/api/stats", "/api/meta", "/api/stream"):
+    for path in ("/", "/api/events", "/api/briefings", "/api/stats", "/api/meta", "/api/stream"):
         st, _b = _get(port, path)
         assert st == 401, f"{path} unauth status {st}"
     st, _b = _post(port, "/api/ai/summarize", {"event": {"title": "x"}})
     assert st == 401
 
     # A Bearer header opens the data endpoints (not /api/stream: it would block).
-    for path in ("/", "/api/events", "/api/stats", "/api/meta"):
+    for path in ("/", "/api/events", "/api/briefings", "/api/stats", "/api/meta"):
         st, _b = _get(port, path, token=tok)
         assert st == 200, f"{path} authed status {st}"
 
