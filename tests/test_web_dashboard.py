@@ -324,6 +324,9 @@ def test_dashboard_page_has_analyses_tab_wired():
     assert "renderAnalyses" in DASHBOARD_PAGE
     assert "/api/briefings" in DASHBOARD_PAGE
     assert "briefCard" in DASHBOARD_PAGE
+    # The Analyses tab also surfaces cross-source CVE correlations.
+    assert "/api/correlations" in DASHBOARD_PAGE
+    assert "corrPanel" in DASHBOARD_PAGE
 
 
 def test_api_stats_categories_and_deliveries(tmp_path):

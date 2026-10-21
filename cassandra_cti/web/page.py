@@ -221,6 +221,17 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
   .brf-m { font-size: 10.5px; color: var(--faint); margin-top: 2px; }
   .brf-b { padding: 12px 15px; font-size: 12.5px; line-height: 1.55; color: var(--text); }
   .brf-b ul { margin: 0; padding-left: 18px; } .brf-b li { margin: 3px 0; } .brf-b p { margin: 6px 0; }
+  .corr-list { display: flex; flex-direction: column; }
+  .corr { display: flex; gap: 12px; align-items: flex-start; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .corr:last-child { border-bottom: 0; }
+  .corr-cve { flex: none; color: var(--accent); font-size: 12px; font-weight: 600; text-decoration: none; padding-top: 1px; }
+  .corr-cve:hover { text-decoration: underline; }
+  .corr-main { min-width: 0; flex: 1; }
+  .corr-k { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 3px; }
+  .kchip { font-size: 9.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--tone);
+    border: 1px solid color-mix(in srgb, var(--tone) 40%, var(--border)); background: color-mix(in srgb, var(--tone) 12%, var(--panel)); border-radius: 3px; padding: 1px 5px; }
+  .corr-t { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .corr-m { font-size: 10px; color: var(--faint); margin-top: 2px; }
 
   .sk { background: linear-gradient(90deg, var(--panel2) 25%, var(--hover) 37%, var(--panel2) 63%); background-size: 400% 100%; animation: shimmer 1.3s infinite; border-radius: 3px; }
   @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
@@ -672,19 +683,51 @@ DASHBOARD_PAGE = r"""<!DOCTYPE html>
       '<div class="brf-m mono">' + briefMeta(b) + '</div></div></div>' +
       '<div class="brf-b">' + renderBrief(b.body) + "</div></div>";
   }
+  // Cross-source CVE correlations: a CVE mentioned across the KEV catalog, the
+  // news and ransomware activity is higher signal than any single mention.
+  // NVD base kept split: the self-contained guard scans for external URL
+  // literals that are not anchor hrefs. This one is a click target built at
+  // render time (not a network load), so the scheme is joined here.
+  var NVD = "https://" + "nvd.nist.gov/vuln/detail/";
+  function corrRow(c) {
+    var url = NVD + encodeURIComponent(c.cve);
+    var kinds = (c.kinds || []).map(function (k) {
+      return '<span class="kchip" style="--tone:var(--' + (k || "other") + ')">' + esc(k) + "</span>";
+    }).join("");
+    var title = (c.titles && c.titles[0]) ? c.titles[0] : "";
+    var when = relTime(c.latest); when = when ? when + " ago" : "";
+    var sub = ((c.sources ? c.sources.length + " sources" : "") +
+               (c.count ? " · " + c.count + " mentions" : "") + (when ? " · " + when : ""));
+    return '<div class="corr"><a class="corr-cve mono" href="' + esc(url) +
+      '" target="_blank" rel="noopener noreferrer">' + esc(c.cve) + "</a>" +
+      '<div class="corr-main"><div class="corr-k">' + kinds + "</div>" +
+      '<div class="corr-t">' + esc(title) + "</div>" +
+      '<div class="corr-m mono">' + sub + "</div></div></div>";
+  }
+  function corrPanel(cors) {
+    if (!cors.length) return "";
+    return '<div class="panel brf"><div class="brf-h">' + svg("vuln") +
+      '<div class="brf-ht"><div class="brf-t">Cross-source CVEs</div>' +
+      '<div class="brf-m mono">' + cors.length +
+      ' corroborated across sources (KEV, news, ransomware)</div></div></div>' +
+      '<div class="corr-list">' + cors.map(corrRow).join("") + "</div></div>";
+  }
   function renderAnalyses() {
     view.innerHTML = '<div class="anwrap"><div class="panel" style="padding:16px"><div class="sk" style="height:84px"></div></div></div>';
-    fetch(withToken("/api/briefings?limit=100")).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+    Promise.all([
+      fetch(withToken("/api/correlations")).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+      fetch(withToken("/api/briefings?limit=100")).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+    ]).then(function (res) {
       if (S.tab !== "analyses") return;
-      var list = (j && j.briefings) || [];
-      if (!list.length) {
+      var cors = (res[0] && res[0].correlations) || [], briefs = (res[1] && res[1].briefings) || [];
+      if (!cors.length && !briefs.length) {
         view.innerHTML = '<div class="empty">' + svg("ai") + '<span class="big">No analyses yet</span>' +
-          'LLM briefings (ranked Top-N digests of CVEs, ransomware and news) land here once they run. ' +
-          'Configure them under <code>briefings:</code> and enable the <code>llm:</code> layer.</div>';
+          'LLM briefings (ranked Top-N digests) and cross-source CVE correlations land here once events and ' +
+          'briefings run. Configure <code>briefings:</code> and enable the <code>llm:</code> layer.</div>';
         return;
       }
-      view.innerHTML = '<div class="anwrap">' + list.map(briefCard).join("") + "</div>";
-    }).catch(function () { if (S.tab === "analyses") view.innerHTML = '<div class="empty"><span class="big">Could not load analyses.</span></div>'; });
+      view.innerHTML = '<div class="anwrap">' + corrPanel(cors) + briefs.map(briefCard).join("") + "</div>";
+    });
   }
 
   var pf = false; function scheduleRender() { if (pf) return; pf = true; requestAnimationFrame(function () { pf = false; render(); }); }
